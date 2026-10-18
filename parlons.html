@@ -1,0 +1,1849 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Parlons</title>
+<link rel="manifest" href="./manifest.json">
+<link rel="icon" type="image/svg+xml" href="./icon.svg">
+<link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png">
+<link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png">
+<meta name="theme-color" content="#1B6B8A">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Parlons">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Instrument+Sans:wght@400;500;600&family=Noto+Naskh+Arabic:wght@400;600&display=swap">
+<style>
+/* Layout: une colonne étroite. Accueil (parcours en tête) -> conversation (écrit, voix, mains libres) / écoute / répétition -> bilan. */
+:root{
+  color-scheme:light;
+  --paper:#F2F5F7; --card:#FFFFFF; --ink:#14202B; --muted:#5B6B79; --line:#D5DDE3;
+  --accent:#1B6B8A; --accent-ink:#FFFFFF; --tint:#E3EFF4;
+  --bad:#B4410F; --bad-tint:#FBEBE2; --good:#1D7A4B; --good-tint:#E3F3EA;
+  --display:"Bricolage Grotesque","Helvetica Neue",Arial,sans-serif;
+  --body:"Instrument Sans","Helvetica Neue",Arial,sans-serif;
+  --arabic:"Noto Naskh Arabic","Geeza Pro","Segoe UI",serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --paper:#0F1A22; --card:#17252F; --ink:#E8EEF2; --muted:#93A5B3; --line:#2A3B47;
+  --accent:#5BB3D3; --accent-ink:#0B1820; --tint:#1B3342;
+  --bad:#F0905E; --bad-tint:#33231A; --good:#6CCB98; --good-tint:#16301F; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#0F1A22; --card:#17252F; --ink:#E8EEF2; --muted:#93A5B3; --line:#2A3B47;
+  --accent:#5BB3D3; --accent-ink:#0B1820; --tint:#1B3342;
+  --bad:#F0905E; --bad-tint:#33231A; --good:#6CCB98; --good-tint:#16301F; color-scheme:dark}
+
+[hidden]{display:none!important}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--paper);color:var(--ink);font:400 16px/1.5 var(--body);padding-inline:16px;padding-block:0}
+.wrap{max-width:720px;margin-inline:auto;padding-block:16px 40px;display:flex;flex-direction:column;gap:20px;min-width:0}
+.col{display:flex;flex-direction:column;gap:20px;min-width:0}
+h1,h2,h3{font-family:var(--display);line-height:1.15;margin:0;text-wrap:balance}
+h1{font-size:clamp(26px,6vw,36px);font-weight:700}
+h2{font-size:20px;font-weight:700}
+h3{font-size:16px;font-weight:700}
+p{margin:0}
+.muted{color:var(--muted)}
+.small{font-size:13px}
+.label{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+button,textarea,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.brand{font:700 22px var(--display);letter-spacing:-.01em}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--card)}
+.seg button{border:0;background:transparent;padding:8px 12px;font-size:14px;font-weight:500}
+.seg button+button{border-inline-start:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+
+.panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+details.panel>summary{cursor:pointer;font-weight:600;list-style-position:inside}
+details.panel[open]>summary{margin-bottom:12px}
+.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.spread{justify-content:space-between}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+.scn{text-align:start;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:2px}
+.scn:hover{border-color:var(--accent)}
+.scn b{font-family:var(--display);font-size:16px}
+.scn.first{background:var(--tint);border-color:var(--accent)}
+.btn{background:var(--accent);color:var(--accent-ink);border:0;border-radius:10px;padding:10px 16px;font-weight:600}
+.btn.sm{padding:6px 12px;font-size:14px}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.btn:disabled{opacity:.5;cursor:default}
+.notice{background:var(--bad-tint);color:var(--bad);border-radius:10px;padding:10px 12px;font-size:14px}
+.okmsg{background:var(--good-tint);color:var(--good);border-radius:10px;padding:10px 12px;font-size:14px}
+.chk{display:flex;align-items:center;gap:8px;font-size:14px}
+.field{width:100%;border:1px solid var(--line);border-radius:10px;padding:9px 11px;background:var(--card);min-width:0}
+select.field{width:auto}
+.lab{min-width:90px}
+
+/* parcours */
+.track{height:8px;border-radius:999px;background:var(--line);overflow:hidden}
+.fill{height:100%;background:var(--accent)}
+.badge{font-size:12px;font-weight:600;border-radius:999px;padding:1px 8px;background:var(--tint);color:var(--accent)}
+.next{background:var(--tint);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+.cando{display:flex;gap:8px;align-items:flex-start;font-size:15px}
+.cando input{margin-top:5px}
+.units{display:flex;flex-direction:column;gap:8px}
+.unit{display:flex;gap:10px;align-items:center;justify-content:space-between;border-top:1px solid var(--line);padding-top:8px;flex-wrap:wrap}
+.unit.done .ut{color:var(--muted)}
+.unit .ut{flex:1;min-width:0}
+
+/* chat */
+.bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;position:sticky;top:0;background:var(--paper);padding-block:8px;z-index:2;border-bottom:1px solid var(--line)}
+.bar .grow{flex:1;min-width:0}
+.timer{font-variant-numeric:tabular-nums;font-weight:600;font-size:14px}
+.timer.low{color:var(--bad)}
+.targets{background:var(--tint);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:6px}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{border:1px solid var(--accent);border-radius:999px;padding:2px 10px;font-size:14px}
+.chip.used{background:var(--good-tint);border-color:var(--good);color:var(--good)}
+.log{display:flex;flex-direction:column;gap:12px;min-width:0}
+.msg{max-width:88%;padding:10px 14px;border-radius:14px;overflow-wrap:anywhere;white-space:pre-wrap}
+.msg.t{align-self:flex-start;background:var(--card);border:1px solid var(--line)}
+.msg.u{align-self:flex-end;background:var(--accent);color:var(--accent-ink)}
+.ar{font-family:var(--arabic);font-size:19px;line-height:1.8}
+.gloss{margin-top:6px;font-size:14px;color:var(--muted)}
+.tr{margin-top:4px;font-size:14px;color:var(--muted);font-style:italic}
+.tools{display:flex;gap:8px;margin-top:6px}
+.mini{border:1px solid var(--line);background:transparent;border-radius:8px;padding:3px 9px;font-size:12px;color:var(--muted)}
+.fix{align-self:flex-end;max-width:88%;background:var(--bad-tint);border-radius:12px;padding:10px 12px;font-size:14px;display:flex;flex-direction:column;gap:6px}
+.fix .w{color:var(--bad);text-decoration:line-through}
+.fix .r{color:var(--good);font-weight:600}
+.fix.light{padding:6px 10px;font-size:13px}
+.fixitem{display:flex;flex-direction:column;gap:4px;align-items:flex-start}
+.fixitem+.fixitem{border-top:1px solid var(--line);padding-top:6px}
+.tip{align-self:flex-start;max-width:88%;background:var(--tint);border-radius:12px;padding:8px 12px;font-size:13px}
+.typing{color:var(--muted);font-size:14px;align-self:flex-start}
+.status{min-height:20px;font-size:14px;color:var(--accent);font-weight:600}
+.live{min-height:20px;font-style:italic}
+.composer{display:flex;gap:8px;align-items:flex-end;position:sticky;bottom:0;background:var(--paper);padding-block:10px calc(10px + env(safe-area-inset-bottom,0px))}
+.composer textarea{flex:1;min-width:0;resize:none;border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--card);min-height:44px;max-height:140px}
+.mic{width:48px;height:48px;border-radius:50%;border:0;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;flex:none}
+.mic.on{animation:pulse 1.2s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--accent) 55%,transparent)}100%{box-shadow:0 0 0 14px transparent}}
+@media (prefers-reduced-motion:reduce){.mic.on{animation:none;outline:3px solid var(--ink)}}
+
+/* écoute et répétition */
+.passage{font-size:18px;line-height:1.7;overflow-wrap:anywhere}
+.qa{display:flex;flex-direction:column;gap:6px;align-items:flex-start;border-top:1px solid var(--line);padding-top:10px}
+.phrase{display:flex;flex-direction:column;gap:8px;border-top:1px solid var(--line);padding-top:12px}
+.phrase:first-of-type{border-top:0;padding-top:0}
+.words{display:flex;flex-wrap:wrap;gap:6px 10px;font-size:19px}
+.w-ok{color:var(--good);font-weight:600}
+.w-bad{color:var(--bad);text-decoration:underline wavy}
+
+/* bilan */
+.lvl{font:700 40px var(--display);color:var(--accent)}
+ul.clean{margin:0;padding-inline-start:18px;display:flex;flex-direction:column;gap:6px}
+.rec{border-inline-start:3px solid var(--bad);padding-inline-start:10px}
+.can-ok{color:var(--good);font-weight:600}
+.can-no{color:var(--muted)}
+[dir="rtl"]{unicode-bidi:plaintext}
+.glyph{font-family:var(--arabic);font-size:64px;line-height:1.3;text-align:center}
+.glyph.sm{font-size:34px}
+.forms{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;font-family:var(--arabic);font-size:30px}
+.forms span{border:1px solid var(--line);border-radius:8px;padding:2px 10px;min-width:48px;text-align:center}
+.lcard{display:flex;flex-direction:column;gap:6px;align-items:center;border-top:1px solid var(--line);padding-top:14px}
+.lcard:first-of-type{border-top:0;padding-top:0}
+.opts{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.opt{border:1px solid var(--line);background:var(--card);border-radius:10px;padding:12px;font-size:18px;text-align:center}
+.opt.good{background:var(--good-tint);border-color:var(--good);color:var(--good)}
+.opt.bad{background:var(--bad-tint);border-color:var(--bad);color:var(--bad)}
+.opt.arb{font-family:var(--arabic);font-size:30px}
+.lgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(44px,1fr));gap:6px}
+.lchip{border:1px solid var(--line);border-radius:8px;text-align:center;font-family:var(--arabic);font-size:26px;padding:2px 0}
+.lchip.on{background:var(--good-tint);border-color:var(--good);color:var(--good)}
+
+/* Décomposition syllabique & Nourāniyyah */
+.syl-container{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-block:10px}
+.syl-btn{font-family:var(--arabic);font-size:32px;line-height:1.2;padding:6px 16px;border:1px solid var(--accent);border-radius:10px;background:var(--tint);color:var(--ink);cursor:pointer;transition:transform .1s, background .15s}
+.syl-btn:hover{background:var(--accent);color:var(--accent-ink);transform:scale(1.05)}
+.syl-btn:active{transform:scale(0.95)}
+.rule-box{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.rule-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(70px,1fr));gap:8px}
+.rule-chip{border:1px solid var(--line);border-radius:10px;padding:8px 4px;text-align:center;font-family:var(--arabic);font-size:28px;background:var(--card);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px}
+.rule-chip:hover{border-color:var(--accent);background:var(--tint)}
+.rule-chip small{font-family:var(--body);font-size:11px;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="brand">Parlons</div>
+    <div class="row" style="gap:8px">
+      <button id="installBtn" class="btn sm" style="display:inline-flex;align-items:center;gap:6px" hidden>
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+        Installer
+      </button>
+      <div class="seg" role="group" aria-label="Langue" id="langSeg">
+        <button data-lang="en" aria-pressed="true">Anglais</button>
+        <button data-lang="ar" aria-pressed="false">Arabe</button>
+        <button data-lang="nl" aria-pressed="false">Néerlandais</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="offlineNotice" class="notice" hidden>Mode hors-ligne : vous pouvez continuer l'alphabet arabe, les voyelles, les quiz et la lecture autonome sans internet.</div>
+  <div id="srNote" class="notice" hidden>Ce navigateur ne propose pas la reconnaissance vocale. Utilisez Chrome ou Edge sur ordinateur, ou Chrome sur Android. Le mode écrit reste disponible.</div>
+  <div id="flash" class="okmsg" hidden role="status"></div>
+
+  <section id="home" class="col">
+    <details class="panel" id="cfgBox">
+      <summary>Fournisseur d'IA et clé API</summary>
+      <label class="label" for="provider">Fournisseur</label>
+      <select class="field" id="provider"></select>
+      <p class="small muted" id="provNote"></p>
+      <p class="small muted">La clé reste uniquement dans ce navigateur, sur cet ordinateur : ne l'enregistrez pas sur un appareil partagé. Chaque fournisseur a sa propre clé.</p>
+      <label class="label" for="apikey">Clé API</label>
+      <input class="field" id="apikey" type="password" autocomplete="off" placeholder="Collez la clé ici">
+      <label class="label" for="mChat">Modèle de conversation (rapide)</label>
+      <input class="field" id="mChat" type="text" autocomplete="off" list="modelList">
+      <label class="label" for="mHeavy">Modèle pour le bilan, l'écoute et l'arabe</label>
+      <input class="field" id="mHeavy" type="text" autocomplete="off" list="modelList">
+      <datalist id="modelList"></datalist>
+      <div class="row">
+        <button class="btn sm" id="saveKey">Enregistrer</button>
+        <button class="btn sm ghost" id="testKey">Tester la connexion</button>
+        <button class="btn sm ghost" id="listModels">Voir les modèles disponibles</button>
+      </div>
+      <p class="small" id="testRes" role="status"></p>
+      <label class="label" for="voiceSel">Voix du professeur (langue choisie)</label>
+      <select class="field" id="voiceSel"></select>
+      <div class="row">
+        <button class="btn sm ghost" id="exportBtn">Exporter mes données</button>
+        <label class="btn sm ghost" for="importFile" style="cursor:pointer">Importer</label>
+        <input type="file" id="importFile" accept="application/json" hidden>
+      </div>
+      <p class="small muted">La reconnaissance vocale de Chrome envoie votre voix aux serveurs de Google pour la transcrire. Votre parcours, vos révisions et vos bilans restent dans ce navigateur : exportez-les de temps en temps. La clé n'est jamais exportée.</p>
+    </details>
+
+    <div class="panel" id="alphaBox" hidden></div>
+    <div class="panel" id="pathBox"></div>
+
+    <div class="panel">
+      <label class="label" for="goal">Mon objectif pour cette langue</label>
+      <input class="field" id="goal" type="text" maxlength="160" placeholder="Par exemple : tenir 10 minutes de conversation sur mon travail">
+      <p class="small muted">Le professeur en tient compte dans chaque séance.</p>
+    </div>
+
+    <div id="lastCard" class="panel" hidden>
+      <span class="label">Dernier bilan</span>
+      <p id="lastText"></p>
+      <div class="row"><button class="btn ghost" id="resumeBtn">Reprendre la conversation</button></div>
+    </div>
+
+    <div class="row">
+      <button class="btn" id="reviewBtn" hidden>Révision du jour</button>
+      <button class="btn ghost" id="repeatBtn">Répéter à voix haute</button>
+      <button class="btn ghost" id="listenBtn">Écouter un court texte</button>
+    </div>
+
+    <div class="panel">
+      <span class="label">Réglages de séance</span>
+      <div class="row"><span class="small muted lab">Mode</span>
+        <div class="seg" id="modeSeg" role="group" aria-label="Mode">
+          <button data-mode="write" aria-pressed="true">Écrit</button>
+          <button data-mode="voice" aria-pressed="false">Voix</button>
+          <button data-mode="hf" aria-pressed="false">Mains libres</button>
+        </div></div>
+      <div class="row"><span class="small muted lab">Immersion</span>
+        <div class="seg" id="immSeg" role="group" aria-label="Immersion">
+          <button data-imm="0" aria-pressed="true">Avec aide</button>
+          <button data-imm="1" aria-pressed="false">Mélangé</button>
+          <button data-imm="2" aria-pressed="false">Totale</button>
+        </div></div>
+      <div class="row"><label class="small muted lab" for="level">Niveau</label>
+        <select class="field" id="level">
+          <option value="auto">Automatique</option><option>A1</option><option>A2</option><option>B1</option><option>B2</option>
+        </select></div>
+      <div id="arOpts" class="col" style="gap:8px" hidden>
+        <label class="chk" for="vow"><input type="checkbox" id="vow" checked> Afficher les voyelles courtes (tashkeel)</label>
+        <label class="chk" for="trl"><input type="checkbox" id="trl"> Ajouter la translittération</label>
+      </div>
+      <label class="chk" for="micro"><input type="checkbox" id="micro"> Micro-session de 2 minutes</label>
+      <p class="small muted" id="modeNote"></p>
+    </div>
+
+    <div class="panel">
+      <label class="label" for="studied">Je viens d'étudier un cours ailleurs</label>
+      <textarea class="field" id="studied" rows="2" placeholder="Thème ou vocabulaire du cours, par exemple : la famille, ou une liste de mots"></textarea>
+      <div class="row"><button class="btn ghost" id="courseBtn">Pratiquer ce cours à l'oral</button></div>
+    </div>
+
+    <details class="panel">
+      <summary>Autres situations libres</summary>
+      <div class="grid" id="scnGrid"></div>
+    </details>
+  </section>
+
+  <section id="chat" class="col" style="gap:12px" hidden>
+    <div class="bar">
+      <button class="mini" id="backBtn">Quitter</button>
+      <div class="grow"><b id="chatTitle"></b></div>
+      <span class="timer" id="timer" hidden></span>
+      <button class="mini" id="hfBtn" hidden></button>
+      <button class="btn sm" id="endBtn">Bilan</button>
+    </div>
+    <div id="goalsBox" class="targets" hidden></div>
+    <div id="targets" class="targets" hidden></div>
+    <div class="log" id="log" aria-live="polite"></div>
+    <div class="status" id="status" role="status"></div>
+    <div class="live small muted" id="live"></div>
+    <div class="composer">
+      <button class="mic" id="micBtn" aria-label="Parler">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-2.08A7 7 0 0 0 19 12h-2z"/></svg>
+      </button>
+      <textarea id="input" rows="1" placeholder="Écrivez ou dictez votre message…" aria-label="Votre message"></textarea>
+      <button class="btn" id="sendBtn">Envoyer</button>
+    </div>
+  </section>
+
+  <section id="listen" class="col" style="gap:12px" hidden>
+    <div class="bar"><button class="mini" id="listenBack">Retour</button><div class="grow"><b>Écoute</b></div></div>
+    <div class="panel" id="listenBody"></div>
+  </section>
+
+  <section id="repeat" class="col" style="gap:12px" hidden>
+    <div class="bar"><button class="mini" id="repeatBack">Retour</button><div class="grow"><b>Répéter à voix haute</b></div></div>
+    <div class="panel" id="repeatBody"></div>
+  </section>
+
+  <section id="alpha" class="col" style="gap:12px" hidden>
+    <div class="bar"><button class="mini" id="alphaBack">Retour</button><div class="grow"><b id="alphaTitle">Alphabet</b></div></div>
+    <div class="panel" id="alphaBody"></div>
+  </section>
+
+  <section id="recap" class="col" style="gap:16px" hidden></section>
+</div>
+
+<script>
+(function(){
+"use strict";
+const $=s=>document.querySelector(s);
+const el=(t,c,x)=>{const e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e};
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+
+const SPEECH={en:{tts:"en-GB",stt:"en-GB"},ar:{tts:"ar-SA",stt:"ar-SA"},nl:{tts:"nl-NL",stt:"nl-NL"}};
+const LANGS={
+  en:{name:"anglais",label:"Anglais",rtl:false},
+  ar:{name:"arabe littéraire (fusha)",label:"Arabe",rtl:true},
+  nl:{name:"néerlandais",label:"Néerlandais",rtl:false}
+};
+
+/* ---------- fournisseurs d'IA ---------- */
+const PROVIDERS={
+  anthropic:{name:"Claude (Anthropic)",chat:"claude-haiku-5-5",heavy:"claude-sonnet-5-5",keyUrl:"console.anthropic.com",
+    note:"Payant à l'usage, parfois avec un petit crédit de départ. Meilleure qualité de correction, notamment en arabe."},
+  gemini:{name:"Google Gemini",chat:"gemini-2.5-flash",heavy:"gemini-2.5-flash",keyUrl:"aistudio.google.com/apikey",
+    note:"Palier gratuit. Selon un comparatif, les échanges du palier gratuit ne servent pas à l'entraînement dans l'UE, au Royaume-Uni et dans l'EEE, mais peuvent y servir ailleurs : à vérifier."},
+  groq:{name:"Groq",chat:"openai/gpt-oss-120b",heavy:"openai/gpt-oss-120b",base:"https://api.groq.com/openai/v1",keyUrl:"console.groq.com/keys",
+    note:"Palier gratuit sans carte (environ 200 000 jetons par jour selon un comparatif). Qualité en arabe non testée."},
+  cerebras:{name:"Cerebras",chat:"gpt-oss-120b",heavy:"gpt-oss-120b",base:"https://api.cerebras.ai/v1",keyUrl:"cloud.cerebras.ai",
+    note:"Palier gratuit large (environ 1 million de jetons par jour selon un comparatif). Qualité en arabe non testée."},
+  mistral:{name:"Mistral",chat:"mistral-small-latest",heavy:"mistral-large-latest",base:"https://api.mistral.ai/v1",keyUrl:"console.mistral.ai",
+    note:"Palier gratuit large, mais selon un comparatif vos échanges y servent à l'entraînement du fournisseur."}
+};
+
+/* ---------- parcours : capacités à démontrer, par étape ---------- */
+const PATH={
+  en:[
+    {id:"en1",lvl:"A1",t:"Se présenter",can:["Je peux dire mon nom, mon métier et d'où je viens","Je peux poser trois questions simples à quelqu'un","Je peux épeler mon nom et donner mon numéro de téléphone"]},
+    {id:"en2",lvl:"A1",t:"Famille et logement",can:["Je peux décrire ma famille","Je peux dire où j'habite et décrire mon logement","Je peux dire l'heure, la date et les jours de la semaine"]},
+    {id:"en3",lvl:"A1",t:"Commander et acheter",can:["Je peux commander un repas ou une boisson","Je peux demander un prix et payer","Je peux dire ce que j'aime et ce que je n'aime pas"]},
+    {id:"en4",lvl:"A2",t:"Ma journée",can:["Je peux décrire ma routine d'une journée de travail","Je peux parler de mes horaires et de mes habitudes","Je peux proposer, accepter ou refuser un rendez-vous"]},
+    {id:"en5",lvl:"A2",t:"Se déplacer et voyager",can:["Je peux demander et comprendre un chemin","Je peux réserver une chambre ou un billet","Je peux expliquer un problème de voyage (retard, bagage perdu)"]},
+    {id:"en6",lvl:"A2",t:"Santé et besoins",can:["Je peux décrire un symptôme à un médecin","Je peux comprendre un conseil ou une ordonnance simple","Je peux demander de l'aide dans une situation urgente"]},
+    {id:"en7",lvl:"A2",t:"Passé et projets",can:["Je peux raconter mon week-end ou mes dernières vacances","Je peux parler de mes projets des prochains mois","Je peux donner mon avis simplement et dire pourquoi"]},
+    {id:"en8",lvl:"B1",t:"Mon travail",can:["Je peux expliquer mon métier de comptable à quelqu'un","Je peux décrire un dossier ou une tâche en cours","Je peux parler de mes objectifs professionnels"]},
+    {id:"en9",lvl:"B1",t:"Réunions et e-mails",can:["Je peux participer à une réunion et prendre la parole","Je peux demander de répéter ou de reformuler","Je peux proposer, refuser ou reporter poliment"]},
+    {id:"en10",lvl:"B1",t:"Chiffres et rapports",can:["Je peux présenter des chiffres (hausse, baisse, pourcentages)","Je peux expliquer un écart ou une anomalie dans un rapport","Je peux résumer un rapport en quelques phrases"]},
+    {id:"en11",lvl:"B1",t:"Opinions et débats",can:["Je peux donner mon opinion et la justifier","Je peux comparer deux options et choisir","Je peux être d'accord ou pas d'accord poliment"]},
+    {id:"en12",lvl:"B1",t:"Entretien et négociation",can:["Je peux me présenter en entretien d'embauche","Je peux parler de mes forces et de mes faiblesses","Je peux négocier un délai ou un prix"]}
+  ],
+  ar:[
+    {id:"ar1",lvl:"A1",t:"Faire connaissance",can:["Je peux saluer et prendre congé poliment","Je peux me présenter : nom, origine, métier","Je peux demander à quelqu'un son nom et comment il va"]},
+    {id:"ar2",lvl:"A1",t:"La famille",can:["Je peux nommer les membres de ma famille","Je peux dire l'âge et le métier de mes proches","Je peux décrire ma famille en quelques phrases"]},
+    {id:"ar3",lvl:"A1",t:"L'habitation",can:["Je peux nommer les pièces et les objets de la maison","Je peux dire où j'habite","Je peux décrire mon logement simplement"]},
+    {id:"ar4",lvl:"A1",t:"Au marché",can:["Je peux demander le prix d'un produit","Je peux acheter des fruits et des légumes en quantités","Je peux marchander poliment"]},
+    {id:"ar5",lvl:"A2",t:"La vie de tous les jours",can:["Je peux décrire ma journée","Je peux dire l'heure et mes horaires","Je peux parler de mes habitudes"]},
+    {id:"ar6",lvl:"A2",t:"Nourriture et boissons",can:["Je peux dire ce que je mange et ce que je bois","Je peux commander au restaurant","Je peux exprimer mes goûts"]},
+    {id:"ar7",lvl:"A2",t:"Les études",can:["Je peux parler de mes études et de ce que j'apprends","Je peux nommer des matières et des lieux d'étude","Je peux demander à quelqu'un ce qu'il étudie"]},
+    {id:"ar8",lvl:"A2",t:"Le travail",can:["Je peux dire mon métier et mon lieu de travail","Je peux décrire mes tâches","Je peux parler de mes horaires de travail"]},
+    {id:"ar9",lvl:"A2",t:"La santé",can:["Je peux nommer les parties du corps","Je peux dire où j'ai mal","Je peux comprendre un conseil simple d'un médecin"]},
+    {id:"ar10",lvl:"A2",t:"Le temps qu'il fait",can:["Je peux décrire la météo","Je peux nommer les saisons et les mois","Je peux parler de mes activités selon le temps"]},
+    {id:"ar11",lvl:"A2",t:"Le voyage",can:["Je peux acheter un billet et demander un horaire","Je peux demander mon chemin","Je peux réserver une chambre"]},
+    {id:"ar12",lvl:"A2",t:"Les gens et les lieux",can:["Je peux décrire une personne","Je peux décrire un lieu","Je peux comparer deux personnes ou deux lieux simplement"]}
+  ],
+  nl:[
+    {id:"nl1",lvl:"A1",t:"Se présenter",can:["Je peux dire mon nom, mon métier et d'où je viens","Je peux poser trois questions simples à quelqu'un","Je peux épeler mon nom et donner mon numéro de téléphone"]},
+    {id:"nl2",lvl:"A1",t:"Famille et logement",can:["Je peux décrire ma famille","Je peux dire où j'habite et décrire mon logement","Je peux dire l'heure, la date et les jours de la semaine"]},
+    {id:"nl3",lvl:"A1",t:"Commander et acheter",can:["Je peux commander un repas ou une boisson","Je peux demander un prix et payer","Je peux dire ce que j'aime et ce que je n'aime pas"]},
+    {id:"nl4",lvl:"A2",t:"Ma journée",can:["Je peux décrire ma routine d'une journée de travail","Je peux parler de mes horaires et de mes habitudes","Je peux proposer, accepter ou refuser un rendez-vous"]},
+    {id:"nl5",lvl:"A2",t:"Se déplacer",can:["Je peux demander et comprendre un chemin","Je peux acheter un billet de train ou de bus","Je peux expliquer un retard ou un problème de transport"]},
+    {id:"nl6",lvl:"A2",t:"Santé et besoins",can:["Je peux décrire un symptôme à un médecin","Je peux comprendre un conseil simple","Je peux demander de l'aide"]},
+    {id:"nl7",lvl:"A2",t:"Passé et projets",can:["Je peux raconter mon week-end","Je peux parler de mes projets","Je peux donner mon avis simplement"]},
+    {id:"nl8",lvl:"A2",t:"Mon travail",can:["Je peux expliquer mon métier","Je peux décrire une tâche en cours","Je peux parler avec un collègue de la journée"]}
+  ]
+};
+
+const SCENARIOS=[
+  {id:"diag",t:"Diagnostic",d:"5 minutes pour situer votre niveau et votre point de départ",first:true,
+   p:"Diagnostic initial : pose des questions simples puis de plus en plus difficiles sur la vie de l'apprenant, pour estimer son niveau CECR. Environ 6 échanges. Ne dis pas explicitement que c'est un test."},
+  {id:"taaruf",lang:"ar",t:"Faire connaissance (التَّعَارُف)",d:"Salutations, prénom, pays d'origine, comment ça va",
+   p:"Jeu de rôle en arabe débutant : fais connaissance avec l'apprenant. Salue-le chaleureusement (السَّلَامُ عَلَيْكُمْ), demande son prénom (مَا اسْمُكَ ؟), d'où il vient (مِنْ أَيْنَ أَنْتَ ؟), comment il va (كَيْفَ حَالُكَ ؟). Utilise des phrases simples et bien vocalisées (avec tashkeel)."},
+  {id:"house_ar",lang:"ar",t:"Où sont les objets ? (Prépositions)",d:"Sur, dans, sous, devant, derrière, entre",
+   p:"Jeu de rôle interactif en arabe : l'apprenant cherche des objets dans la maison ou dans la classe. Pose-lui des questions courtes (أَيْنَ الْكِتَابُ ؟ أَيْنَ الْكُوبُ ؟ أَيْنَ الْقَلَمُ ؟) pour lui faire employer les prépositions de lieu (عَلَى المَكْتَبِ، فِي المَطْبَخِ، تَحْتَ الطَّاوِلَةِ، أَمَامَ السَّبُّورَةِ، بَيْنَ الخِزَانَةِ وَالأَرِيكَةِ). Sois encourageant et corrige poliment si la déclinaison finale (kasra) est omise."},
+  {id:"cafe",t:"Au café",d:"Commander, demander l'addition",p:"Jeu de rôle : tu es serveur dans un café, l'apprenant est client."},
+  {id:"job",t:"Entretien d'embauche",d:"Se présenter, parler de son parcours",p:"Jeu de rôle : tu es recruteur, l'apprenant passe un entretien pour un poste de comptable."},
+  {id:"doc",t:"Chez le médecin",d:"Décrire un symptôme, comprendre un conseil",p:"Jeu de rôle : tu es médecin généraliste, l'apprenant est patient."},
+  {id:"trip",t:"En voyage",d:"Aéroport, hôtel, demander son chemin",p:"Jeu de rôle : tu es agent d'accueil dans un aéroport puis à l'hôtel, l'apprenant voyage."},
+  {id:"work",t:"Au bureau",d:"Réunion, e-mail, collègues",p:"Jeu de rôle : tu es un collègue dans un cabinet comptable, tu discutes d'un dossier client avec l'apprenant."},
+  {id:"free",t:"Conversation libre",d:"Parler de ce que vous voulez",p:"Conversation libre : suis les sujets de l'apprenant, relance avec curiosité."}
+];
+const BOX_DAYS=[1,3,7,14,30];
+const KEY="parlons.app.v1";
+
+const S={lang:"en",mode:"write",imm:0,micro:false,scn:null,turns:[],busy:false,ctl:null,view:"home",
+  goals:{},items:{},alpha:{},level:"auto",ar:{vow:true,tr:false},history:[],resume:null,prog:{},
+  cfg:{provider:"anthropic",keys:{},models:{},voice:{}},
+  targets:[],reviewItems:[],studied:"",
+  hf:false,hfRunning:false,listening:false,speaking:false,rec:null,wl:null,
+  timerId:null,left:120,lastUserEl:null};
+
+/* ---------- stockage ---------- */
+function save(){
+  try{localStorage.setItem(KEY,JSON.stringify({goals:S.goals,items:S.items,alpha:S.alpha,ar:S.ar,level:S.level,cfg:S.cfg,prog:S.prog,history:S.history.slice(0,40)}))}catch(e){}
+}
+function load(){
+  try{
+    const d=JSON.parse(localStorage.getItem(KEY)||"null");if(!d)return;
+    if(d.goals)S.goals=d.goals;if(d.items)S.items=d.items;if(d.ar)S.ar=d.ar;if(d.level)S.level=d.level;
+    if(d.prog)S.prog=d.prog;
+    if(d.alpha)S.alpha=d.alpha;
+    if(Array.isArray(d.history))S.history=d.history;
+    const c=d.cfg;
+    if(c){
+      if(c.key&&!c.keys){ /* ancien format : une seule clé Claude */
+        S.cfg.keys={anthropic:c.key};S.cfg.models={anthropic:{chat:c.chat,heavy:c.heavy}};S.cfg.provider="anthropic";
+      }else{
+        S.cfg.keys=c.keys||{};S.cfg.models=c.models||{};
+        S.cfg.provider=c.provider&&PROVIDERS[c.provider]?c.provider:"anthropic";
+      }
+      S.cfg.voice=c.voice||{};
+    }
+  }catch(e){}
+}
+function flash(t){const f=$("#flash");f.textContent=t;f.hidden=false;clearTimeout(flash._t);flash._t=setTimeout(()=>{f.hidden=true},4500)}
+
+/* ---------- appels à l'IA ---------- */
+function curKey(){return (S.cfg.keys&&S.cfg.keys[S.cfg.provider])||""}
+function mods(){
+  const p=S.cfg.provider,d=PROVIDERS[p],m=(S.cfg.models&&S.cfg.models[p])||{};
+  return {chat:m.chat||d.chat,heavy:m.heavy||d.heavy};
+}
+const mChat=()=>mods().chat,mHeavy=()=>mods().heavy;
+async function llm(o){
+  const prov=S.cfg.provider,def=PROVIDERS[prov],key=curKey();
+  if(!key)throw {code:"nokey"};
+  const max=(o.max||1024)*(prov==="anthropic"?1:3); /* les modèles à raisonnement dépensent des jetons avant de répondre */
+  const wantJson=o.json!==false;
+  let url,headers={"content-type":"application/json"},body;
+  if(prov==="anthropic"){
+    url="https://api.anthropic.com/v1/messages";
+    headers["x-api-key"]=key;headers["anthropic-version"]="2023-06-01";headers["anthropic-dangerous-direct-browser-access"]="true";
+    body={model:o.model,max_tokens:max,system:o.system,messages:o.messages};
+  }else if(prov==="gemini"){
+    url="https://generativelanguage.googleapis.com/v1beta/models/"+encodeURIComponent(o.model)+":generateContent";
+    headers["x-goog-api-key"]=key;
+    body={systemInstruction:{parts:[{text:o.system}]},
+      contents:o.messages.map(m=>({role:m.role==="assistant"?"model":"user",parts:[{text:m.content}]})),
+      generationConfig:Object.assign({maxOutputTokens:max,temperature:0.7},wantJson?{responseMimeType:"application/json"}:{})};
+  }else{
+    url=def.base+"/chat/completions";
+    headers.authorization="Bearer "+key;
+    body={model:o.model,messages:[{role:"system",content:o.system}].concat(o.messages),max_tokens:max,temperature:0.7};
+  }
+  let res;
+  try{res=await fetch(url,{method:"POST",signal:o.signal,headers:headers,body:JSON.stringify(body)})}
+  catch(e){
+    if(e&&e.name==="AbortError")throw {code:"cancelled"};
+    throw {code:"net"};
+  }
+  if(!res.ok){
+    let m="";try{const j=await res.json();m=(j.error&&(j.error.message||j.error))||j.message||""}catch(e){}
+    m=typeof m==="string"?m:"";
+    let code=res.status===401||res.status===403?"auth":res.status===404?"model":res.status===429?"rate":res.status>=500?"upstream":"bad";
+    if(res.status===400&&/api key|api_key|apikey/i.test(m))code="auth";
+    throw {code:code,message:m,status:res.status};
+  }
+  const j=await res.json();
+  if(prov==="anthropic")return (j.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("");
+  if(prov==="gemini")return ((((j.candidates||[])[0]||{}).content||{}).parts||[]).map(p=>p.text||"").join("");
+  return (((j.choices||[])[0]||{}).message||{}).content||"";
+}
+async function listModels(){
+  const prov=S.cfg.provider,key=curKey();
+  if(!key)throw {code:"nokey"};
+  let url,headers={};
+  if(prov==="anthropic"){url="https://api.anthropic.com/v1/models?limit=100";headers={"x-api-key":key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"}}
+  else if(prov==="gemini"){url="https://generativelanguage.googleapis.com/v1beta/models?pageSize=200";headers={"x-goog-api-key":key}}
+  else{url=PROVIDERS[prov].base+"/models";headers={authorization:"Bearer "+key}}
+  let res;
+  try{res=await fetch(url,{headers:headers})}catch(e){throw {code:"net"}}
+  if(!res.ok)throw {code:res.status===401||res.status===403?"auth":"bad",message:""};
+  const j=await res.json();
+  const ids=prov==="gemini"
+    ? (j.models||[]).filter(m=>(m.supportedGenerationMethods||[]).indexOf("generateContent")>=0).map(m=>String(m.name).replace(/^models\//,""))
+    : (j.data||[]).map(m=>m.id);
+  return ids.sort();
+}
+function parseJSON(t){
+  t=String(t||"");
+  try{return JSON.parse(t)}catch(e){}
+  const a=t.indexOf("{"),b=t.lastIndexOf("}");
+  if(a>=0&&b>a){
+    const seg=t.slice(a,b+1);
+    try{return JSON.parse(seg)}catch(e){}
+    try{return JSON.parse(seg.replace(/[\r\n\t]+/g," "))}catch(e){}
+  }
+  throw {code:"json",raw:t};
+}
+function errText(e){
+  const c=e&&e.code;
+  if(c==="nokey")return "Collez d'abord votre clé API dans les réglages.";
+  if(c==="auth")return "Clé API refusée. Vérifiez-la dans les réglages.";
+  if(c==="model")return "Modèle introuvable. Cliquez sur « Voir les modèles disponibles » dans les réglages et choisissez-en un.";
+  if(c==="rate")return "Trop de requêtes ou limite atteinte. Patientez un moment ou vérifiez votre quota chez le fournisseur.";
+  if(c==="net")return "Pas de réponse du fournisseur. Vérifiez votre réseau. Si c'est un fournisseur gratuit, il peut aussi refuser les appels depuis une page ouverte comme fichier.";
+  if(c==="json")return "La réponse du professeur est illisible. Renvoyez votre message.";
+  if(c==="bad")return "Requête refusée"+(e.message?" : "+String(e.message).slice(0,160):".");
+  return "Connexion interrompue. Réessayez.";
+}
+
+/* ---------- voix (sortie) ---------- */
+let VOICES=[];
+function refreshVoices(){try{VOICES=speechSynthesis.getVoices()||[]}catch(e){VOICES=[]}fillVoiceSelect()}
+function voicesFor(lang){const p=SPEECH[lang].tts.slice(0,2);return VOICES.filter(v=>v.lang&&v.lang.toLowerCase().indexOf(p)===0)}
+function voiceFor(lang){
+  const list=voicesFor(lang),saved=S.cfg.voice[lang];
+  return list.find(v=>v.voiceURI===saved)||list.find(v=>v.lang.toLowerCase()===SPEECH[lang].tts.toLowerCase())||list[0]||null;
+}
+function fillVoiceSelect(){
+  const sel=$("#voiceSel");if(!sel)return;
+  sel.textContent="";
+  const list=voicesFor(S.lang);
+  if(!list.length){sel.append(new Option("Voix par défaut du navigateur",""));return}
+  const cur=voiceFor(S.lang);
+  list.forEach(v=>{const o=new Option(v.name+" ("+v.lang+")",v.voiceURI);if(cur&&cur.voiceURI===v.voiceURI)o.selected=true;sel.append(o)});
+}
+function cleanTTS(t){return String(t||"").replace(/[*_`#]/g," ")}
+function speak(text,rate){
+  return new Promise(res=>{
+    if(!("speechSynthesis" in window)||!text){res();return}
+    try{
+      speechSynthesis.cancel();
+      const u=new SpeechSynthesisUtterance(cleanTTS(text));
+      const v=voiceFor(S.lang);
+      if(v){u.voice=v;u.lang=v.lang}else u.lang=SPEECH[S.lang].tts;
+      u.rate=rate||0.95;
+      let done=false;
+      const fin=()=>{if(done)return;done=true;S.speaking=false;setStatus();res()};
+      u.onend=fin;u.onerror=fin;
+      S.speaking=true;setStatus();
+      speechSynthesis.speak(u);
+      setTimeout(fin,6000+String(text).length*130);
+    }catch(e){S.speaking=false;res()}
+  });
+}
+function stopSpeak(){try{speechSynthesis.cancel()}catch(e){}S.speaking=false}
+
+/* ---------- micro (entrée) ---------- */
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+function listenOnce(onInterim){
+  return new Promise((resolve,reject)=>{
+    if(!SR){reject({code:"unsupported"});return}
+    let r;
+    try{r=new SR()}catch(e){reject({code:"unsupported"});return}
+    S.rec=r;
+    r.lang=SPEECH[S.lang].stt;r.interimResults=true;r.continuous=false;r.maxAlternatives=3;
+    let final="",conf=0,err=null;
+    r.onresult=e=>{
+      let interim="";
+      for(let i=e.resultIndex;i<e.results.length;i++){
+        const x=e.results[i];
+        if(x.isFinal){final+=x[0].transcript;conf=x[0].confidence||conf}else interim+=x[0].transcript;
+      }
+      if(onInterim)onInterim((final+interim).trim());
+    };
+    r.onerror=e=>{err=e.error};
+    r.onend=()=>{
+      S.rec=null;S.listening=false;setStatus();
+      if(err&&err!=="no-speech"&&err!=="aborted")reject({code:err});
+      else resolve({text:final.trim(),conf:conf});
+    };
+    try{S.listening=true;setStatus();r.start()}catch(e){S.listening=false;S.rec=null;setStatus();reject({code:"start"})}
+  });
+}
+function stopListen(){try{if(S.rec)S.rec.abort()}catch(e){}}
+function micErr(e){
+  const c=e&&e.code;
+  let m="Le micro n'a pas fonctionné.";
+  if(c==="not-allowed"||c==="service-not-allowed")m="Accès au micro refusé. Autorisez le micro pour cette page dans le navigateur (icône à gauche de l'adresse), puis réessayez.";
+  else if(c==="audio-capture")m="Aucun micro détecté.";
+  else if(c==="network")m="La reconnaissance vocale n'a pas pu joindre son service. Vérifiez votre connexion. Avec Brave, elle est bloquée : utilisez Chrome.";
+  else if(c==="unsupported")m="Ce navigateur ne propose pas la reconnaissance vocale. Utilisez Chrome ou Edge.";
+  const log=S.view==="chat"?$("#log"):null;
+  if(log)log.append(el("div","notice",m));else flash(m);
+}
+function setStatus(){
+  const s=$("#status");if(!s)return;
+  let t="";
+  if(S.view==="chat"){
+    if(S.listening)t="Je vous écoute…";
+    else if(S.busy)t="Le professeur réfléchit…";
+    else if(S.speaking)t="Le professeur parle…";
+    else if(S.hf)t="Mains libres actif : parlez quand le professeur a fini.";
+  }
+  s.textContent=t;
+  const m=$("#micBtn");if(m)m.classList.toggle("on",S.listening);
+}
+
+/* ---------- parcours ---------- */
+function P(){
+  const p=S.prog[S.lang]||(S.prog[S.lang]={});
+  if(!p.units)p.units={};
+  if(typeof p.start!=="number")p.start=0;
+  if(!Array.isArray(p.levels))p.levels=[];
+  if(!p.sessions)p.sessions=0;
+  if(!p.lastCheck)p.lastCheck=0;
+  return p;
+}
+function unitPeek(u){const p=P();return p.units[u.id]||{can:[false,false,false],n:0,ts:0}}
+function unitSt(u){const p=P();return p.units[u.id]||(p.units[u.id]={can:[false,false,false],n:0,ts:0})}
+function unitState(u,i){
+  const p=P(),st=unitPeek(u),acquired=i<p.start;
+  return {st:st,acquired:acquired,done:acquired||st.can.every(Boolean)};
+}
+function currentUnit(){
+  const us=PATH[S.lang];
+  for(let i=0;i<us.length;i++){const s=unitState(us[i],i);if(!s.done)return {u:us[i],i:i,s:s}}
+  return null;
+}
+function totals(){let n=0;const us=PATH[S.lang];us.forEach((u,i)=>{if(unitState(u,i).done)n++});return {n:n,total:us.length}}
+function checkDue(){
+  const p=P();
+  if(p.sessions<3)return false;
+  if(!p.lastCheck)return true;
+  return Date.now()-p.lastCheck>7*86400000;
+}
+function canRow(u,j,text){
+  const l=el("label","cando");
+  const cb=document.createElement("input");cb.type="checkbox";cb.checked=!!unitPeek(u).can[j];cb.id="can-"+u.id+"-"+j;
+  cb.onchange=()=>{unitSt(u).can[j]=cb.checked;save();renderPath()};
+  const sp=el("span",null,text);
+  l.append(cb,sp);return l;
+}
+function renderPath(){
+  const box=$("#pathBox");box.textContent="";
+  const us=PATH[S.lang],p=P(),t=totals();
+  const head=el("div","row spread");
+  head.append(el("h2",null,"Mon parcours · "+LANGS[S.lang].label),el("span","small muted",t.n+" étape"+(t.n>1?"s":"")+" sur "+t.total));
+  box.append(head);
+  const tr=el("div","track"),f=el("div","fill");f.style.width=Math.round(100*t.n/t.total)+"%";tr.append(f);box.append(tr);
+  const cur=currentUnit();
+  if(cur){
+    const card=el("div","next");
+    card.append(el("span","label","Prochaine étape"));
+    const h=el("div","row");h.append(el("b",null,"Étape "+(cur.i+1)+" · "+cur.u.t),el("span","badge",cur.u.lvl));
+    card.append(h);
+    cur.u.can.forEach((c,j)=>card.append(canRow(cur.u,j,c)));
+    const go=el("button","btn","Continuer");go.id="goUnit";go.onclick=()=>startUnit(cur.u,cur.i);
+    card.append(go);
+    box.append(card);
+  }else{
+    box.append(el("p",null,"Parcours terminé. Faites la conversation de contrôle pour mesurer où vous en êtes."));
+  }
+  if(!p.levels.length){
+    const row=el("div","row");
+    row.append(el("span","small muted","Pas encore de diagnostic : il place votre point de départ dans le parcours."));
+    const d=el("button","btn sm ghost","Faire le diagnostic");d.id="diagBtn";d.onclick=()=>start(SCENARIOS[0]);row.append(d);
+    box.append(row);
+  }
+  if(checkDue()){
+    const row=el("div","row");
+    row.append(el("span","small","Conversation de contrôle de la semaine : mesurez votre progression."));
+    const c=el("button","btn sm","Lancer le contrôle");c.id="checkBtn";c.onclick=startCheck;row.append(c);
+    box.append(row);
+  }
+  if(p.levels.length){
+    const last=p.levels.slice(-5).map(x=>x.level).join(" → ");
+    box.append(el("p","small muted","Niveaux estimés : "+last));
+  }
+  const det=document.createElement("details");
+  det.append(el("summary","small","Toutes les étapes"));
+  const list=el("div","units");list.style.marginTop="10px";
+  us.forEach((u,i)=>{
+    const s=unitState(u,i);
+    const row=el("div","unit"+(s.done?" done":""));
+    const lab=el("span","ut",(s.done?"✓ ":"")+"Étape "+(i+1)+" · "+u.t+(s.acquired?" (acquise au diagnostic)":""));
+    const b=el("span","badge",u.lvl);
+    const go=el("button","btn sm ghost","Travailler");go.onclick=()=>startUnit(u,i);
+    row.append(lab,b,go);list.append(row);
+  });
+  det.append(list);box.append(det);
+}
+function startUnit(u,i){
+  start({id:"unit",t:"Étape "+(i+1)+" · "+u.t,unit:u,p:"Unité du parcours « "+u.t+" » (niveau "+u.lvl+")."});
+}
+function startCheck(){
+  const us=PATH[S.lang],p=P();
+  const seen=us.filter((u,i)=>unitState(u,i).done||unitPeek(u).n>0).map(u=>u.t);
+  start({id:"check",t:"Conversation de contrôle",p:"Conversation de contrôle de la semaine : conversation libre et naturelle sur les thèmes déjà étudiés ("+(seen.join(", ")||"la vie quotidienne")+"). Environ 8 échanges, pour estimer le niveau réel de l'apprenant."});
+}
+
+/* ---------- révision espacée ---------- */
+function dueItems(){const now=Date.now();return (S.items[S.lang]||[]).filter(i=>i.due<=now)}
+function addItems(list){
+  const arr=S.items[S.lang]||[];
+  (list||[]).forEach(n=>{
+    const t=String(n&&n.text||"").trim();
+    if(!t||arr.some(a=>a.text===t))return;
+    arr.push({text:t,kind:n.kind==="error"?"error":"expr",note:String(n.note||""),box:0,due:Date.now()+86400000});
+  });
+  S.items[S.lang]=arr.slice(-80);
+}
+function applyReviewed(rev){
+  const arr=S.items[S.lang]||[];
+  (rev||[]).forEach(r=>{
+    const it=arr.find(a=>a.text===r.text);if(!it)return;
+    if(r.ok){it.box=Math.min(it.box+1,BOX_DAYS.length-1);it.due=Date.now()+BOX_DAYS[it.box]*86400000}
+    else{it.box=0;it.due=Date.now()+86400000}
+  });
+}
+function renderDue(){
+  const n=dueItems().length;const b=$("#reviewBtn");
+  b.hidden=!n;b.textContent="Révision du jour ("+n+")";
+}
+
+/* ---------- accueil ---------- */
+function syncUI(){
+  $("#goal").value=S.goals[S.lang]||"";
+  $("#level").value=S.level;
+  $("#vow").checked=!!S.ar.vow;$("#trl").checked=!!S.ar.tr;
+  $("#arOpts").hidden=S.lang!=="ar";
+  fillCfg();fillVoiceSelect();renderScn();renderLast();renderDue();renderPath();renderAlpha();modeNote();
+}
+function modeNote(){
+  $("#modeNote").textContent={
+    write:"Écrit : vous tapez ou dictez. Le professeur vous laisse corriger vous-même avant de montrer la correction.",
+    voice:"Voix : touchez le micro, parlez, la réponse part toute seule et le professeur répond à voix haute.",
+    hf:"Mains libres : comme un appel. Le professeur parle, puis le micro s'ouvre tout seul. Gardez la page ouverte et au premier plan."
+  }[S.mode];
+}
+function levelNow(){
+  if(S.level!=="auto")return S.level;
+  const p=P();
+  if(p.levels.length)return p.levels[p.levels.length-1].level;
+  const m=S.resume&&String(S.resume.level||"").match(/[ABC][12]/i);
+  return m?m[0].toUpperCase():"A1";
+}
+function renderScn(){
+  const g=$("#scnGrid");g.textContent="";
+  g.style.marginTop="8px";
+  SCENARIOS.filter(s=>!s.lang||s.lang===S.lang).forEach(s=>{
+    const b=el("button","scn"+(s.first?" first":""));
+    b.append(el("b",null,s.t),el("span","small muted",s.d));
+    b.onclick=()=>start(s);g.append(b);
+  });
+}
+function renderLast(){
+  const r=S.history.find(x=>x.lang===S.lang);
+  const card=$("#lastCard");
+  if(!r){card.hidden=true;S.resume=null;return}
+  S.resume=r;card.hidden=false;
+  const d=new Date(r.ts).toLocaleDateString("fr-FR",{day:"numeric",month:"long"});
+  $("#lastText").textContent=d+" · niveau estimé "+(r.level||"?")+". "+(r.summary||"")+(r.next?" Prochain sujet suggéré : "+r.next+".":"");
+}
+function seg(id,attr,fn){
+  $(id).addEventListener("click",e=>{
+    const b=e.target.closest("button");if(!b)return;
+    $(id).querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x===b?"true":"false"));
+    fn(b.dataset[attr]);
+  });
+}
+seg("#langSeg","lang",v=>{S.lang=v;syncUI()});
+seg("#modeSeg","mode",v=>{S.mode=v;modeNote()});
+seg("#immSeg","imm",v=>{S.imm=+v});
+$("#micro").onchange=e=>{S.micro=e.target.checked};
+$("#goal").addEventListener("change",e=>{S.goals[S.lang]=e.target.value.trim();save()});
+$("#level").addEventListener("change",e=>{S.level=e.target.value;save()});
+$("#vow").addEventListener("change",e=>{S.ar.vow=e.target.checked;save()});
+$("#trl").addEventListener("change",e=>{S.ar.tr=e.target.checked;save()});
+$("#studied").addEventListener("change",e=>{S.studied=e.target.value.trim()});
+
+/* réglages du fournisseur */
+(function(){
+  const sel=$("#provider");
+  Object.keys(PROVIDERS).forEach(k=>sel.append(new Option(PROVIDERS[k].name,k)));
+})();
+function fillCfg(){
+  const p=S.cfg.provider,d=PROVIDERS[p],m=mods();
+  $("#provider").value=p;
+  $("#provNote").textContent=d.note+" Clé à créer sur "+d.keyUrl+". Si un modèle est refusé, utilisez « Voir les modèles disponibles ».";
+  $("#apikey").value=curKey();$("#mChat").value=m.chat;$("#mHeavy").value=m.heavy;
+}
+function readCfg(){
+  const p=S.cfg.provider,d=PROVIDERS[p];
+  S.cfg.keys[p]=$("#apikey").value.trim();
+  S.cfg.models[p]={chat:$("#mChat").value.trim()||d.chat,heavy:$("#mHeavy").value.trim()||d.heavy};
+  save();
+}
+function openSettings(msg){
+  show("home");$("#cfgBox").open=true;$("#cfgBox").scrollIntoView({block:"start"});
+  if(msg)flash(msg);
+}
+$("#provider").addEventListener("change",e=>{
+  S.cfg.provider=e.target.value;save();fillCfg();$("#testRes").textContent="";$("#modelList").textContent="";
+});
+$("#saveKey").onclick=()=>{readCfg();flash("Réglages enregistrés.")};
+$("#testKey").onclick=async()=>{
+  readCfg();
+  const out=$("#testRes");out.textContent="Test en cours…";
+  try{
+    const q={system:"Réponds par un seul mot.",messages:[{role:"user",content:"Test"}],max:16,json:false};
+    await llm(Object.assign({model:mChat()},q));
+    if(mHeavy()!==mChat())await llm(Object.assign({model:mHeavy()},q));
+    out.textContent="Connexion réussie.";
+  }catch(e){out.textContent=errText(e)}
+};
+$("#listModels").onclick=async()=>{
+  readCfg();
+  const out=$("#testRes");out.textContent="Recherche des modèles…";
+  try{
+    const ids=await listModels();
+    const dl=$("#modelList");dl.textContent="";
+    ids.forEach(id=>{const o=document.createElement("option");o.value=id;dl.append(o)});
+    out.textContent=ids.length+" modèle"+(ids.length>1?"s":"")+" disponible"+(ids.length>1?"s":"")+" : touchez un champ de modèle pour les voir.";
+  }catch(e){out.textContent=errText(e)}
+};
+$("#voiceSel").addEventListener("change",e=>{
+  S.cfg.voice[S.lang]=e.target.value;save();
+  const sample={en:"Hello, nice to meet you.",ar:"مَرْحَبًا، سَعِيدٌ بِلِقَائِكَ.",nl:"Hallo, aangenaam kennis te maken."}[S.lang];
+  speak(sample);
+});
+$("#exportBtn").onclick=()=>{
+  const data={goals:S.goals,items:S.items,alpha:S.alpha,ar:S.ar,level:S.level,prog:S.prog,history:S.history};
+  const b=new Blob([JSON.stringify(data,null,1)],{type:"application/json"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="parlons-donnees.json";
+  document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1500);
+};
+$("#importFile").addEventListener("change",async e=>{
+  const f=e.target.files[0];if(!f)return;
+  try{
+    const d=JSON.parse(await f.text());
+    if(d.goals)S.goals=d.goals;if(d.items)S.items=d.items;if(d.ar)S.ar=d.ar;if(d.level)S.level=d.level;if(d.prog)S.prog=d.prog;if(d.alpha)S.alpha=d.alpha;
+    if(Array.isArray(d.history))S.history=d.history;
+    save();syncUI();flash("Données importées.");
+  }catch(err){flash("Fichier illisible.")}
+  e.target.value="";
+});
+
+/* ---------- consignes du professeur ---------- */
+function targetsState(){
+  const todo=S.targets.filter(t=>!t.used).map(t=>t.expr),done=S.targets.filter(t=>t.used).map(t=>t.expr);
+  return "Expressions-cibles de la séance : "+S.targets.map(t=>t.expr).join(" ; ")+". Déjà utilisées par l'apprenant : "+(done.join(" ; ")||"aucune")+". Amène naturellement l'apprenant à employer celles qui restent : "+(todo.join(" ; ")||"toutes sont faites")+".";
+}
+function arRules(){
+  return (S.ar.vow?"Écris les voyelles courtes (tashkeel) sur tous les mots arabes. ":"Écris sans voyelles courtes, sauf sur les mots ambigus. ")
+    +((S.ar.tr||knownCount()<20)?"Remplis \"tr\" avec une translittération latine lisible pour un francophone de ta réponse. ":"\"tr\" vaut une chaîne vide. ")
+    +"Emploie l'arabe littéraire standard, sans dialecte.";
+}
+function rules(){
+  const L=LANGS[S.lang];const lvl=levelNow();const goal=S.goals[S.lang];
+  const id=S.scn.id;
+  const immIdx=id==="check"?2:S.imm;
+  const immTxt=["Écris ta réponse dans la langue cible, simple et courte. Ajoute dans \"fr\" une aide en français (traduction ou explication d'un mot clé).",
+    "Écris ta réponse surtout dans la langue cible. Dans \"fr\", donne uniquement l'aide minimale en français pour un mot ou une tournure difficile, sinon laisse \"fr\" vide.",
+    "Écris uniquement dans la langue cible, aucune aide en français ni dans \"reply\" ni dans \"fr\" (laisse \"fr\" vide). Reformule plus simplement si l'apprenant semble perdu."][immIdx];
+  const voice=S.mode!=="write";
+  const modeTxt=voice
+    ? "Mode oral : réponses de 1 à 3 phrases, naturelles à dire à voix haute. Quand l'apprenant fait une erreur, reformule naturellement la bonne forme dans ta réponse puis continue. Au plus 2 corrections, très brèves, \"why\" en 8 mots maximum, \"hint\" vide. Ne bloque jamais la conversation avec une explication. Les messages de l'apprenant viennent de la reconnaissance vocale et se terminent parfois par un marqueur [reco vocale, confiance X] : ignore-le dans ta réponse. Ne corrige ni ponctuation ni majuscules. Si un mot transcrit est incohérent avec le contexte ou si la confiance est inférieure à 0,7, suspecte une prononciation difficile : dis-le dans \"tip\" (le mot visé et le son difficile pour un francophone) au lieu d'une correction écrite."
+    : "Mode écrit : réponses de 2 à 4 phrases. Quand l'apprenant fait une erreur, ne donne PAS la bonne forme dans \"reply\" : invite-le à reformuler sa phrase une fois, puis continue l'échange. Jusqu'à 4 corrections : \"hint\" est un indice court qui ne donne pas la réponse, \"better\" la forme correcte, \"why\" une explication claire en français. Si l'apprenant reformule correctement, félicite-le en quelques mots.";
+  let ctx="Pas de séance précédente.";
+  if(S.resume)ctx="Contexte de la dernière séance (reprends-la naturellement, sans effet de leçon à cocher) : niveau estimé "+(S.resume.level||"?")+" ; erreurs récurrentes : "+((S.resume.recurring||[]).map(r=>r.pattern).join(" ; ")||"aucune notée")+" ; sujet prévu : "+(S.resume.next||"libre")+".";
+  const ar=S.lang==="ar"?arRules():"\"tr\" vaut une chaîne vide.";
+  let review="";
+  if(id==="review")review="Séance de révision. Éléments à faire retravailler (fais PRODUIRE chacun par l'apprenant dans une mini-situation, sans QCM et sans lui donner la réponse d'avance) : "+S.reviewItems.map(i=>"« "+i.text+" »"+(i.note?" ("+i.note+")":"")).join(" ; ")+".";
+  let unitTxt="";
+  if(S.scn.unit){
+    const u=S.scn.unit,st=unitPeek(u);
+    unitTxt="Unité du parcours : « "+u.t+" » (niveau "+u.lvl+"). Capacités à faire démontrer à l'apprenant : "+u.can.map((c,j)=>(j+1)+") "+c+(st.can[j]?" [déjà démontrée]":"")).join(" ; ")+". Crée des situations naturelles qui l'amènent à démontrer les capacités non acquises, l'une après l'autre. Ne présente pas cela comme une liste d'exercices.";
+  }
+  const noTargets=id==="diag"||id==="review"||id==="check";
+  const tg=noTargets
+    ? "\"targets\" vaut toujours []."
+    : (S.targets.length?targetsState()+" \"targets\" vaut [].":"Dans ton PREMIER message, propose dans \"targets\" 2 ou 3 expressions utiles de la situation, adaptées au niveau, que l'apprenant devra réutiliser (\"expr\" dans la langue cible, \"fr\" = sens). Ensuite \"targets\" vaut [].");
+  const endTxt=id==="diag"?"Après le 6e échange, termine par une phrase de conclusion chaleureuse et indique dans \"end\" la valeur true."
+    :id==="check"?"Après le 8e échange, termine par une phrase de conclusion chaleureuse et indique dans \"end\" la valeur true."
+    :"\"end\" vaut false.";
+  return [
+    "Tu es un professeur virtuel de "+L.name+" pour un francophone adulte. Approche antiscolaire : on parle dès le début, la grammaire reste en arrière-plan. Ton chaleureux, jamais infantilisant, aucune gamification.",
+    "Situation : "+S.scn.p,
+    unitTxt,
+    "Niveau de l'apprenant : "+lvl+"."+(goal?" Son objectif : « "+goal+" ».":""),
+    ctx,review,
+    "Adapte le niveau de ta langue à celui de l'apprenant, un cran au-dessus au maximum. Pose une seule question ou relance à la fois.",
+    immTxt,modeTxt,ar,
+    "Corrige uniquement le DERNIER message de l'apprenant : \"said\" = forme fautive, \"better\" = forme correcte. S'il n'y a pas d'erreur, \"corrections\" est une liste vide.",
+    tg,
+    "\"used\" : liste (dans la langue cible) les expressions-cibles que l'apprenant vient d'employer correctement dans son dernier message, sinon [].",
+    "\"tip\" : une remarque de prononciation adaptée à un francophone (sons difficiles, accent tonique) liée à un mot que tu viens d'utiliser ou que l'apprenant a prononcé ; sinon null. Maximum une fois sur trois réponses.",
+    endTxt,
+    "Si le premier message de l'apprenant est « Commence la séance. », ouvre la séance par un court accueil et une première question.",
+    "Réponds UNIQUEMENT par un objet JSON, sans texte autour : {\"reply\":string,\"fr\":string,\"tr\":string,\"corrections\":[{\"said\":string,\"hint\":string,\"better\":string,\"why\":string}],\"tip\":string|null,\"targets\":[{\"expr\":string,\"fr\":string}],\"used\":[string],\"end\":boolean}"
+  ].filter(Boolean).join("\n");
+}
+
+/* ---------- navigation ---------- */
+function show(id){
+  ["home","chat","listen","repeat","alpha","recap"].forEach(x=>{$("#"+x).hidden=x!==id});
+  S.view=id;window.scrollTo(0,0);setStatus();
+}
+function leaveSession(){
+  S.hf=false;stopListen();stopSpeak();stopTimer();
+  if(S.ctl)S.ctl.abort();
+  try{if(S.wl){S.wl.release();S.wl=null}}catch(e){}
+}
+
+/* ---------- conversation ---------- */
+function renderGoals(){
+  const b=$("#goalsBox");b.textContent="";
+  const u=S.scn&&S.scn.unit;
+  if(!u){b.hidden=true;return}
+  b.hidden=false;
+  b.append(el("span","label","Objectifs de l'étape"));
+  const st=unitPeek(u);
+  u.can.forEach((c,j)=>{b.append(el("div","small",(st.can[j]?"✓ ":"• ")+c))});
+}
+async function start(s){
+  if(!curKey()){openSettings("Collez d'abord votre clé API pour démarrer.");return}
+  S.scn=s;S.turns=[{role:"user",content:"Commence la séance."}];S.targets=[];S.lastUserEl=null;S.busy=false;S.hf=false;
+  renderTargets();renderGoals();
+  $("#log").textContent="";$("#chatTitle").textContent=s.t;$("#live").textContent="";
+  const inp=$("#input");inp.dir=LANGS[S.lang].rtl?"rtl":"auto";inp.value="";
+  stopTimer();
+  const t=$("#timer");t.hidden=!S.micro;
+  if(S.micro){S.left=120;t.textContent="2:00";t.classList.remove("low")}
+  updateHF();
+  show("chat");
+  await ask();
+  if(S.mode==="hf"&&S.view==="chat"&&S.turns.length>1){S.hf=true;updateHF();hfLoop()}
+}
+function stopTimer(){if(S.timerId){clearInterval(S.timerId);S.timerId=null}}
+function startTimer(){
+  if(!S.micro||S.timerId)return;
+  S.timerId=setInterval(()=>{
+    S.left--;const t=$("#timer");
+    const m=Math.max(0,Math.floor(S.left/60)),s=Math.max(0,S.left%60);
+    t.textContent=m+":"+String(s).padStart(2,"0");
+    if(S.left<=20)t.classList.add("low");
+    if(S.left<=0){stopTimer();t.textContent="Temps écoulé";
+      $("#log").append(el("p","typing","Les 2 minutes sont écoulées. Terminez par « Bilan » quand vous voulez."))}
+  },1000);
+}
+function renderTargets(){
+  const t=$("#targets");t.textContent="";
+  if(!S.targets.length){t.hidden=true;return}
+  t.hidden=false;
+  t.append(el("span","label","Expressions-cibles de la séance"));
+  const row=el("div","chips");
+  S.targets.forEach(x=>{
+    const c=el("span","chip"+(x.used?" used":""),(x.used?"✓ ":"")+x.expr);
+    c.dir="auto";if(LANGS[S.lang].rtl)c.classList.add("ar");
+    row.append(c);
+  });
+  t.append(row);
+  const fr=S.targets.filter(x=>x.fr).map(x=>x.expr+" : "+x.fr).join("  ·  ");
+  if(fr&&S.imm<2){const n=el("div","small muted",fr);n.dir="auto";t.append(n)}
+}
+const norm=s=>String(s||"").toLowerCase().replace(/[^\p{L}\p{N}]+/gu," ").trim();
+function markUsed(list){
+  if(!Array.isArray(list)||!list.length)return;
+  const u=list.map(norm);
+  S.targets.forEach(t=>{const n=norm(t.expr);if(n&&u.some(x=>x&&(x===n||x.indexOf(n)>=0||n.indexOf(x)>=0)))t.used=true});
+}
+function bubbleT(d){
+  const b=el("div","msg t");
+  const main=el("div",LANGS[S.lang].rtl?"ar":null,d.reply);main.dir="auto";
+  b.append(main);
+  if(d.tr&&typeof d.tr==="string"&&d.tr.trim()){const t=el("div","tr",d.tr);t.dir="ltr";b.append(t)}
+  if(d.fr&&typeof d.fr==="string"&&d.fr.trim()&&S.imm<2&&S.scn.id!=="check")b.append(el("div","gloss",d.fr));
+  const tools=el("div","tools");
+  const say=el("button","mini","Écouter");say.onclick=()=>speak(d.reply);
+  const slow=el("button","mini","Plus lentement");slow.onclick=()=>speak(d.reply,.65);
+  tools.append(say,slow);b.append(tools);
+  return b;
+}
+function fixCard(list){
+  const voice=S.mode!=="write";
+  const c=el("div","fix"+(voice?" light":""));
+  list.slice(0,voice?2:4).forEach(f=>{
+    const item=el("div","fixitem");
+    const w=el("span","w",f.said||"");w.dir="auto";item.append(w);
+    const box=el("div");box.hidden=!voice;
+    const r=el("div","r",f.better||"");r.dir="auto";box.append(r);
+    if(f.why)box.append(el("div","small",f.why));
+    if(!voice){
+      item.append(el("div","small",f.hint?("Indice : "+f.hint):"Essayez de corriger avant de voir la réponse."));
+      const btn=el("button","mini","Voir la correction");
+      btn.onclick=()=>{box.hidden=false;btn.hidden=true};
+      item.append(btn);
+    }
+    item.append(box);c.append(item);
+  });
+  return c;
+}
+async function ask(){
+  if(S.busy)return;S.busy=true;
+  $("#sendBtn").disabled=true;setStatus();
+  const log=$("#log");
+  const ty=el("p","typing","Le professeur écrit…");log.append(ty);
+  S.ctl=new AbortController();
+  let spoke=Promise.resolve();
+  try{
+    const model=S.lang==="ar"?mHeavy():mChat();
+    let d=null;
+    for(let k=0;k<2;k++){
+      const t=await llm({system:rules(),messages:S.turns,model:model,max:S.lang==="ar"?2200:1100,signal:S.ctl.signal});
+      try{d=parseJSON(t);break}catch(e){
+        const m=String(t).match(/"reply"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+        if(m){try{d={reply:JSON.parse('"'+m[1]+'"'),fr:"",tr:"",corrections:[],tip:null,targets:[],used:[],end:false};break}catch(x){}}
+        if(k===1)throw e;
+      }
+    }
+    ty.remove();
+    if(!d||typeof d.reply!=="string"||!d.reply.trim())throw {code:"json"};
+    if(S.lastUserEl&&Array.isArray(d.corrections)&&d.corrections.length)S.lastUserEl.after(fixCard(d.corrections));
+    const noT=S.scn.id==="diag"||S.scn.id==="review"||S.scn.id==="check";
+    if(!S.targets.length&&Array.isArray(d.targets)&&d.targets.length&&!noT){
+      S.targets=d.targets.slice(0,3).map(x=>({expr:String(x&&x.expr||x||""),fr:String(x&&x.fr||""),used:false})).filter(x=>x.expr);
+    }
+    markUsed(d.used);renderTargets();
+    S.turns.push({role:"assistant",content:d.reply});
+    const b=bubbleT(d);log.append(b);
+    if(d.tip&&typeof d.tip==="string")log.append(el("div","tip",d.tip));
+    if(d.end)log.append(el("p","typing","La séance est terminée. Touchez « Bilan » pour voir le résultat."));
+    b.scrollIntoView({block:"nearest",behavior:"smooth"});
+    if(S.mode!=="write")spoke=speak(d.reply);
+  }catch(e){
+    ty.remove();
+    if(!(e&&e.code==="cancelled")){
+      const first=S.turns.length<=1;
+      if(!first&&S.turns[S.turns.length-1].role==="user"){
+        const t=S.turns.pop();
+        $("#input").value=String(t.content).replace(/\s*\[reco vocale[^\]]*\]\s*$/,"");
+        if(S.lastUserEl){S.lastUserEl.remove();S.lastUserEl=null}
+      }
+      const n=el("div","notice",errText(e));
+      if(first){const rb=el("button","mini","Réessayer");rb.style.marginInlineStart="8px";rb.onclick=()=>{n.remove();ask()};n.append(rb)}
+      log.append(n);
+    }
+  }finally{
+    S.busy=false;$("#sendBtn").disabled=false;setStatus();
+  }
+  await spoke;
+}
+async function submitUser(text,fromVoice,conf){
+  text=String(text||"").trim();
+  if(!text||S.busy)return;
+  stopSpeak();
+  const m=el("div","msg u"+(LANGS[S.lang].rtl?" ar":""),text);m.dir="auto";
+  $("#log").append(m);S.lastUserEl=m;
+  S.turns.push({role:"user",content:fromVoice?text+" [reco vocale, confiance "+(conf?conf.toFixed(2):"?")+"]":text});
+  startTimer();
+  m.scrollIntoView({block:"nearest",behavior:"smooth"});
+  await ask();
+}
+function send(){
+  const inp=$("#input");const v=inp.value.trim();
+  if(!v||S.busy)return;
+  inp.value="";inp.style.height="auto";
+  submitUser(v,false);
+}
+$("#sendBtn").onclick=send;
+$("#input").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send()}});
+$("#input").addEventListener("input",e=>{const t=e.target;t.style.height="auto";t.style.height=Math.min(140,t.scrollHeight)+"px"});
+$("#backBtn").onclick=()=>{leaveSession();show("home");renderDue();renderPath()};
+
+/* micro : un tour de parole */
+async function micTap(){
+  if(S.mode==="hf"){toggleHF();return}
+  if(S.listening){stopListen();return}
+  if(S.busy)return;
+  stopSpeak();
+  try{
+    const r=await listenOnce(t=>{$("#live").textContent=t});
+    $("#live").textContent="";
+    if(!r.text){flash("Rien entendu. Touchez le micro et réessayez.");return}
+    if(S.mode==="write"){const i=$("#input");i.value=r.text;i.focus();return}
+    await submitUser(r.text,true,r.conf);
+  }catch(e){$("#live").textContent="";micErr(e)}
+}
+$("#micBtn").onclick=micTap;
+
+/* mains libres */
+function updateHF(){
+  const b=$("#hfBtn");b.hidden=S.mode!=="hf";
+  b.textContent=S.hf?"Mains libres : pause":"Mains libres : reprendre";
+}
+function toggleHF(){
+  if(S.hf){S.hf=false;stopListen();stopSpeak();updateHF();setStatus();return}
+  S.hf=true;updateHF();hfLoop();
+}
+$("#hfBtn").onclick=toggleHF;
+async function hfLoop(){
+  if(S.hfRunning)return;S.hfRunning=true;
+  try{if(navigator.wakeLock&&!S.wl)S.wl=await navigator.wakeLock.request("screen")}catch(e){S.wl=null}
+  let silent=0;
+  while(S.hf&&S.view==="chat"){
+    if(S.busy||S.speaking){await sleep(250);continue}
+    try{
+      const r=await listenOnce(t=>{$("#live").textContent=t});
+      $("#live").textContent="";
+      if(!S.hf||S.view!=="chat")break;
+      if(!r.text){
+        silent++;
+        if(silent>=3){S.hf=false;updateHF();setStatus();$("#log").append(el("p","typing","Mains libres en pause : rien entendu. Touchez « reprendre » quand vous êtes prêt."));break}
+        continue;
+      }
+      silent=0;
+      await submitUser(r.text,true,r.conf);
+    }catch(e){
+      $("#live").textContent="";
+      if(S.hf){S.hf=false;updateHF();setStatus();micErr(e)}
+      break;
+    }
+  }
+  S.hfRunning=false;
+  try{if(S.wl&&!S.hf){S.wl.release();S.wl=null}}catch(e){}
+}
+
+/* ---------- répéter à voix haute ---------- */
+function normWords(s,lang){
+  let t=String(s||"").toLowerCase();
+  if(lang==="ar")t=t.replace(/[ً-ٰٟـ]/g,"").replace(/[أإآٱ]/g,"ا").replace(/ى/g,"ي").replace(/ة/g,"ه");
+  else t=t.normalize("NFD").replace(/[̀-ͯ]/g,"");
+  return t.replace(/[^\p{L}\p{N}\s']/gu," ").replace(/\s+/g," ").trim().split(" ").filter(Boolean);
+}
+function alignWords(target,heard){
+  const n=target.length,m=heard.length;
+  const dp=Array.from({length:n+1},()=>new Array(m+1).fill(0));
+  for(let i=1;i<=n;i++)for(let j=1;j<=m;j++)
+    dp[i][j]=target[i-1]===heard[j-1]?dp[i-1][j-1]+1:Math.max(dp[i-1][j],dp[i][j-1]);
+  const ok=new Array(n).fill(false);
+  let i=n,j=m;
+  while(i>0&&j>0){
+    if(target[i-1]===heard[j-1]){ok[i-1]=true;i--;j--}
+    else if(dp[i-1][j]>=dp[i][j-1])i--;else j--;
+  }
+  return ok;
+}
+$("#repeatBtn").onclick=()=>openRepeat();
+$("#repeatBack").onclick=()=>{leaveSession();show("home")};
+async function openRepeat(){
+  if(!curKey()){openSettings("Collez d'abord votre clé API pour démarrer.");return}
+  const body=$("#repeatBody");body.textContent="";
+  show("repeat");
+  body.append(el("p","muted","Le professeur prépare cinq phrases…"));
+  const L=LANGS[S.lang];
+  const cur=currentUnit();
+  const theme=S.studied||(cur?cur.u.t:"")||S.goals[S.lang]||"la vie de tous les jours";
+  const due=(S.items[S.lang]||[]).filter(i=>i.kind==="expr").slice(-4).map(i=>i.text);
+  const prompt=[
+    "Prépare un exercice de répétition à voix haute en "+L.name+" pour un francophone adulte de niveau "+levelNow()+".",
+    "Thème : « "+theme+" ». Donne 5 phrases courtes et utiles (4 à 9 mots), naturelles, avec des sons variés."+(due.length?" Inclus si possible ces expressions à revoir : "+due.join(" ; ")+".":""),
+    S.lang==="ar"?arRules():"",
+    "Réponds UNIQUEMENT par un objet JSON : {\"phrases\":[{\"text\":string,\"fr\":string (traduction),\"tr\":string (translittération latine si arabe, sinon vide),\"focus\":string (un son difficile pour un francophone dans cette phrase, en français, sinon vide)}]}"
+  ].filter(Boolean).join("\n\n");
+  try{
+    const t=await llm({system:"Tu es un professeur de langues. Réponds uniquement par du JSON valide.",messages:[{role:"user",content:prompt}],model:S.lang==="ar"?mHeavy():mChat(),max:S.lang==="ar"?1800:1100});
+    const d=parseJSON(t);
+    if(!d||!Array.isArray(d.phrases)||!d.phrases.length)throw {code:"json"};
+    renderRepeat(d.phrases.slice(0,5));
+  }catch(e){
+    body.textContent="";
+    body.append(el("div","notice",errText(e)));
+    const r=el("button","btn","Réessayer");r.onclick=openRepeat;body.append(r);
+  }
+}
+function renderRepeat(phrases){
+  const body=$("#repeatBody");body.textContent="";
+  body.append(el("p","small muted","Écoutez, puis répétez la phrase. Le navigateur la transcrit et on compare mot à mot. Un mot signalé n'est pas toujours une faute de prononciation : la reconnaissance se trompe aussi. C'est utile pour repérer les mots que vous articulez mal, pas comme une note."));
+  phrases.forEach(p=>{
+    const text=String(p&&p.text||"");if(!text)return;
+    const card=el("div","phrase");
+    const words=el("div","words"+(LANGS[S.lang].rtl?" ar":""));words.dir="auto";
+    text.split(/\s+/).forEach(w=>{const s=el("span",null,w);words.append(s)});
+    card.append(words);
+    if(p.tr&&S.ar.tr&&S.lang==="ar")card.append(el("div","tr",p.tr));
+    if(p.fr)card.append(el("div","gloss",p.fr));
+    if(p.focus)card.append(el("div","small muted","À surveiller : "+p.focus));
+    const row=el("div","row");
+    const play=el("button","btn sm ghost","Écouter");play.onclick=()=>speak(text,.9);
+    const slow=el("button","btn sm ghost","Plus lentement");slow.onclick=()=>speak(text,.65);
+    const rep=el("button","btn sm","Répéter");
+    const out=el("div","small");
+    rep.onclick=async()=>{
+      if(S.listening){stopListen();return}
+      stopSpeak();rep.textContent="J'écoute…";out.textContent="";
+      try{
+        const r=await listenOnce(t=>{out.textContent="Entendu : "+t});
+        rep.textContent="Répéter";
+        if(!r.text){out.textContent="Rien entendu. Réessayez.";return}
+        const tw=normWords(text,S.lang),hw=normWords(r.text,S.lang);
+        const ok=alignWords(tw,hw);
+        const orig=text.split(/\s+/);
+        words.textContent="";
+        orig.forEach((w,i)=>{
+          const idx=Math.min(i,ok.length-1);
+          words.append(el("span",ok[idx]?"w-ok":"w-bad",w));
+        });
+        const n=ok.filter(Boolean).length;
+        out.textContent=n+" mot"+(n>1?"s":"")+" sur "+ok.length+" reconnus. Entendu : « "+r.text+" »";
+      }catch(e){rep.textContent="Répéter";out.textContent="";micErr(e)}
+    };
+    row.append(play,slow,rep);card.append(row,out);body.append(card);
+  });
+  const more=el("div","row");
+  const again=el("button","btn ghost","Autres phrases");again.onclick=openRepeat;
+  more.append(again);body.append(more);
+}
+
+/* ---------- écoute ---------- */
+$("#listenBtn").onclick=()=>openListen();
+$("#listenBack").onclick=()=>{stopSpeak();show("home")};
+async function openListen(){
+  if(!curKey()){openSettings("Collez d'abord votre clé API pour démarrer.");return}
+  const body=$("#listenBody");body.textContent="";
+  show("listen");
+  body.append(el("p","muted","Le professeur prépare un court texte à votre niveau…"));
+  const L=LANGS[S.lang],lvl=levelNow();
+  const cur=currentUnit();
+  const theme=S.studied||(cur?cur.u.t:"")||S.goals[S.lang]||"la vie de tous les jours";
+  const prompt=[
+    "Tu es un professeur de "+L.name+" qui prépare un exercice d'écoute pour un francophone adulte de niveau "+lvl+".",
+    "Écris un court texte (dialogue ou récit) de 60 à 90 mots en "+L.name+", sur le thème « "+theme+" ». Au moins 95 % des mots doivent être courants et connus d'un apprenant de ce niveau ; les quelques mots plus rares doivent se deviner par le contexte.",
+    S.lang==="ar"?arRules():"",
+    "Réponds UNIQUEMENT par un objet JSON : {\"title\":string (titre court en français),\"text\":string,\"questions\":[{\"q\":string (question de compréhension en français),\"a\":string (réponse en français)}] (exactement 3),\"vocab\":[{\"w\":string,\"fr\":string}] (4 à 6 mots les moins courants du texte)}"
+  ].filter(Boolean).join("\n\n");
+  try{
+    const t=await llm({system:"Tu es un professeur de langues. Réponds uniquement par du JSON valide.",messages:[{role:"user",content:prompt}],model:mHeavy(),max:S.lang==="ar"?2600:1600});
+    const d=parseJSON(t);
+    if(!d||typeof d.text!=="string"||!d.text.trim())throw {code:"json"};
+    renderListen(d);
+  }catch(e){
+    body.textContent="";
+    body.append(el("div","notice",errText(e)));
+    const r=el("button","btn","Réessayer");r.onclick=openListen;body.append(r);
+  }
+}
+function renderListen(d){
+  const body=$("#listenBody");body.textContent="";
+  body.append(el("h2",null,d.title||"Court texte"));
+  body.append(el("p","small muted","Écoutez d'abord sans lire. Réécoutez autant que nécessaire, avec plus ou moins de lenteur, puis affichez le texte."));
+  const row=el("div","row");
+  const play=el("button","btn","Écouter");play.onclick=()=>speak(d.text,.85);
+  const slow=el("button","btn ghost","Plus lentement");slow.onclick=()=>speak(d.text,.62);
+  row.append(play,slow);body.append(row);
+  const qs=el("div","col");qs.style.gap="10px";
+  (d.questions||[]).slice(0,3).forEach((x,i)=>{
+    const q=el("div","qa");
+    q.append(el("div",null,(i+1)+". "+(x.q||"")));
+    const a=el("div","small",x.a||"");a.hidden=true;
+    const b=el("button","mini","Voir la réponse");b.onclick=()=>{a.hidden=false;b.hidden=true};
+    q.append(b,a);qs.append(q);
+  });
+  body.append(el("h3",null,"Questions"),qs);
+  const tx=el("div","qa");
+  const p=el("div","passage"+(LANGS[S.lang].rtl?" ar":""),d.text);p.dir="auto";p.hidden=true;
+  const vb=el("div");vb.hidden=true;
+  (d.vocab||[]).forEach(v=>{const l=el("div","small",(v.w||"")+" : "+(v.fr||""));l.dir="auto";vb.append(l)});
+  const sb=el("button","btn ghost","Afficher le texte et les mots clés");sb.onclick=()=>{p.hidden=false;vb.hidden=false;sb.hidden=true};
+  tx.append(sb,p,vb);body.append(tx);
+  const more=el("div","row");
+  const again=el("button","btn ghost","Autre texte");again.onclick=openListen;
+  more.append(again);body.append(more);
+}
+
+/* ---------- bilan ---------- */
+$("#endBtn").onclick=recap;
+async function recap(){
+  const r=$("#recap");
+  const users=S.turns.filter(t=>t.role==="user").length-1;
+  if(users<1)return;
+  leaveSession();
+  r.textContent="";r.append(el("h2",null,"Le professeur prépare votre bilan…"));
+  show("recap");
+  const L=LANGS[S.lang];
+  const id=S.scn.id,unit=S.scn.unit||null;
+  const transcript=S.turns.slice(1).map(t=>(t.role==="user"?"APPRENANT : ":"PROFESSEUR : ")+String(t.content).replace(/\s*\[reco vocale[^\]]*\]\s*$/,"")).join("\n");
+  const isReview=id==="review";
+  let extra="",extraTxt="";
+  if(unit){
+    extra=",\"can\":[boolean,boolean,boolean]";
+    extraTxt="Capacités de l'étape « "+unit.t+" » à évaluer d'après la transcription : "+unit.can.map((c,j)=>(j+1)+") "+c).join(" ; ")+". Dans \"can\", mets true pour une capacité seulement si l'apprenant l'a clairement démontrée dans cette séance, à ce niveau, avec des phrases à lui. En cas de doute, mets false.";
+  }
+  if(id==="diag"){
+    const us=PATH[S.lang];
+    extra=",\"start_unit\":string";
+    extraTxt="Étapes du parcours, dans l'ordre : "+us.map(u=>u.id+" = "+u.t+" ("+u.lvl+")").join(" ; ")+". Dans \"start_unit\", donne l'identifiant de l'étape où l'apprenant devrait commencer : la première dont il ne maîtrise pas encore les capacités.";
+  }
+  const prompt=[
+    "Tu es un professeur de "+L.name+" qui rédige le bilan écrit d'une séance pour un apprenant francophone adulte. Situation de la séance : "+S.scn.t+". Écris en français, ton direct et bienveillant.",
+    "Transcription :\n"+transcript,
+    S.targets.length?"Expressions-cibles de la séance : "+S.targets.map(t=>t.expr+(t.used?" (utilisée)":" (non utilisée)")).join(" ; ")+".":"",
+    isReview?"Éléments révisés dans cette séance : "+S.reviewItems.map(i=>"« "+i.text+" »").join(" ; ")+". Dans \"reviewed\", indique pour chacun si l'apprenant l'a produit correctement (ok true/false), en reprenant le texte à l'identique.":"",
+    extraTxt,
+    "Réponds UNIQUEMENT par un objet JSON : {\"level\":string (niveau CECR estimé, ex \"A2\"),\"summary\":string (2 phrases),\"worked\":[string] (2 à 4 points réussis),\"recurring\":[{\"pattern\":string,\"example\":string (extrait de l'apprenant),\"rule\":string (règle en 1-2 phrases, avec une forme correcte)}] (erreurs récurrentes, 0 à 4),\"pronunciation\":[string] (0 à 2 conseils pour un francophone),\"items\":[{\"text\":string (expression ou forme correcte à retenir, courte, dans la langue cible),\"kind\":\"expr\"|\"error\",\"note\":string (sens ou rappel en français, très court)}] (3 à 5 éléments à revoir plus tard),\"reviewed\":[{\"text\":string,\"ok\":boolean}] ("+(isReview?"un par élément révisé":"liste vide")+"),\"next\":string (sujet suivant ciblé sur les erreurs),\"homework\":string (une phrase à retenir ou à réutiliser demain)"+extra+"}"
+  ].filter(Boolean).join("\n\n");
+  try{
+    const t=await llm({system:"Tu es un professeur de langues. Réponds uniquement par du JSON valide.",messages:[{role:"user",content:prompt}],model:mHeavy(),max:S.lang==="ar"?3000:2200});
+    const d=parseJSON(t);
+    const p=P();
+    const info={unit:unit,prevLevel:p.levels.length?p.levels[p.levels.length-1].level:"",startIdx:-1,validated:false,nextUnit:null,can:null};
+    if(isReview)applyReviewed(d.reviewed);
+    addItems(d.items);
+    if(users>=2)p.sessions++;
+    if(unit&&Array.isArray(d.can)){
+      const st=unitSt(unit);
+      const was=st.can.every(Boolean);
+      d.can.slice(0,3).forEach((v,j)=>{if(v===true)st.can[j]=true});
+      st.n++;st.ts=Date.now();
+      info.can=st.can.slice();
+      info.validated=!was&&st.can.every(Boolean);
+      const nx=currentUnit();info.nextUnit=nx?nx.u:null;
+    }
+    if(id==="diag"||id==="check"){
+      if(d.level)p.levels.push({ts:Date.now(),level:String(d.level)});
+      if(id==="check")p.lastCheck=Date.now();
+    }
+    if(id==="diag"&&typeof d.start_unit==="string"){
+      const idx=PATH[S.lang].findIndex(u=>u.id===d.start_unit);
+      if(idx>=0){p.start=idx;info.startIdx=idx}
+    }
+    S.history=[{ts:Date.now(),lang:S.lang,scenario:S.scn.t,level:d.level||"",summary:d.summary||"",recurring:(d.recurring||[]).slice(0,4),next:d.next||""}].concat(S.history);
+    save();renderLast();renderDue();renderPath();
+    renderRecap(d,info);
+  }catch(e){
+    r.textContent="";
+    r.append(el("h2",null,"Bilan indisponible"),el("div","notice",errText(e)));
+    const row=el("div","row");
+    const again=el("button","btn","Réessayer");again.onclick=recap;
+    const back=el("button","btn ghost","Retour à l'accueil");back.onclick=()=>show("home");
+    row.append(again,back);r.append(row);
+  }
+}
+function list(items){const u=el("ul","clean");(items||[]).forEach(i=>u.append(el("li",null,String(i))));return u}
+function renderRecap(d,info){
+  const r=$("#recap");r.textContent="";
+  r.append(el("span","label","Bilan · "+S.scn.t));
+  const head=el("div","panel");
+  head.append(el("div","lvl",d.level||"?"),el("p",null,d.summary||""));
+  if(S.scn.id==="check"&&info.prevLevel)head.append(el("p","small muted","Niveau estimé la fois précédente : "+info.prevLevel));
+  r.append(head);
+  if(S.scn.id==="diag"&&info.startIdx>=0){
+    const p=el("div","panel");
+    const u=PATH[S.lang][info.startIdx];
+    p.append(el("h3",null,"Votre point de départ"),el("p",null,"Étape "+(info.startIdx+1)+" · "+u.t+" ("+u.lvl+"). Les étapes précédentes sont considérées comme acquises. Vous pouvez décocher des capacités ou travailler n'importe quelle étape depuis l'accueil."));
+    r.append(p);
+  }
+  if(info.unit&&info.can){
+    const p=el("div","panel");
+    p.append(el("h3",null,"Capacités de l'étape « "+info.unit.t+" »"));
+    info.unit.can.forEach((c,j)=>p.append(el("div",info.can[j]?"can-ok":"can-no",(info.can[j]?"✓ ":"• ")+c)));
+    if(info.validated){
+      p.append(el("p",null,"Étape validée."+(info.nextUnit?" Prochaine étape : "+info.nextUnit.t+".":" Vous avez terminé le parcours.")));
+    }else{
+      p.append(el("p","small muted","Une capacité reste cochée tant que vous ne la décochez pas. Vous pouvez aussi en cocher une vous-même depuis l'accueil."));
+    }
+    r.append(p);
+  }
+  if(S.targets.length){
+    const p=el("div","panel");p.append(el("h3",null,"Expressions-cibles de la séance"));
+    const row=el("div","chips");
+    S.targets.forEach(x=>{const c=el("span","chip"+(x.used?" used":""),(x.used?"✓ ":"")+x.expr);c.dir="auto";row.append(c)});
+    p.append(row);r.append(p);
+  }
+  if((d.worked||[]).length){const p=el("div","panel");p.append(el("h3",null,"Ce qui a bien marché"),list(d.worked));r.append(p)}
+  if((d.recurring||[]).length){
+    const p=el("div","panel");p.append(el("h3",null,"Erreurs à fixer"));
+    d.recurring.forEach(x=>{
+      const b=el("div","rec");
+      b.append(el("b",null,x.pattern||""));
+      if(x.example){const ex=el("div","small muted",x.example);ex.dir="auto";b.append(ex)}
+      b.append(el("div",null,x.rule||""));p.append(b);
+    });
+    r.append(p);
+  }
+  if((d.pronunciation||[]).length){const p=el("div","panel");p.append(el("h3",null,"Prononciation"),list(d.pronunciation));r.append(p)}
+  if((d.items||[]).length){
+    const p=el("div","panel");p.append(el("h3",null,"Ajouté à vos révisions"));
+    const u=el("ul","clean");
+    d.items.forEach(i=>{const li=el("li",null,(i.text||"")+(i.note?" : "+i.note:""));li.dir="auto";u.append(li)});
+    p.append(u,el("p","small muted","Ils reviendront dans « Révision du jour » à intervalles de plus en plus longs."));
+    r.append(p);
+  }
+  const nx=el("div","panel");
+  nx.append(el("h3",null,"Prochaine séance"),el("p",null,d.next||"Conversation libre."));
+  if(d.homework){const h=el("p","small muted","À retenir : "+d.homework);h.dir="auto";nx.append(h)}
+  r.append(nx);
+  const row=el("div","row");
+  const home=el("button","btn","Terminer");home.onclick=()=>{show("home");renderDue();renderPath()};
+  row.append(home);r.append(row);
+}
+
+
+/* ---------- alphabet arabe ---------- */
+const NC=["ا","د","ذ","ر","ز","و"];
+const ALPHA=[
+["ا","alif","« a » long (ā)","أَخ","akh","frère"],
+["ب","bāʾ","« b »","بَاب","bāb","porte"],
+["ت","tāʾ","« t »","تَمْر","tamr","dattes"],
+["ث","thāʾ","« th » de l'anglais « think » (langue entre les dents)","ثَوْب","thawb","vêtement"],
+["ج","jīm","« dj » comme dans « Djibouti »","جَمَل","jamal","chameau"],
+["ح","ḥāʾ","« h » soufflé fort, au fond de la gorge (comme pour souffler sur des lunettes)","حَلِيب","ḥalīb","lait"],
+["خ","khāʾ","« kh » comme la « jota » espagnole","خُبْز","khubz","pain"],
+["د","dāl","« d »","دَار","dār","maison"],
+["ذ","dhāl","« th » de l'anglais « this »","ذَهَب","dhahab","or"],
+["ر","rāʾ","« r » roulé, léger","رَجُل","rajul","homme"],
+["ز","zāy","« z »","زَيْت","zayt","huile"],
+["س","sīn","« s »","سَمَك","samak","poisson"],
+["ش","shīn","« ch »","شَمْس","shams","soleil"],
+["ص","ṣād","« s » emphatique (grave, bouche pleine)","صَبَاح","ṣabāḥ","matin"],
+["ض","ḍād","« d » emphatique","ضَيْف","ḍayf","invité"],
+["ط","ṭāʾ","« t » emphatique","طَاوِلَة","ṭāwila","table"],
+["ظ","ẓāʾ","« dh » emphatique","ظَهْر","ẓahr","dos"],
+["ع","ʿayn","son de gorge : resserrer la gorge, sans équivalent en français","عَيْن","ʿayn","œil"],
+["غ","ghayn","« gh » comme le « r » français grasseyé","غُرْفَة","ghurfa","chambre"],
+["ف","fāʾ","« f »","فِيل","fīl","éléphant"],
+["ق","qāf","« k » prononcé tout au fond de la gorge","قَلَم","qalam","stylo"],
+["ك","kāf","« k »","كِتَاب","kitāb","livre"],
+["ل","lām","« l »","لَيْل","layl","nuit"],
+["م","mīm","« m »","مَاء","māʾ","eau"],
+["ن","nūn","« n »","نُور","nūr","lumière"],
+["ه","hāʾ","« h » léger, aspiré","هِلَال","hilāl","croissant"],
+["و","wāw","« w » (comme « oui ») ou « ou » long (ū)","وَلَد","walad","garçon"],
+["ي","yāʾ","« y » (comme « yoyo ») ou « i » long (ī)","يَد","yad","main"]
+].map(a=>({l:a[0],n:a[1],s:a[2],w:a[3],wt:a[4],wf:a[5],
+  f:NC.indexOf(a[0])>=0?[a[0],"","","ـ"+a[0]]:[a[0],a[0]+"ـ","ـ"+a[0]+"ـ","ـ"+a[0]]}));
+const LESSONS=[[0,1,2,3],[4,5,6],[7,8,9,10],[11,12,13,14],[15,16,17,18],[19,20,21,22],[23,24,25,26,27]];
+const AWORDS=[
+  ["بَاب","bāb","porte"],["أَب","ab","père"],["أَخ","akh","frère"],["تَمْر","tamr","dattes"],["بَيْت","bayt","maison"],
+  ["كِتَاب","kitāb","livre"],["نُور","nūr","lumière"],["مَاء","māʾ","eau"],["دَار","dār","maison"],["بَابَا","bābā","papa"],
+  ["مَامَا","māmā","maman"],["لَيْل","layl","nuit"],["نَار","nār","feu"],["سَمَك","samak","poisson"],["شَمْس","shams","soleil"],
+  ["قَلَم","qalam","stylo"],["وَلَد","walad","garçon"],["بِنْت","bint","fille"],["يَد","yad","main"],["عَيْن","ʿayn","œil"],
+  ["بَحْر","baḥr","mer"],["نَهْر","nahr","fleuve"],["رَجُل","rajul","homme"],["جَمَل","jamal","chameau"],["قَمَر","qamar","lune"],
+  ["مَدْرَسَة","madrasa","école"],["مَدِينَة","madīna","ville"],["شَارِع","shāriʿ","rue"],["خُبْز","khubz","pain"],["حَلِيب","ḥalīb","lait"],
+  ["قَهْوَة","qahwa","café"],["شَاي","shāy","thé"],["تُفَّاح","tuffāḥ","pomme"],["مَوْز","mawz","banane"],["سُكَّر","sukkar","sucre"],
+  ["مِلْح","milḥ","sel"],["لَحْم","laḥm","viande"],["فِيل","fīl","éléphant"],["كَلْب","kalb","chien"],["قِطَّة","qiṭṭa","chat"],
+  ["مَرْوَان","marwān","Marouane"],["مُحَمَّد","muḥammad","Mohamed"],["كَرِيم","karīm","Karim"],["سَيَّارَة","sayyāra","voiture"],["صَبَاح","ṣabāḥ","matin"],
+  /* Vocabulaire Al-Qā'idah An-Nūrāniyyah (mots trilitères essentiels) */
+  ["كَتَبَ","kataba","il a écrit"],["قَرَأَ","qaraʾa","il a lu"],["أَحَدٌ","aḥadun","un / unique"],["أَبَدًا","abadan","à jamais"],
+  ["أَخَذَ","akhadha","il a pris"],["أَذِنَ","adhina","il a permis"],["أَمَرَ","amara","il a ordonné"],["بَلَغَ","balagha","il a atteint"],
+  ["جَعَلَ","jaʿala","il a fait / créé"],["حَسَدَ","ḥasada","il a envié"],["خَلَقَ","khalaqa","il a créé"],["ذَكَرَ","dhakara","il a mentionné"],
+  ["رَفَعَ","rafaʿa","il a élevé"],["كَسَبَ","kasaba","il a acquis"],["وَهَبَ","wahaba","il a accordé"],["سُرُرٌ","sururun","divans"],
+  ["كُتُبٌ","kutubun","livres"],["صُحُفًا","ṣuḥufan","feuillets"],["خَوْفٌ","khawfun","crainte / peur"],["صَيْفٌ","ṣayfun","été"],
+  /* Vocabulaire Almadrassa (études, maison, vie quotidienne) */
+  ["مَكْتَبٌ","maktabun","bureau"],["كُرْسِيٌّ","kursiyyun","chaise"],["دَفْتَرٌ","daftarun","cahier"],["سَبُّورَةٌ","sabbūratun","tableau"],
+  ["مِسْطَرَةٌ","misṭaratun","règle"],["حَقِيبَةٌ","ḥaqībatun","cartable / trousse"],["مَطْبَخٌ","maṭbakhun","cuisine"],["غُرْفَةٌ","ghurfatun","chambre"],
+  ["صَالُونٌ","ṣālūnun","salon"],["حَمَّامٌ","ḥammāmun","salle de bain"],["مَسْجِدٌ","masjidun","mosquée"],["طَالِبٌ","ṭālibun","étudiant"],
+  ["أُسْتَاذٌ","ustādhun","professeur"],["طَبِيبٌ","ṭabībun","médecin"],["صَلَاةٌ","ṣalātun","prière"],["قُرْآنٌ","qurʾānun","Coran"]
+];
+
+/* ---------- règles de lecture : Al-Qā'idah An-Nūrāniyyah ---------- */
+const RULES=[
+  {
+    id:"harakat",t:"1. Les voyelles courtes (الحَرَكَات) & Soukoun",
+    d:"Les 3 sons courts indispensables et l'arrêt sec : écoutez et répétez.",
+    items:[
+      {sym:"ـَ",n:"Fatha",sound:"a",ex:"بَ",tr:"ba",desc:"Trait au-dessus : son « a »"},
+      {sym:"ـِ",n:"Kasra",sound:"i",ex:"بِ",tr:"bi",desc:"Trait en-dessous : son « i »"},
+      {sym:"ـُ",n:"Damma",sound:"ou",ex:"بُ",tr:"bou",desc:"Petite boucle au-dessus : son « ou »"},
+      {sym:"ـْ",n:"Soukoun",sound:"stop",ex:"أَبْ",tr:"ab",desc:"Rond au-dessus : arrêt net sans voyelle"}
+    ]
+  },
+  {
+    id:"tanwin",t:"2. Le Tanwīn (التَّنْوِين)",
+    d:"La double voyelle en fin de mot qui ajoute le son « n » (-an, -in, -un).",
+    items:[
+      {sym:"ـً",n:"Fathatān",sound:"an",ex:"بًا",tr:"ban",desc:"Deux traits en haut : « an »"},
+      {sym:"ـٍ",n:"Kasratān",sound:"in",ex:"بٍ",tr:"bin",desc:"Deux traits en bas : « in »"},
+      {sym:"ـٌ",n:"Dammatān",sound:"un",ex:"بٌ",tr:"boun",desc:"Deux boucles en haut : « oun »"}
+    ]
+  },
+  {
+    id:"madd",t:"3. Prolongations (المَدّ) & Souplesse (اللِّين)",
+    d:"Étire la voyelle sur 2 temps avec Alif, Waw ou Ya, ou forme une diphtongue douce.",
+    items:[
+      {sym:"ـَا",n:"Alif Madd",sound:"ā",ex:"بَا",tr:"bā",desc:"Fatha + Alif : « ā » long"},
+      {sym:"ـُو",n:"Wāw Madd",sound:"ū",ex:"بُو",tr:"bū",desc:"Damma + Waw : « ū » long"},
+      {sym:"ـِي",n:"Yāʾ Madd",sound:"ī",ex:"بِي",tr:"bī",desc:"Kasra + Ya : « ī » long"},
+      {sym:"ـَوْ",n:"Wāw Lyn",sound:"aw",ex:"خَوْفٌ",tr:"khawf",desc:"Fatha + Waw soukoun : diphtongue « aw »"},
+      {sym:"ـَيْ",n:"Yāʾ Lyn",sound:"ay",ex:"بَيْتٌ",tr:"bayt",desc:"Fatha + Ya soukoun : diphtongue « ay »"}
+    ]
+  },
+  {
+    id:"shadda",t:"4. La Shaddah (الشَّدَّة)",
+    d:"Consonne doublée : on appuie sur la lettre avec fermeté avant d'émettre sa voyelle.",
+    items:[
+      {sym:"ـَّ",n:"Shadda Fatha",sound:"bba",ex:"أَبَّ",tr:"abba",desc:"Appui net + « a »"},
+      {sym:"ـِّ",n:"Shadda Kasra",sound:"bbi",ex:"أَبِّ",tr:"abbi",desc:"Appui net + « i »"},
+      {sym:"ـُّ",n:"Shadda Damma",sound:"bbu",ex:"أَبُّ",tr:"abbou",desc:"Appui net + « ou »"}
+    ]
+  }
+];
+
+function decomposeSyllables(w){
+  if(!w)return[];
+  const t=w.trim();
+  const parts=[];
+  const re=/([^\u064B-\u065F\u0670\s])([\u064B-\u065F\u0670]*)(?:([اوي])([\u064B-\u065F\u0670]*))?/g;
+  let m;
+  while((m=re.exec(t))!==null){
+    if(m[0])parts.push(m[0]);
+  }
+  return parts.length>1?parts:[t];
+}
+const BASEMAP={"أ":"ا","إ":"ا","آ":"ا","ٱ":"ا","ؤ":"و","ئ":"ي","ى":"ي","ة":"ه"};
+const sh=a=>a.slice().sort(()=>Math.random()-.5);
+function wordLetters(w){
+  const out=[];
+  const t=w.replace(/[ً-ٰٟـ]/g,"");
+  for(const ch0 of t){
+    if(ch0==="ء")continue;
+    const ch=BASEMAP[ch0]||ch0;
+    const i=ALPHA.findIndex(x=>x.l===ch);
+    if(i<0)return null;
+    out.push(i);
+  }
+  return out;
+}
+function knownL(i){const a=S.alpha[i];return !!a&&a.box>=1}
+function knownCount(){let n=0;for(let i=0;i<28;i++)if(knownL(i))n++;return n}
+function lessonDone(k){return LESSONS[k].every(knownL)}
+function curLesson(){for(let k=0;k<LESSONS.length;k++)if(!lessonDone(k))return k;return -1}
+function dueLetters(){const now=Date.now();const r=[];for(let i=0;i<28;i++){const a=S.alpha[i];if(a&&a.box>=1&&a.due<=now)r.push(i)}return r}
+function readableWords(){return AWORDS.filter(w=>{const ls=wordLetters(w[0]);return ls&&ls.every(knownL)})}
+function lessonLabel(k){return LESSONS[k].map(i=>ALPHA[i].l).join(" ")}
+
+function renderAlpha(){
+  const box=$("#alphaBox");
+  box.hidden=S.lang!=="ar";
+  if(S.lang!=="ar")return;
+  box.textContent="";
+  const n=knownCount();
+  const head=el("div","row spread");
+  head.append(el("h2",null,"Lire l'arabe"),el("span","small muted",n+" lettre"+(n>1?"s":"")+" sur 28"));
+  box.append(head);
+  const tr=el("div","track"),f=el("div","fill");f.style.width=Math.round(100*n/28)+"%";tr.append(f);box.append(tr);
+  box.append(el("p","small muted","3 minutes par jour suffisent. Pas besoin d'écrire à la main pour lire. Vous pouvez parler arabe en même temps : les phrases sont translittérées tant que vous connaissez moins de 20 lettres."));
+  const k=curLesson(),due=dueLetters();
+  const row=el("div","row");
+  const go=el("button","btn");go.id="alphaGo";
+  if(k>=0){go.textContent="Leçon "+(k+1)+" : "+lessonLabel(k);go.onclick=()=>openLesson(k)}
+  else if(due.length){go.textContent="Réviser "+due.length+" lettre"+(due.length>1?"s":"");go.onclick=()=>startQuiz(-1)}
+  else{go.textContent="Alphabet à jour";go.disabled=true}
+  row.append(go);
+  const rw=readableWords().length;
+  const wb=el("button","btn ghost","Lire des mots ("+rw+")");wb.id="alphaWords";wb.onclick=startWords;
+  const rb=el("button","btn ghost","Voyelles & Règles");rb.id="alphaRules";rb.onclick=openRules;
+  row.append(wb,rb);
+  box.append(row);
+  const det=document.createElement("details");
+  det.append(el("summary","small","Toutes les lettres et règles"));
+  const g=el("div","lgrid");g.style.marginTop="10px";
+  ALPHA.forEach((a,i)=>{const c=el("div","lchip"+(knownL(i)?" on":""),a.l);g.append(c)});
+  det.append(g);
+  LESSONS.forEach((ls,kk)=>{
+    const r=el("div","unit");
+    r.append(el("span","ut",(lessonDone(kk)?"✓ ":"")+"Leçon "+(kk+1)+" · "+lessonLabel(kk)));
+    const b=el("button","btn sm ghost","Revoir");b.onclick=()=>openLesson(kk);r.append(b);
+    det.append(r);
+  });
+  const rRules=el("div","unit");
+  rRules.append(el("span","ut","Règles : Voyelles, Tanwīn, Madd & Shaddah"));
+  const bRules=el("button","btn sm ghost","Découvrir");bRules.onclick=openRules;rRules.append(bRules);
+  det.append(rRules);
+  box.append(det);
+}
+$("#alphaBack").onclick=()=>{stopSpeak();show("home");renderAlpha()};
+
+function openRules(){
+  stopSpeak();show("alpha");
+  $("#alphaTitle").textContent="Voyelles & Règles (Al-Qā'idah)";
+  const body=$("#alphaBody");body.textContent="";
+  body.append(el("p","small muted","Méthode Al-Qā'idah An-Nūrāniyyah : touchez chaque son pour l'écouter. Répétez à voix haute pour habituer l'oreille et la bouche."));
+  
+  RULES.forEach(r=>{
+    const card=el("div","rule-box");
+    card.append(el("h3",null,r.t),el("p","small muted",r.d));
+    const grid=el("div","rule-grid");
+    r.items.forEach(it=>{
+      const b=el("button","rule-chip");
+      b.append(el("span",null,it.ex),el("small",null,it.n+" ("+it.tr+")"));
+      b.onclick=()=>speak(it.ex,0.75);
+      grid.append(b);
+    });
+    card.append(grid);
+    body.append(card);
+  });
+  
+  const foot=el("div","row");foot.style.marginTop="16px";
+  const practice=el("button","btn ghost","S'entraîner sur les mots");practice.onclick=startWords;
+  const home=el("button","btn","Terminer");home.onclick=()=>{show("home");renderAlpha()};
+  foot.append(practice,home);body.append(foot);
+}
+
+function openLesson(k){
+  stopSpeak();show("alpha");
+  $("#alphaTitle").textContent="Leçon "+(k+1);
+  const body=$("#alphaBody");body.textContent="";
+  body.append(el("p","small muted","Regardez chaque lettre dans son mot, écoutez le mot, répétez-le à voix haute si vous voulez. Le quiz vient ensuite."));
+  LESSONS[k].forEach(i=>{
+    const a=ALPHA[i];
+    const c=el("div","lcard");
+    const g=el("div","glyph",a.l);g.dir="rtl";
+    c.append(g,el("b",null,a.n),el("div","small muted",a.s));
+    const fm=el("div","forms");fm.dir="rtl";
+    a.f.forEach(x=>{if(x)fm.append(el("span",null,x))});
+    c.append(fm);
+    if(NC.indexOf(a.l)>=0)c.append(el("div","small muted","Cette lettre ne se lie pas à la lettre suivante."));
+    const w=el("div","glyph sm",a.w);w.dir="rtl";
+    c.append(w,el("div","small",a.wt+" : "+a.wf));
+    const b=el("button","btn sm ghost","Écouter le mot");b.onclick=()=>speak(a.w,.8);
+    c.append(b);body.append(c);
+  });
+  const go=el("button","btn","Passer au quiz");go.id="toQuiz";go.onclick=()=>startQuiz(k);
+  body.append(go);
+}
+
+let Q=null;
+function pool(k){
+  if(k<0){const d=dueLetters();return d.length?d:[0,1,2,3]}
+  const r=[];for(let j=0;j<=k;j++)LESSONS[j].forEach(i=>r.push(i));return r;
+}
+function startQuiz(k){
+  stopSpeak();show("alpha");
+  $("#alphaTitle").textContent=k>=0?"Quiz · leçon "+(k+1):"Révision";
+  let letters;
+  if(k>=0){
+    letters=LESSONS[k].slice();
+    const back=sh(dueLetters().filter(i=>letters.indexOf(i)<0)).slice(0,3);
+    letters=letters.concat(back);
+  }else letters=sh(dueLetters()).slice(0,6);
+  const items=[];
+  letters.forEach(i=>{
+    items.push({t:"name",i:i});
+    if(k>=0||Math.random()<.5)items.push({t:"ear",i:i});
+  });
+  Q={k:k,queue:sh(items),pos:0,retry:[],res:{},letters:letters,pool:pool(k),firstPass:true,total:items.length};
+  nextQ();
+}
+function distract(i,count){
+  let p=Q.pool.filter(x=>x!==i);
+  if(p.length<count)p=p.concat(sh([...Array(28).keys()].filter(x=>x!==i&&p.indexOf(x)<0)));
+  return sh(p).slice(0,count);
+}
+function nextQ(){
+  const body=$("#alphaBody");body.textContent="";
+  if(Q.pos>=Q.queue.length){
+    if(Q.firstPass&&Q.retry.length){Q.firstPass=false;Q.queue=Q.queue.concat(sh(Q.retry));Q.retry=[];}
+    else return endQuiz();
+  }
+  const it=Q.queue[Q.pos];const a=ALPHA[it.i];
+  body.append(el("p","small muted","Question "+(Math.min(Q.pos+1,Q.queue.length))+" sur "+Q.queue.length+(Q.firstPass?"":" · on reprend celles à revoir")));
+  const opts=sh([it.i].concat(distract(it.i,3)));
+  if(it.t==="name"){
+    const forms=a.f.filter(Boolean);
+    const g=el("div","glyph",forms[Math.floor(Math.random()*forms.length)]);g.dir="rtl";
+    body.append(el("p",null,"Comment s'appelle cette lettre ?"),g);
+  }else{
+    body.append(el("p",null,"Écoutez le mot. Par quelle lettre commence-t-il ?"));
+    const b=el("button","btn ghost","Écouter le mot");b.onclick=()=>speak(a.w,.8);body.append(b);
+    setTimeout(()=>speak(a.w,.8),150);
+  }
+  const grid=el("div","opts");
+  const fb=el("div","small");fb.style.minHeight="40px";
+  let answered=false;
+  opts.forEach(j=>{
+    const b=el("button","opt"+(it.t==="ear"?" arb":""),it.t==="name"?ALPHA[j].n:ALPHA[j].l);
+    if(it.t==="ear")b.dir="rtl";
+    b.onclick=()=>{
+      if(answered)return;answered=true;
+      const ok=j===it.i;
+      b.classList.add(ok?"good":"bad");
+      if(!ok)[...grid.children].forEach((c,idx)=>{if(opts[idx]===it.i)c.classList.add("good")});
+      const r=Q.res[it.i]||(Q.res[it.i]={r:0,w:0});
+      if(Q.firstPass){ok?r.r++:r.w++}
+      if(!ok&&Q.firstPass)Q.retry.push(it);
+      fb.textContent=ok?"Oui : "+a.n+" · "+a.wt+" ("+a.wf+")":"C'était : "+a.n+" ("+a.l+") · "+a.wt+" ("+a.wf+")";
+      const nx=el("button","btn","Suivant");nx.id="qNext";nx.onclick=()=>{Q.pos++;nextQ()};
+      body.append(nx);
+    };
+    grid.append(b);
+  });
+  body.append(grid,fb);
+}
+function endQuiz(){
+  const body=$("#alphaBody");body.textContent="";
+  let good=0,tot=0;
+  Q.letters.forEach(i=>{
+    const r=Q.res[i]||{r:0,w:0};
+    const a=S.alpha[i]||(S.alpha[i]={box:0,due:0});
+    tot++;
+    if(r.r>0&&r.r>=r.w){good++;a.box=Math.min(a.box+1,BOX_DAYS.length-1);if(a.box<1)a.box=1;a.due=Date.now()+BOX_DAYS[a.box]*86400000}
+    else{a.box=0;a.due=Date.now()+86400000}
+  });
+  save();
+  body.append(el("h2",null,good+" lettre"+(good>1?"s":"")+" sur "+tot+" retenue"+(good>1?"s":"")));
+  const bad=Q.letters.filter(i=>{const r=Q.res[i]||{r:0,w:0};return !(r.r>0&&r.r>=r.w)});
+  if(bad.length)body.append(el("p",null,"À revoir demain : "+bad.map(i=>ALPHA[i].l+" ("+ALPHA[i].n+")").join(", ")+"."));
+  else body.append(el("p",null,"Tout est retenu. Les lettres reviendront en révision dans quelques jours."));
+  const row=el("div","row");
+  if(Q.k>=0){const again=el("button","btn ghost","Refaire le quiz");again.onclick=()=>startQuiz(Q.k);row.append(again)}
+  const w=el("button","btn ghost","Lire des mots");w.onclick=startWords;
+  const home=el("button","btn","Terminer");home.id="qDone";home.onclick=()=>{show("home");renderAlpha()};
+  row.append(w,home);body.append(row);
+  renderAlpha();
+}
+
+function startWords(){
+  stopSpeak();show("alpha");
+  $("#alphaTitle").textContent="Lire des mots (Épellation analytique)";
+  const body=$("#alphaBody");body.textContent="";
+  const rd=readableWords();
+  if(rd.length<4){
+    body.append(el("p",null,"Pas encore assez de mots lisibles ("+rd.length+"). Apprenez quelques lettres de plus : ils apparaîtront automatiquement, avec uniquement les lettres que vous connaissez."));
+    const b=el("button","btn","Retour");b.onclick=()=>{show("home");renderAlpha()};body.append(b);return;
+  }
+  const qs=sh(rd).slice(0,6);let pos=0,score=0;
+  function one(){
+    body.textContent="";
+    if(pos>=qs.length){
+      body.append(el("h2",null,score+" mot"+(score>1?"s":"")+" sur "+qs.length+" lus correctement"));
+      const row=el("div","row");
+      const again=el("button","btn ghost","Encore");again.onclick=startWords;
+      const home=el("button","btn","Terminer");home.id="wDone";home.onclick=()=>{show("home");renderAlpha()};
+      row.append(again,home);body.append(row);return;
+    }
+    const w=qs[pos];
+    body.append(el("p","small muted","Mot "+(pos+1)+" sur "+qs.length),el("p",null,"Comment se lit ce mot ?"));
+    const g=el("div","glyph",w[0]);g.dir="rtl";body.append(g);
+
+    // Décomposition syllabique interactive (Al-Qā'idah An-Nūrāniyyah)
+    const syls=decomposeSyllables(w[0]);
+    if(syls.length>1){
+      const sylBox=el("div","syl-container");sylBox.dir="rtl";
+      syls.forEach(s=>{
+        const b=el("button","syl-btn",s);
+        b.title="Écouter la syllabe "+s;
+        b.onclick=()=>speak(s,0.75);
+        sylBox.append(b);
+      });
+      body.append(sylBox,el("p","small muted","Astuce Nourāniyyah : touchez une syllabe pour déchiffrer chaque son à l'oreille."));
+    }
+
+    const rowHear=el("div","row");
+    const hear=el("button","btn sm ghost","Écouter le mot entier");hear.onclick=()=>speak(w[0],0.8);
+    rowHear.append(hear);body.append(rowHear);
+
+    let ds=sh(rd.filter(x=>x[1]!==w[1])).slice(0,3);
+    if(ds.length<3)ds=ds.concat(sh(AWORDS.filter(x=>x[1]!==w[1]&&ds.indexOf(x)<0)).slice(0,3-ds.length));
+    const opts=sh([w].concat(ds));
+    const grid=el("div","opts");const fb=el("div","small");fb.style.minHeight="40px";
+    let done=false;
+    opts.forEach(o=>{
+      const b=el("button","opt",o[1]);
+      b.onclick=()=>{
+        if(done)return;done=true;
+        const ok=o===w;if(ok)score++;
+        b.classList.add(ok?"good":"bad");
+        if(!ok)[...grid.children].forEach((c,idx)=>{if(opts[idx]===w)c.classList.add("good")});
+        fb.textContent=w[1]+" : "+w[2];
+        speak(w[0],.8);
+        const nx=el("button","btn","Suivant");nx.id="wNext";nx.onclick=()=>{pos++;one()};body.append(nx);
+      };
+      grid.append(b);
+    });
+    body.append(grid,fb);
+  }
+  one();
+}
+
+/* ---------- démarrage ---------- */
+$("#resumeBtn").onclick=()=>{
+  const sc=SCENARIOS.find(s=>s.id==="free");
+  start(Object.assign({},sc,{id:"resume",t:"Reprise de la conversation",p:"Reprise : continue la conversation de la dernière séance et travaille les points faibles notés, sans les annoncer comme une leçon."}));
+};
+$("#reviewBtn").onclick=()=>{
+  const due=dueItems();if(!due.length)return;
+  S.reviewItems=due.slice(0,6);
+  start({id:"review",t:"Révision du jour",p:"Séance de révision courte : fais retravailler à l'apprenant les éléments listés, en situation."});
+};
+$("#courseBtn").onclick=()=>{
+  const v=$("#studied").value.trim();
+  if(!v){$("#studied").focus();return}
+  S.studied=v;
+  start({id:"course",t:"Pratique du cours",p:"Pratique d'un cours : l'apprenant vient d'étudier « "+v+" ». Fais-lui employer ce vocabulaire et ces tournures dans une petite situation concrète, sans réciter de liste."});
+};
+
+load();
+if("speechSynthesis" in window){try{speechSynthesis.onvoiceschanged=refreshVoices}catch(e){}refreshVoices()}
+if(!SR||navigator.brave){if(navigator.brave)$("#srNote").textContent="Brave bloque la reconnaissance vocale de Google : le micro ne fonctionnera pas ici. Ouvrez le fichier dans Chrome (ou Edge sur ordinateur). L'écrit et la lecture à voix haute marchent quand même.";$("#srNote").hidden=false}
+syncUI();
+if(!curKey())$("#cfgBox").open=true;
+/* ---------- gestion PWA & hors-ligne ---------- */
+let deferredInstallPrompt=null;
+window.addEventListener("beforeinstallprompt",e=>{
+  e.preventDefault();
+  deferredInstallPrompt=e;
+  const b=$("#installBtn");if(b)b.hidden=false;
+});
+const insBtn=$("#installBtn");
+if(insBtn){
+  insBtn.onclick=async()=>{
+    if(!deferredInstallPrompt)return;
+    deferredInstallPrompt.prompt();
+    const res=await deferredInstallPrompt.userChoice;
+    if(res&&res.outcome==="accepted"){
+      insBtn.hidden=true;
+    }
+    deferredInstallPrompt=null;
+  };
+}
+window.addEventListener("appinstalled",()=>{
+  const b=$("#installBtn");if(b)b.hidden=true;
+  flash("Application installée sur votre appareil !");
+});
+
+function updateNetStatus(){
+  const n=$("#offlineNotice");
+  if(n)n.hidden=navigator.onLine;
+}
+window.addEventListener("online",()=>{updateNetStatus();flash("Connexion rétablie")});
+window.addEventListener("offline",()=>{updateNetStatus()});
+updateNetStatus();
+
+if('serviceWorker' in navigator && (location.protocol==='https:'||location.protocol==='http:')){
+  try{navigator.serviceWorker.register('./sw.js').catch(()=>{})}catch(e){}
+}
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,56 @@
+{
+  "id": "/parlons-app",
+  "name": "Parlons - Pratique des langues à l'oral",
+  "short_name": "Parlons",
+  "description": "Tuteur linguistique oral et interactif : Anglais, Arabe littéraire, Néerlandais. Entraînement en situation réelle, écoute et lecture fluide.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#F2F5F7",
+  "theme_color": "#1B6B8A",
+  "orientation": "portrait-primary",
+  "lang": "fr",
+  "categories": ["education", "productivity"],
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "./icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Lire l'arabe",
+      "short_name": "Arabe",
+      "description": "Entraînement de lecture Nourāniyyah",
+      "url": "./index.html#alpha",
+      "icons": [{ "src": "./icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Parler",
+      "short_name": "Conversation",
+      "description": "Lancer une session orale",
+      "url": "./index.html#chat",
+      "icons": [{ "src": "./icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}
