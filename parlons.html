@@ -796,7 +796,16 @@ html, body {
 
 const $=s=>document.querySelector(s);
 const $$=s=>Array.from(document.querySelectorAll(s));
-const el=(t,c,x)=>{const e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e};
+const el=(t,c,...kids)=>{
+  const e=document.createElement(t);
+  if(c)e.className=c;
+  kids.forEach(x=>{
+    if(x==null)return;
+    if(typeof x==="string"||typeof x==="number")e.append(document.createTextNode(String(x)));
+    else if(x instanceof Node)e.append(x);
+  });
+  return e;
+};
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 
 /* ==================== CONFIGURATION & FOURNISSEURS ==================== */
@@ -1027,7 +1036,341 @@ const NL_PHONICS = {
   ]
 };
 
-/* suite dans part3 */
+/* ==================== ÉTAT GLOBAL & PERSISTANCE ==================== */
+const S = {
+  lang: "en",
+  mode: "voice",
+  imm: 0,
+  level: "auto",
+  micro: false,
+  left: 120,
+  timerId: null,
+  busy: false,
+  speaking: false,
+  listening: false,
+  hf: false,
+  hfRunning: false,
+  wl: null,
+  view: "tab-path",
+  scn: null,
+  turns: [],
+  targets: [],
+  reviewItems: [],
+  lastUserEl: null,
+  studied: "",
+  lastAudioUrl: null,
+  mediaRecorder: null,
+  audioChunks: [],
+  goals: { en: "", ar: "", nl: "" },
+  items: { en: [], ar: [], nl: [] },
+  prog: { en: { units: {}, start: 0, levels: [], sessions: 0 }, ar: { units: {}, start: 0, levels: [], sessions: 0 }, nl: { units: {}, start: 0, levels: [], sessions: 0 } },
+  alpha: {},
+  ar: { vow: true, tr: true },
+  history: [],
+  resume: null,
+  cfg: {
+    provider: "gemini",
+    keys: { gemini: "", groq: "", anthropic: "", openrouter: "" },
+    models: {
+      gemini: { chat: "gemini-2.0-flash", heavy: "gemini-2.0-flash" },
+      groq: { chat: "llama-3.3-70b-versatile", heavy: "llama-3.3-70b-versatile" },
+      anthropic: { chat: "claude-3-5-haiku-20241022", heavy: "claude-3-5-sonnet-20241022" },
+      openrouter: { chat: "meta-llama/llama-3.3-70b-instruct", heavy: "meta-llama/llama-3.3-70b-instruct" }
+    },
+    voice: { en: "", ar: "", nl: "" }
+  }
+};
+
+const DB_NAME = "parlons_db";
+const DB_VERSION = 1;
+function initDB(){
+  return new Promise(res=>{
+    if(!window.indexedDB){res(null);return}
+    try{
+      const req=indexedDB.open(DB_NAME,DB_VERSION);
+      req.onupgradeneeded=e=>{
+        const db=e.target.result;
+        if(!db.objectStoreNames.contains("state"))db.createObjectStore("state",{keyPath:"id"});
+      };
+      req.onsuccess=e=>res(e.target.result);
+      req.onerror=()=>res(null);
+    }catch(err){res(null)}
+  });
+}
+async function saveToDB(key,val){
+  const db=await initDB();if(!db)return;
+  try{
+    const tx=db.transaction("state","readwrite");
+    tx.objectStore("state").put({id:key,data:val});
+  }catch(e){}
+}
+
+function save(){
+  try{
+    localStorage.setItem("parlons_cfg",JSON.stringify(S.cfg));
+    localStorage.setItem("parlons_prog",JSON.stringify(S.prog));
+    localStorage.setItem("parlons_items",JSON.stringify(S.items));
+    localStorage.setItem("parlons_alpha",JSON.stringify(S.alpha));
+    localStorage.setItem("parlons_goals",JSON.stringify(S.goals));
+    localStorage.setItem("parlons_ar",JSON.stringify(S.ar));
+    localStorage.setItem("parlons_level",S.level);
+    localStorage.setItem("parlons_history",JSON.stringify(S.history.slice(0,30)));
+    saveToDB("full_state",{cfg:S.cfg,prog:S.prog,items:S.items,alpha:S.alpha,goals:S.goals,ar:S.ar,level:S.level,history:S.history});
+  }catch(e){}
+}
+
+function load(){
+  try{
+    const c=localStorage.getItem("parlons_cfg");if(c)Object.assign(S.cfg,JSON.parse(c));
+    const p=localStorage.getItem("parlons_prog");if(p)S.prog=JSON.parse(p);
+    const it=localStorage.getItem("parlons_items");if(it)S.items=JSON.parse(it);
+    const al=localStorage.getItem("parlons_alpha");if(al)S.alpha=JSON.parse(al);
+    const g=localStorage.getItem("parlons_goals");if(g)S.goals=JSON.parse(g);
+    const a=localStorage.getItem("parlons_ar");if(a)S.ar=JSON.parse(a);
+    const l=localStorage.getItem("parlons_level");if(l)S.level=l;
+    const h=localStorage.getItem("parlons_history");if(h)S.history=JSON.parse(h);
+  }catch(e){}
+}
+
+/* ==================== APPEL IA & RÉSILIENCE ==================== */
+function curKey(){return (S.cfg.keys[S.cfg.provider]||"").trim()}
+function mChat(){const p=S.cfg.provider;return (S.cfg.models[p]&&S.cfg.models[p].chat)||PROVIDERS[p].chat}
+function mHeavy(){const p=S.cfg.provider;return (S.cfg.models[p]&&S.cfg.models[p].heavy)||PROVIDERS[p].heavy}
+
+async function llm(opts){
+  const prov=S.cfg.provider;
+  const def=PROVIDERS[prov];
+  const key=curKey();
+  if(!key)throw {code:"nokey"};
+
+  const targetModel=opts.model||mChat();
+  async function makeReq(modelToUse){
+    let url, headers={"content-type":"application/json"}, body;
+    if(prov==="anthropic"){
+      url="https://api.anthropic.com/v1/messages";
+      headers["x-api-key"]=key;
+      headers["anthropic-version"]="2023-06-01";
+      headers["anthropic-dangerous-direct-browser-access"]="true";
+      body=JSON.stringify({
+        model:modelToUse,
+        system:opts.system||"",
+        messages:opts.messages||[],
+        max_tokens:opts.max||1024,
+        temperature:opts.temp!=null?opts.temp:0.7
+      });
+    }else if(prov==="gemini"){
+      url="https://generativelanguage.googleapis.com/v1beta/models/"+modelToUse+":generateContent?key="+key;
+      const contents=(opts.messages||[]).map(m=>({
+        role:m.role==="user"?"user":"model",
+        parts:[{text:m.content}]
+      }));
+      const payload={contents:contents};
+      if(opts.system)payload.systemInstruction={parts:[{text:opts.system}]};
+      payload.generationConfig={temperature:opts.temp!=null?opts.temp:0.7,maxOutputTokens:opts.max||1024};
+      if(opts.json)payload.generationConfig.responseMimeType="application/json";
+      body=JSON.stringify(payload);
+    }else{
+      url=(def.base||"https://api.openai.com/v1")+"/chat/completions";
+      headers["authorization"]="Bearer "+key;
+      const msgs=[];
+      if(opts.system)msgs.push({role:"system",content:opts.system});
+      (opts.messages||[]).forEach(m=>msgs.push({role:m.role,content:m.content}));
+      const payload={
+        model:modelToUse,
+        messages:msgs,
+        max_tokens:opts.max||1024,
+        temperature:opts.temp!=null?opts.temp:0.7
+      };
+      if(opts.json)payload.response_format={type:"json_object"};
+      body=JSON.stringify(payload);
+    }
+
+    let res;
+    try{res=await fetch(url,{method:"POST",headers:headers,body:body})}catch(e){throw {code:"net"}}
+    if(!res.ok){
+      let m="";try{const j=await res.json();m=(j.error&&j.error.message)||JSON.stringify(j)}catch(x){m=await res.text()}
+      m=typeof m==="string"?m:"";
+      let code=res.status===401||res.status===403?"auth":res.status===404?"model":res.status===429?"rate":res.status>=500?"upstream":"bad";
+      if(res.status===400&&/api key|api_key|apikey/i.test(m))code="auth";
+      throw {code:code,message:m,status:res.status,model:modelToUse};
+    }
+    const j=await res.json();
+    if(prov==="anthropic")return (j.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("");
+    if(prov==="gemini")return ((((j.candidates||[])[0]||{}).content||{}).parts||[]).map(p=>p.text||"").join("");
+    return (((j.choices||[])[0]||{}).message||{}).content||"";
+  }
+
+  try{
+    return await makeReq(targetModel);
+  }catch(err){
+    if(err&&err.status===404&&def.models&&def.models.length){
+      for(const fb of def.models){
+        if(fb===targetModel)continue;
+        try{
+          const resTxt=await makeReq(fb);
+          if(!S.cfg.models[prov])S.cfg.models[prov]={};
+          S.cfg.models[prov].chat=fb;
+          S.cfg.models[prov].heavy=fb;
+          save();
+          return resTxt;
+        }catch(e2){}
+      }
+    }
+    throw err;
+  }
+}
+
+function parseJSON(t){
+  t=String(t||"");
+  try{return JSON.parse(t)}catch(e){}
+  const a=t.indexOf("{"),b=t.lastIndexOf("}");
+  if(a>=0&&b>a){
+    const seg=t.slice(a,b+1);
+    try{return JSON.parse(seg)}catch(e){}
+    try{return JSON.parse(seg.replace(/[\r\n\t]+/g," "))}catch(e){}
+  }
+  throw {code:"json",raw:t};
+}
+
+function errText(e){
+  const c=e&&e.code;
+  if(c==="nokey")return "Collez d'abord votre clé API dans les réglages.";
+  if(c==="auth")return "Clé API refusée ou invalide. Vérifiez-la dans l'onglet Réglages.";
+  if(c==="model")return "Modèle introuvable ou indisponible. Cliquez sur 'Voir les modèles disponibles' dans les réglages.";
+  if(c==="rate")return "Limite de requêtes atteinte (quota). Patientez quelques instants ou vérifiez vos crédits.";
+  if(c==="net")return "Impossible de joindre le fournisseur. Vérifiez votre connexion Internet.";
+  if(c==="json")return "Réponse inattendue de l'IA. Renvoyez votre message.";
+  return "Erreur de connexion ("+(e.message||"inconnue")+").";
+}
+
+/* ==================== AUDIO : PAROLE & MICRO ==================== */
+let VOICES=[];
+function refreshVoices(){try{VOICES=speechSynthesis.getVoices()||[]}catch(e){VOICES=[]}fillVoiceSelect()}
+function voicesFor(lang){const p=SPEECH[lang].tts.slice(0,2);return VOICES.filter(v=>v.lang&&v.lang.toLowerCase().indexOf(p)===0)}
+function voiceFor(lang){
+  const list=voicesFor(lang),saved=S.cfg.voice[lang];
+  return list.find(v=>v.voiceURI===saved)||list.find(v=>v.lang.toLowerCase()===SPEECH[lang].tts.toLowerCase())||list[0]||null;
+}
+function fillVoiceSelect(){
+  const sel=$("#voiceSel");if(!sel)return;
+  sel.textContent="";
+  const list=voicesFor(S.lang);
+  if(!list.length){sel.append(new Option("Voix par défaut du système",""));return}
+  const cur=voiceFor(S.lang);
+  list.forEach(v=>{const o=new Option(v.name+" ("+v.lang+")",v.voiceURI);if(cur&&cur.voiceURI===v.voiceURI)o.selected=true;sel.append(o)});
+}
+function cleanTTS(t){return String(t||"").replace(/[*_`#]/g," ").trim()}
+
+function speak(text,rate,forceLang){
+  return new Promise(res=>{
+    if(!("speechSynthesis" in window)||!text){res();return}
+    try{
+      speechSynthesis.cancel();
+      const cleaned=cleanTTS(text);
+      const u=new SpeechSynthesisUtterance(cleaned);
+      const langKey=forceLang||(/[\u0600-\u06FF]/.test(cleaned)?"ar":S.lang);
+      const v=voiceFor(langKey);
+      if(v){u.voice=v;u.lang=v.lang}else u.lang=SPEECH[langKey].tts;
+      u.rate=rate||0.95;
+      let done=false;
+      const fin=()=>{if(done)return;done=true;S.speaking=false;setStatus();res()};
+      u.onend=fin;u.onerror=fin;
+      S.speaking=true;setStatus();
+      speechSynthesis.speak(u);
+      setTimeout(fin,6000+String(text).length*130);
+    }catch(e){S.speaking=false;res()}
+  });
+}
+function stopSpeak(){try{speechSynthesis.cancel()}catch(e){}S.speaking=false}
+
+/* Reconnaissance vocale & Enregistrement MediaRecorder */
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+function listenOnce(onInterim){
+  return new Promise((resolve,reject)=>{
+    if(!SR){reject({code:"unsupported"});return}
+    let r;
+    try{r=new SR()}catch(e){reject({code:"unsupported"});return}
+    S.rec=r;
+    r.lang=SPEECH[S.lang].stt;
+    r.interimResults=true;
+    r.continuous=false;
+    r.maxAlternatives=3;
+
+    let mediaStream=null;
+    try{
+      if(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia){
+        navigator.mediaDevices.getUserMedia({audio:true}).then(stream=>{
+          mediaStream=stream;
+          S.audioChunks=[];
+          try{
+            S.mediaRecorder=new MediaRecorder(stream);
+            S.mediaRecorder.ondataavailable=ev=>{if(ev.data.size>0)S.audioChunks.push(ev.data)};
+            S.mediaRecorder.start();
+          }catch(x){}
+        }).catch(()=>{});
+      }
+    }catch(x){}
+
+    let final="",conf=0,err=null;
+    r.onresult=e=>{
+      let interim="";
+      for(let i=e.resultIndex;i<e.results.length;i++){
+        const x=e.results[i];
+        if(x.isFinal){final+=x[0].transcript;conf=x[0].confidence||conf}
+        else interim+=x[0].transcript;
+      }
+      if(onInterim)onInterim(interim||final);
+    };
+    r.onerror=e=>{err=e.error||"err"};
+    r.onend=()=>{
+      S.listening=false;setStatus();
+      if(S.mediaRecorder&&S.mediaRecorder.state==="recording"){
+        try{
+          S.mediaRecorder.stop();
+          if(mediaStream)mediaStream.getTracks().forEach(tr=>tr.stop());
+          const audioBlob=new Blob(S.audioChunks,{type:"audio/webm"});
+          if(S.lastAudioUrl)URL.revokeObjectURL(S.lastAudioUrl);
+          S.lastAudioUrl=URL.createObjectURL(audioBlob);
+        }catch(x){}
+      }
+      if(err)reject({code:err});
+      else resolve({text:final.trim(),conf:conf});
+    };
+    S.listening=true;setStatus();
+    try{r.start()}catch(e){S.listening=false;reject({code:"start_failed"})}
+  });
+}
+function stopListen(){if(S.rec){try{S.rec.stop()}catch(e){}S.rec=null}S.listening=false;setStatus()}
+
+function micErr(e){
+  const c=e&&e.code;let m="Erreur micro.";
+  if(c==="not-allowed"||c==="permission-denied")m="Micro non autorisé. Autorisez l'accès au micro dans les paramètres du navigateur.";
+  else if(c==="no-speech")m="Rien entendu. Touchez le micro et réessayez.";
+  else if(c==="network")m="La reconnaissance vocale a besoin d'Internet. Vérifiez votre réseau.";
+  else if(c==="unsupported")m="La reconnaissance vocale n'est pas supportée sur ce navigateur. Utilisez Chrome ou Edge.";
+  const log=S.view==="chat"?$("#log"):null;
+  if(log)log.append(el("div","alert danger",m));else flash(m);
+}
+
+function setStatus(){
+  const s=$("#status");if(!s)return;
+  let t="";
+  if(S.view==="chat"){
+    if(S.listening)t="🎤 Je vous écoute…";
+    else if(S.busy)t="⏳ Le professeur réfléchit…";
+    else if(S.speaking)t="🔊 Le professeur parle…";
+    else if(S.hf)t="📱 Mains libres actif : parlez quand le professeur termine.";
+  }
+  s.textContent=t;
+  const m=$("#micBtn");if(m)m.classList.toggle("on",S.listening);
+}
+
+function flash(msg){
+  const f=$("#flashMsg");if(!f)return;
+  f.textContent=msg;f.hidden=false;
+  setTimeout(()=>{f.hidden=true},4000);
+}
 /* ==================== NAVIGATION & ONGLETS ==================== */
 function switchTab(tabId){
   $$("main.view-content").forEach(m=>m.hidden=true);
@@ -1667,22 +2010,22 @@ function decomposeSyllables(w){
 
 function startWords(){
   stopSpeak();show("alpha");
-  $("#alphaTitle").textContent="Lire des mots (Épellation analytique)";
+  $("#alphaTitle").textContent="Lire des mots ("+AWORDS.length+" mots · Épellation analytique)";
   const body=$("#alphaBody");body.textContent="";
   body.append(el("p","card-desc","Touchez chaque syllabe découpée pour l'écouter isolément, puis écoutez le mot entier assemblé :"));
 
-  AWORDS.slice(0,12).forEach(w=>{
+  AWORDS.forEach(w=>{
     const card=el("div","card");
     const top=el("div","card-header");
     top.append(el("b",null,w[1]+" — "+w[2]),el("button","btn sm ghost","🔊 Mot complet"));
-    top.querySelector("button").onclick=()=>speak(w[0],0.8);
+    top.querySelector("button").onclick=()=>speak(w[0],0.8,"ar");
     card.append(top);
 
     const sBox=el("div","syllable-box");
     const syllables=decomposeSyllables(w[0]);
     syllables.forEach(syl=>{
       const chip=el("button","syllable-chip",syl);
-      chip.onclick=()=>speak(syl,0.7);
+      chip.onclick=()=>speak(syl,0.7,"ar");
       sBox.append(chip);
     });
     card.append(sBox);
@@ -1708,7 +2051,7 @@ function openRules(){
     r.items.forEach(it=>{
       const b=el("button","btn ghost",it.ex+" ("+it.n+" · "+it.tr+")");
       b.style.fontFamily="var(--font-arabic)";b.style.fontSize="18px";
-      b.onclick=()=>speak(it.ex,0.7);
+      b.onclick=()=>speak(it.ex,0.7,"ar");
       g.append(b);
     });
     card.append(g);
@@ -1727,11 +2070,11 @@ function renderDutchPhonics(){
     const row=el("div","pair-row");
     const c1=el("div","pair-col");
     c1.append(el("span","pair-word",p.short.w),el("span","pair-ipa",p.short.ipa),el("span","pair-trans",p.short.tr));
-    const b1=el("button","btn sm ghost","🔊 Écouter");b1.onclick=()=>speak(p.short.w,0.85);c1.append(b1);
+    const b1=el("button","btn sm ghost","🔊 Écouter");b1.onclick=()=>speak(p.short.w,0.85,"nl");c1.append(b1);
 
     const c2=el("div","pair-col");
     c2.append(el("span","pair-word",p.long.w),el("span","pair-ipa",p.long.ipa),el("span","pair-trans",p.long.tr));
-    const b2=el("button","btn sm ghost","🔊 Écouter");b2.onclick=()=>speak(p.long.w,0.85);c2.append(b2);
+    const b2=el("button","btn sm ghost","🔊 Écouter");b2.onclick=()=>speak(p.long.w,0.85,"nl");c2.append(b2);
 
     row.append(c1,c2);pList.append(row);
   });
@@ -1741,7 +2084,7 @@ function renderDutchPhonics(){
     const card=el("div","card");
     const h=el("div","card-header");
     h.append(el("b",null,d.w+" ("+d.dip+" · "+d.ipa+")"),el("button","btn sm ghost","🔊 Écouter"));
-    h.querySelector("button").onclick=()=>speak(d.w,0.85);
+    h.querySelector("button").onclick=()=>speak(d.w,0.85,"nl");
     card.append(h,el("span","card-desc",d.tr+" — "+d.tip));
     dList.append(card);
   });
@@ -1772,9 +2115,9 @@ $("#btnDutchQuiz").onclick=()=>{
   const target=isShort?pair.short:pair.long;
 
   const bSay=el("button","btn sm ghost","🔊 Écouter le son");
-  bSay.onclick=()=>speak(target.w,0.85);
+  bSay.onclick=()=>speak(target.w,0.85,"nl");
   body.append(bSay);
-  setTimeout(()=>speak(target.w,0.85),200);
+  setTimeout(()=>speak(target.w,0.85,"nl"),200);
 
   const opts=[pair.short.w,pair.long.w];
   const grid=el("div",null);grid.style.display="flex";grid.style.gap="10px";grid.style.marginTop="16px";
