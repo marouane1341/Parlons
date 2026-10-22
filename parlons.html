@@ -432,14 +432,18 @@ function load(){
     if(Array.isArray(d.history))S.history=d.history;
     const c=d.cfg;
     if(c){
-      if(c.key&&!c.keys){ /* ancien format : une seule clé Claude */
-        S.cfg.keys={anthropic:c.key};S.cfg.models={anthropic:{chat:c.chat,heavy:c.heavy}};S.cfg.provider="anthropic";
-      }else{
-        S.cfg.keys=c.keys||{};S.cfg.models=c.models||{};
-        S.cfg.provider=c.provider&&PROVIDERS[c.provider]?c.provider:"anthropic";
-      }
+      S.cfg.keys=c.keys||{};
+      S.cfg.models=c.models||{};
+      S.cfg.provider=c.provider&&PROVIDERS[c.provider]?c.provider:"gemini";
       S.cfg.voice=c.voice||{};
     }
+    // Nettoyer les modèles invalides ou obsolètes en mémoire locale
+    const badModels=["claude-haiku-5-5","claude-sonnet-5-5","gemini-2.5-flash","gpt-oss-120b","openai/gpt-oss-120b","gemini-1.5-flash-latest"];
+    Object.keys(PROVIDERS).forEach(p=>{
+      const m=S.cfg.models[p]||(S.cfg.models[p]={});
+      if(!m.chat||badModels.indexOf(m.chat)>=0||m.chat.indexOf("5-5")>=0||m.chat.indexOf("2.5")>=0)m.chat=PROVIDERS[p].chat;
+      if(!m.heavy||badModels.indexOf(m.heavy)>=0||m.heavy.indexOf("5-5")>=0||m.heavy.indexOf("2.5")>=0)m.heavy=PROVIDERS[p].heavy;
+    });
   }catch(e){}
 }
 function flash(t){const f=$("#flash");f.textContent=t;f.hidden=false;clearTimeout(flash._t);flash._t=setTimeout(()=>{f.hidden=true},4500)}
@@ -447,31 +451,41 @@ function flash(t){const f=$("#flash");f.textContent=t;f.hidden=false;clearTimeou
 /* ---------- appels à l'IA ---------- */
 function curKey(){return (S.cfg.keys&&S.cfg.keys[S.cfg.provider])||""}
 function mods(){
-  const p=S.cfg.provider,d=PROVIDERS[p],m=(S.cfg.models&&S.cfg.models[p])||{};
-  return {chat:m.chat||d.chat,heavy:m.heavy||d.heavy};
+  const p=S.cfg.provider,d=PROVIDERS[p]||PROVIDERS.gemini;
+  let m=(S.cfg.models&&S.cfg.models[p])||{};
+  const badModels=["claude-haiku-5-5","claude-sonnet-5-5","gemini-2.5-flash","gpt-oss-120b","openai/gpt-oss-120b","gemini-1.5-flash-latest"];
+  let chat=m.chat;
+  let heavy=m.heavy;
+  if(!chat || badModels.indexOf(chat)>=0 || chat.indexOf("5-5")>=0 || chat.indexOf("2.5")>=0) chat=d.chat;
+  if(!heavy || badModels.indexOf(heavy)>=0 || heavy.indexOf("5-5")>=0 || heavy.indexOf("2.5")>=0) heavy=d.heavy;
+  return {chat:chat, heavy:heavy};
 }
 const mChat=()=>mods().chat,mHeavy=()=>mods().heavy;
-async function llm(o){
-  const prov=S.cfg.provider,def=PROVIDERS[prov],key=curKey();
-  if(!key)throw {code:"nokey"};
-  const max=(o.max||1024)*(prov==="anthropic"?1:3); /* les modèles à raisonnement dépensent des jetons avant de répondre */
+
+async function callSingleModel(targetModel, o, prov, def, key){
+  const max=(o.max||1024)*(prov==="anthropic"?1:3);
   const wantJson=o.json!==false;
   let url,headers={"content-type":"application/json"},body;
+  const cleanModel=String(targetModel||def.chat).replace(/^models\//,"");
+
   if(prov==="anthropic"){
     url="https://api.anthropic.com/v1/messages";
-    headers["x-api-key"]=key;headers["anthropic-version"]="2023-06-01";headers["anthropic-dangerous-direct-browser-access"]="true";
-    body={model:o.model,max_tokens:max,system:o.system,messages:o.messages};
+    headers["x-api-key"]=key;
+    headers["anthropic-version"]="2023-06-01";
+    headers["anthropic-dangerous-direct-browser-access"]="true";
+    body={model:cleanModel,max_tokens:max,system:o.system,messages:o.messages};
   }else if(prov==="gemini"){
-    url="https://generativelanguage.googleapis.com/v1beta/models/"+encodeURIComponent(o.model)+":generateContent";
+    url="https://generativelanguage.googleapis.com/v1beta/models/"+encodeURIComponent(cleanModel)+":generateContent?key="+encodeURIComponent(key);
     headers["x-goog-api-key"]=key;
     body={systemInstruction:{parts:[{text:o.system}]},
       contents:o.messages.map(m=>({role:m.role==="assistant"?"model":"user",parts:[{text:m.content}]})),
       generationConfig:Object.assign({maxOutputTokens:max,temperature:0.7},wantJson?{responseMimeType:"application/json"}:{})};
   }else{
-    url=def.base+"/chat/completions";
+    url=(def.base||"https://api.openai.com/v1")+"/chat/completions";
     headers.authorization="Bearer "+key;
-    body={model:o.model,messages:[{role:"system",content:o.system}].concat(o.messages),max_tokens:max,temperature:0.7};
+    body={model:cleanModel,messages:[{role:"system",content:o.system}].concat(o.messages),max_tokens:max,temperature:0.7};
   }
+
   let res;
   try{res=await fetch(url,{method:"POST",signal:o.signal,headers:headers,body:JSON.stringify(body)})}
   catch(e){
@@ -483,12 +497,47 @@ async function llm(o){
     m=typeof m==="string"?m:"";
     let code=res.status===401||res.status===403?"auth":res.status===404?"model":res.status===429?"rate":res.status>=500?"upstream":"bad";
     if(res.status===400&&/api key|api_key|apikey/i.test(m))code="auth";
-    throw {code:code,message:m,status:res.status};
+    throw {code:code,message:m,status:res.status,model:cleanModel};
   }
   const j=await res.json();
   if(prov==="anthropic")return (j.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("");
   if(prov==="gemini")return ((((j.candidates||[])[0]||{}).content||{}).parts||[]).map(p=>p.text||"").join("");
   return (((j.choices||[])[0]||{}).message||{}).content||"";
+}
+
+async function llm(o){
+  const prov=S.cfg.provider,def=PROVIDERS[prov]||PROVIDERS.gemini,key=curKey();
+  if(!key)throw {code:"nokey"};
+
+  const candidateModels=[o.model, def.chat, def.heavy].filter(Boolean);
+  if(prov==="gemini"){
+    candidateModels.push("gemini-2.0-flash","gemini-1.5-flash");
+  }else if(prov==="anthropic"){
+    candidateModels.push("claude-3-5-haiku-20241022","claude-3-5-sonnet-20241022","claude-3-haiku-20240307");
+  }else if(prov==="groq"){
+    candidateModels.push("llama-3.3-70b-versatile","llama-3.1-8b-instant");
+  }
+  const uniqueModels=candidateModels.filter((v,i,a)=>a.indexOf(v)===i);
+
+  let lastErr=null;
+  for(let i=0;i<uniqueModels.length;i++){
+    const curM=uniqueModels[i];
+    try{
+      const resText=await callSingleModel(curM,o,prov,def,key);
+      if(curM!==o.model){
+        if(!S.cfg.models[prov])S.cfg.models[prov]={};
+        if(o.model===mHeavy())S.cfg.models[prov].heavy=curM;
+        else S.cfg.models[prov].chat=curM;
+        save();
+      }
+      return resText;
+    }catch(err){
+      lastErr=err;
+      if(err&&err.status===404)continue;
+      throw err;
+    }
+  }
+  throw lastErr;
 }
 async function listModels(){
   const prov=S.cfg.provider,key=curKey();
@@ -577,19 +626,7 @@ function listenOnce(onInterim){
     try{r=new SR()}catch(e){reject({code:"unsupported"});return}
     S.rec=r;
     r.lang=SPEECH[S.lang].stt;r.interimResults=true;r.continuous=false;r.maxAlternatives=3;
-    let final="",conf=0,err=null,recStream=null;
-    try{
-      if(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia){
-        navigator.mediaDevices.getUserMedia({audio:true}).then(st=>{
-          recStream=st;S._chunks=[];
-          try{
-            S._mr=new MediaRecorder(st);
-            S._mr.ondataavailable=ev=>{if(ev.data.size>0)S._chunks.push(ev.data)};
-            S._mr.start();
-          }catch(x){}
-        }).catch(()=>{});
-      }
-    }catch(x){}
+    let final="",conf=0,err=null;
     r.onresult=e=>{
       let interim="";
       for(let i=e.resultIndex;i<e.results.length;i++){
@@ -601,15 +638,6 @@ function listenOnce(onInterim){
     r.onerror=e=>{err=e.error};
     r.onend=()=>{
       S.rec=null;S.listening=false;setStatus();
-      if(S._mr&&S._mr.state==="recording"){
-        try{
-          S._mr.stop();
-          if(recStream)recStream.getTracks().forEach(tr=>tr.stop());
-          const b=new Blob(S._chunks,{type:"audio/webm"});
-          if(S.lastAudioUrl)URL.revokeObjectURL(S.lastAudioUrl);
-          S.lastAudioUrl=URL.createObjectURL(b);
-        }catch(x){}
-      }
       if(err&&err!=="no-speech"&&err!=="aborted")reject({code:err});
       else resolve({text:final.trim(),conf:conf});
     };
@@ -1118,13 +1146,6 @@ async function submitUser(text,fromVoice,conf){
   if(!text||S.busy)return;
   stopSpeak();
   const m=el("div","msg u"+(LANGS[S.lang].rtl?" ar":""),text);m.dir="auto";
-  if(fromVoice&&S.lastAudioUrl){
-    const aUrl=S.lastAudioUrl;
-    const pBtn=el("button","mini","🔊 Réécouter ma voix");
-    pBtn.style.marginTop="6px";pBtn.style.display="inline-block";pBtn.style.background="rgba(255,255,255,0.2)";pBtn.style.color="var(--accent-ink)";pBtn.style.borderColor="rgba(255,255,255,0.5)";pBtn.style.cursor="pointer";
-    pBtn.onclick=e=>{e.stopPropagation();try{new Audio(aUrl).play()}catch(x){}};
-    m.append(document.createElement("br"),pBtn);
-  }
   $("#log").append(m);S.lastUserEl=m;
   S.turns.push({role:"user",content:fromVoice?text+" [reco vocale, confiance "+(conf?conf.toFixed(2):"?")+"]":text});
   startTimer();
