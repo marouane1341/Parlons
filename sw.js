@@ -1,4 +1,4 @@
-const CACHE_NAME = 'parlons-pwa-v6';
+const CACHE_NAME = 'parlons-pwa-v7';
 const STATIC_ASSETS = [
   './',
   './index.html',
@@ -32,13 +32,28 @@ self.addEventListener('activate', event => {
 
 self.addEventListener('fetch', event => {
   const req = event.request;
-  
-  // Ignorer les requêtes non-GET ou vers des API tierces (Anthropic, Gemini, Groq...)
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
 
-  // Stale-While-Revalidate pour les fichiers statiques de l'application
+  // 1. Pour la navigation HTML (index.html, parlons.html) : NETWORK FIRST
+  // Cela garantit que toute mise à jour sur GitHub Pages est visible immédiatement.
+  if (req.mode === 'navigate' || req.destination === 'document') {
+    event.respondWith(
+      fetch(req).then(networkResponse => {
+        if (networkResponse && networkResponse.status === 200) {
+          const resClone = networkResponse.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(req, resClone));
+        }
+        return networkResponse;
+      }).catch(() => {
+        return caches.match('./index.html') || caches.match('./parlons.html');
+      })
+    );
+    return;
+  }
+
+  // 2. Pour les autres ressources statiques (icônes, manifest) : Stale-While-Revalidate
   event.respondWith(
     caches.match(req).then(cachedResponse => {
       const fetchPromise = fetch(req).then(networkResponse => {
@@ -47,13 +62,7 @@ self.addEventListener('fetch', event => {
           caches.open(CACHE_NAME).then(cache => cache.put(req, resClone));
         }
         return networkResponse;
-      }).catch(() => {
-        // En cas d'erreur réseau, si c'est une navigation vers une page HTML, servir index.html
-        if (req.mode === 'navigate') {
-          return caches.match('./index.html') || caches.match('./parlons.html');
-        }
-      });
-
+      }).catch(() => {});
       return cachedResponse || fetchPromise;
     })
   );
