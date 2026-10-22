@@ -124,14 +124,15 @@ select.field{width:auto}
 .fixitem+.fixitem{border-top:1px solid var(--line);padding-top:6px}
 .tip{align-self:flex-start;max-width:88%;background:var(--tint);border-radius:12px;padding:8px 12px;font-size:13px}
 .typing{color:var(--muted);font-size:14px;align-self:flex-start}
-.status{min-height:20px;font-size:14px;color:var(--accent);font-weight:600}
-.live{min-height:20px;font-style:italic}
+.status{min-height:22px;font-size:14px;color:var(--accent);font-weight:600}
+.live{min-height:20px;font-style:italic;color:var(--good);font-weight:500}
 .composer{display:flex;gap:8px;align-items:flex-end;position:sticky;bottom:0;background:var(--paper);padding-block:10px calc(10px + env(safe-area-inset-bottom,0px))}
 .composer textarea{flex:1;min-width:0;resize:none;border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--card);min-height:44px;max-height:140px}
-.mic{width:48px;height:48px;border-radius:50%;border:0;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;flex:none}
-.mic.on{animation:pulse 1.2s infinite}
-@keyframes pulse{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--accent) 55%,transparent)}100%{box-shadow:0 0 0 14px transparent}}
-@media (prefers-reduced-motion:reduce){.mic.on{animation:none;outline:3px solid var(--ink)}}
+.mic{width:50px;height:50px;border-radius:50%;border:0;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;flex:none;cursor:pointer;transition:background .2s, transform .15s}
+.mic:active{transform:scale(0.92)}
+.mic.on{background:#dc2626 !important;color:#fff !important;animation:pulseRed 1.2s infinite}
+@keyframes pulseRed{0%{box-shadow:0 0 0 0 rgba(220,38,38,0.75)}70%{box-shadow:0 0 0 16px rgba(220,38,38,0)}100%{box-shadow:0 0 0 0 rgba(220,38,38,0)}}
+@media (prefers-reduced-motion:reduce){.mic.on{animation:none;outline:3px solid #dc2626}}
 
 /* écoute et répétition */
 .passage{font-size:18px;line-height:1.7;overflow-wrap:anywhere}
@@ -205,7 +206,8 @@ ul.clean{margin:0;padding-inline-start:18px;display:flex;flex-direction:column;g
       <p class="small muted" id="provNote"></p>
       <p class="small muted">La clé reste uniquement dans ce navigateur, sur cet ordinateur : ne l'enregistrez pas sur un appareil partagé. Chaque fournisseur a sa propre clé.</p>
       <label class="label" for="apikey">Clé API</label>
-      <input class="field" id="apikey" type="password" autocomplete="off" placeholder="Collez la clé ici">
+      <input class="field" id="apikey" type="password" autocomplete="off" placeholder="Collez votre clé ici (Gemini, Groq, Claude, Mistral)">
+      <p class="small" id="keyDetectNote" style="color:var(--good);font-weight:600;display:none;margin-top:4px"></p>
       <label class="label" for="mChat">Modèle de conversation (rapide)</label>
       <input class="field" id="mChat" type="text" autocomplete="off" list="modelList">
       <label class="label" for="mHeavy">Modèle pour le bilan, l'écoute et l'arabe</label>
@@ -215,6 +217,7 @@ ul.clean{margin:0;padding-inline-start:18px;display:flex;flex-direction:column;g
         <button class="btn sm" id="saveKey">Enregistrer</button>
         <button class="btn sm ghost" id="testKey">Tester la connexion</button>
         <button class="btn sm ghost" id="listModels">Voir les modèles disponibles</button>
+        <button class="btn sm ghost" id="resetCfgBtn" style="color:var(--bad)">Réinitialiser modèles</button>
       </div>
       <p class="small" id="testRes" role="status"></p>
       <label class="label" for="voiceSel">Voix du professeur (langue choisie)</label>
@@ -412,7 +415,7 @@ const SCENARIOS=[
 const BOX_DAYS=[1,3,7,14,30];
 const KEY="parlons.app.v1";
 
-const S={lang:"en",mode:"write",imm:0,micro:false,scn:null,turns:[],busy:false,ctl:null,view:"home",
+const S={lang:"en",mode:"voice",imm:0,micro:false,scn:null,turns:[],busy:false,ctl:null,view:"home",
   goals:{},items:{},alpha:{},level:"auto",ar:{vow:true,tr:false},history:[],resume:null,prog:{},
   cfg:{provider:"gemini",keys:{},models:{},voice:{}},
   targets:[],reviewItems:[],studied:"",
@@ -422,6 +425,15 @@ const S={lang:"en",mode:"write",imm:0,micro:false,scn:null,turns:[],busy:false,c
 /* ---------- stockage ---------- */
 function save(){
   try{localStorage.setItem(KEY,JSON.stringify({goals:S.goals,items:S.items,alpha:S.alpha,ar:S.ar,level:S.level,cfg:S.cfg,prog:S.prog,history:S.history.slice(0,40)}))}catch(e){}
+}
+function detectProvider(k){
+  if(!k||typeof k!=="string")return null;
+  k=k.trim();
+  if(/^AIzaSy/i.test(k))return "gemini";
+  if(/^gsk_/i.test(k))return "groq";
+  if(/^sk-ant-/i.test(k))return "anthropic";
+  if(/^sk-[a-zA-Z0-9_-]{20,}/i.test(k))return "groq";
+  return null;
 }
 function load(){
   try{
@@ -437,27 +449,64 @@ function load(){
       S.cfg.provider=c.provider&&PROVIDERS[c.provider]?c.provider:"gemini";
       S.cfg.voice=c.voice||{};
     }
+    // Auto-correction : si la clé actuelle appartient à un autre fournisseur, basculer immédiatement
+    const activeKey=(S.cfg.keys&&S.cfg.keys[S.cfg.provider])||"";
+    const det=detectProvider(activeKey);
+    if(det&&det!==S.cfg.provider&&PROVIDERS[det]){
+      S.cfg.provider=det;
+      if(!S.cfg.keys[det])S.cfg.keys[det]=activeKey;
+    }
     // Nettoyer les modèles invalides ou obsolètes en mémoire locale
     const badModels=["claude-haiku-5-5","claude-sonnet-5-5","gemini-2.5-flash","gpt-oss-120b","openai/gpt-oss-120b","gemini-1.5-flash-latest"];
     Object.keys(PROVIDERS).forEach(p=>{
       const m=S.cfg.models[p]||(S.cfg.models[p]={});
-      if(!m.chat||badModels.indexOf(m.chat)>=0||m.chat.indexOf("5-5")>=0||m.chat.indexOf("2.5")>=0)m.chat=PROVIDERS[p].chat;
-      if(!m.heavy||badModels.indexOf(m.heavy)>=0||m.heavy.indexOf("5-5")>=0||m.heavy.indexOf("2.5")>=0)m.heavy=PROVIDERS[p].heavy;
+      if(!m.chat||badModels.indexOf(m.chat)>=0||m.chat.indexOf("5-5")>=0)m.chat=PROVIDERS[p].chat;
+      if(!m.heavy||badModels.indexOf(m.heavy)>=0||m.heavy.indexOf("5-5")>=0)m.heavy=PROVIDERS[p].heavy;
     });
   }catch(e){}
 }
 function flash(t){const f=$("#flash");f.textContent=t;f.hidden=false;clearTimeout(flash._t);flash._t=setTimeout(()=>{f.hidden=true},4500)}
 
 /* ---------- appels à l'IA ---------- */
-function curKey(){return (S.cfg.keys&&S.cfg.keys[S.cfg.provider])||""}
+function curKey(){
+  let p=S.cfg.provider||"gemini";
+  let k=(S.cfg.keys&&S.cfg.keys[p])||"";
+  
+  // Si la clé entrée correspond à un autre fournisseur connu, réaligner automatiquement
+  const det=detectProvider(k);
+  if(det&&det!==p&&PROVIDERS[det]){
+    S.cfg.provider=det;
+    p=det;
+    if(!S.cfg.keys[det])S.cfg.keys[det]=k;
+  }
+  if(k&&k.trim())return k.trim();
+
+  // Si le fournisseur actuel n'a pas de clé, chercher si une clé existe ailleurs
+  if(S.cfg.keys){
+    const provs=Object.keys(PROVIDERS);
+    for(let i=0;i<provs.length;i++){
+      const prov=provs[i];
+      const cand=S.cfg.keys[prov];
+      if(cand&&cand.trim()){
+        const candDet=detectProvider(cand)||prov;
+        S.cfg.provider=candDet;
+        if(!S.cfg.keys[candDet])S.cfg.keys[candDet]=cand.trim();
+        save();
+        return cand.trim();
+      }
+    }
+  }
+  return "";
+}
+
 function mods(){
-  const p=S.cfg.provider,d=PROVIDERS[p]||PROVIDERS.gemini;
+  const p=S.cfg.provider||"gemini",d=PROVIDERS[p]||PROVIDERS.gemini;
   let m=(S.cfg.models&&S.cfg.models[p])||{};
   const badModels=["claude-haiku-5-5","claude-sonnet-5-5","gemini-2.5-flash","gpt-oss-120b","openai/gpt-oss-120b","gemini-1.5-flash-latest"];
   let chat=m.chat;
   let heavy=m.heavy;
-  if(!chat || badModels.indexOf(chat)>=0 || chat.indexOf("5-5")>=0 || chat.indexOf("2.5")>=0) chat=d.chat;
-  if(!heavy || badModels.indexOf(heavy)>=0 || heavy.indexOf("5-5")>=0 || heavy.indexOf("2.5")>=0) heavy=d.heavy;
+  if(!chat || badModels.indexOf(chat)>=0 || chat.indexOf("5-5")>=0) chat=d.chat;
+  if(!heavy || badModels.indexOf(heavy)>=0 || heavy.indexOf("5-5")>=0) heavy=d.heavy;
   return {chat:chat, heavy:heavy};
 }
 const mChat=()=>mods().chat,mHeavy=()=>mods().heavy;
@@ -473,32 +522,53 @@ async function callSingleModel(targetModel, o, prov, def, key){
     headers["x-api-key"]=key;
     headers["anthropic-version"]="2023-06-01";
     headers["anthropic-dangerous-direct-browser-access"]="true";
-    body={model:cleanModel,max_tokens:max,system:o.system,messages:o.messages};
+    body={model:cleanModel,max_tokens:max,messages:o.messages};
+    if(o.system&&o.system.trim())body.system=o.system;
   }else if(prov==="gemini"){
     url="https://generativelanguage.googleapis.com/v1beta/models/"+encodeURIComponent(cleanModel)+":generateContent?key="+encodeURIComponent(key);
     headers["x-goog-api-key"]=key;
-    body={systemInstruction:{parts:[{text:o.system}]},
+    body={
       contents:o.messages.map(m=>({role:m.role==="assistant"?"model":"user",parts:[{text:m.content}]})),
-      generationConfig:Object.assign({maxOutputTokens:max,temperature:0.7},wantJson?{responseMimeType:"application/json"}:{})};
+      generationConfig:Object.assign({maxOutputTokens:max,temperature:0.7},wantJson?{responseMimeType:"application/json"}:{})
+    };
+    if(o.system&&o.system.trim())body.systemInstruction={parts:[{text:o.system}]};
   }else{
     url=(def.base||"https://api.openai.com/v1")+"/chat/completions";
     headers.authorization="Bearer "+key;
-    body={model:cleanModel,messages:[{role:"system",content:o.system}].concat(o.messages),max_tokens:max,temperature:0.7};
+    const msgs=[];
+    if(o.system&&o.system.trim())msgs.push({role:"system",content:o.system});
+    body={model:cleanModel,messages:msgs.concat(o.messages),max_tokens:max,temperature:0.7};
   }
 
   let res;
-  try{res=await fetch(url,{method:"POST",signal:o.signal,headers:headers,body:JSON.stringify(body)})}
-  catch(e){
+  try{
+    res=await fetch(url,{method:"POST",signal:o.signal,headers:headers,body:JSON.stringify(body)});
+  }catch(e){
     if(e&&e.name==="AbortError")throw {code:"cancelled"};
-    throw {code:"net"};
+    throw {code:"net",provider:prov,message:"Connexion refusée ou impossible vers "+(def.name||prov)};
   }
+
   if(!res.ok){
     let m="";try{const j=await res.json();m=(j.error&&(j.error.message||j.error))||j.message||""}catch(e){}
     m=typeof m==="string"?m:"";
+
+    // Si Gemini rejette avec 400 à cause de responseMimeType
+    if(prov==="gemini"&&wantJson&&res.status===400&&body.generationConfig&&body.generationConfig.responseMimeType){
+      delete body.generationConfig.responseMimeType;
+      try{
+        const retryRes=await fetch(url,{method:"POST",signal:o.signal,headers:headers,body:JSON.stringify(body)});
+        if(retryRes.ok){
+          const retryJ=await retryRes.json();
+          return ((((retryJ.candidates||[])[0]||{}).content||{}).parts||[]).map(p=>p.text||"").join("");
+        }
+      }catch(rx){}
+    }
+
     let code=res.status===401||res.status===403?"auth":res.status===404?"model":res.status===429?"rate":res.status>=500?"upstream":"bad";
     if(res.status===400&&/api key|api_key|apikey/i.test(m))code="auth";
-    throw {code:code,message:m,status:res.status,model:cleanModel};
+    throw {code:code,message:m,status:res.status,model:cleanModel,provider:prov};
   }
+
   const j=await res.json();
   if(prov==="anthropic")return (j.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("");
   if(prov==="gemini")return ((((j.candidates||[])[0]||{}).content||{}).parts||[]).map(p=>p.text||"").join("");
@@ -506,16 +576,19 @@ async function callSingleModel(targetModel, o, prov, def, key){
 }
 
 async function llm(o){
-  const prov=S.cfg.provider,def=PROVIDERS[prov]||PROVIDERS.gemini,key=curKey();
+  const key=curKey();
   if(!key)throw {code:"nokey"};
+  const prov=S.cfg.provider||"gemini";
+  const def=PROVIDERS[prov]||PROVIDERS.gemini;
 
+  // Ordre de priorité des modèles par fournisseur
   const candidateModels=[o.model, def.chat, def.heavy].filter(Boolean);
   if(prov==="gemini"){
-    candidateModels.push("gemini-2.0-flash","gemini-1.5-flash");
+    candidateModels.push("gemini-2.0-flash","gemini-2.0-flash-lite","gemini-1.5-flash","gemini-1.5-pro");
   }else if(prov==="anthropic"){
     candidateModels.push("claude-3-5-haiku-20241022","claude-3-5-sonnet-20241022","claude-3-haiku-20240307");
   }else if(prov==="groq"){
-    candidateModels.push("llama-3.3-70b-versatile","llama-3.1-8b-instant");
+    candidateModels.push("llama-3.3-70b-versatile","llama-3.1-8b-instant","mixtral-8x7b-32768");
   }
   const uniqueModels=candidateModels.filter((v,i,a)=>a.indexOf(v)===i);
 
@@ -533,28 +606,59 @@ async function llm(o){
       return resText;
     }catch(err){
       lastErr=err;
-      if(err&&err.status===404)continue;
-      throw err;
+      if(err&&err.status===404)continue; // Essayer le modèle suivant
+      throw err; // Stop si auth, quota, etc.
     }
   }
+
+  // Si tous les modèles standards sont introuvables (404), interroger la liste dynamique des modèles
+  if(lastErr&&lastErr.status===404){
+    try{
+      const liveList=await listModels();
+      if(liveList&&liveList.length){
+        const bestModel=liveList.find(m=>/flash|haiku|versatile|instant/i.test(m))||liveList[0];
+        if(bestModel&&uniqueModels.indexOf(bestModel)<0){
+          const resText=await callSingleModel(bestModel,o,prov,def,key);
+          if(!S.cfg.models[prov])S.cfg.models[prov]={};
+          S.cfg.models[prov].chat=bestModel;
+          S.cfg.models[prov].heavy=bestModel;
+          save();
+          return resText;
+        }
+      }
+    }catch(liveErr){}
+  }
+
   throw lastErr;
 }
+
 async function listModels(){
-  const prov=S.cfg.provider,key=curKey();
+  const key=curKey(),prov=S.cfg.provider||"gemini";
   if(!key)throw {code:"nokey"};
   let url,headers={};
-  if(prov==="anthropic"){url="https://api.anthropic.com/v1/models?limit=100";headers={"x-api-key":key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"}}
-  else if(prov==="gemini"){url="https://generativelanguage.googleapis.com/v1beta/models?pageSize=200";headers={"x-goog-api-key":key}}
-  else{url=PROVIDERS[prov].base+"/models";headers={authorization:"Bearer "+key}}
+  if(prov==="anthropic"){
+    url="https://api.anthropic.com/v1/models?limit=100";
+    headers={"x-api-key":key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"};
+  }else if(prov==="gemini"){
+    url="https://generativelanguage.googleapis.com/v1beta/models?key="+encodeURIComponent(key)+"&pageSize=200";
+    headers={"x-goog-api-key":key};
+  }else{
+    url=(PROVIDERS[prov].base||"https://api.openai.com/v1")+"/models";
+    headers={authorization:"Bearer "+key};
+  }
   let res;
-  try{res=await fetch(url,{headers:headers})}catch(e){throw {code:"net"}}
-  if(!res.ok)throw {code:res.status===401||res.status===403?"auth":"bad",message:""};
+  try{res=await fetch(url,{headers:headers})}catch(e){throw {code:"net",provider:prov}}
+  if(!res.ok){
+    let m="";try{const j=await res.json();m=(j.error&&(j.error.message||j.error))||j.message||""}catch(x){}
+    throw {code:res.status===401||res.status===403?"auth":"bad",status:res.status,message:m,provider:prov};
+  }
   const j=await res.json();
   const ids=prov==="gemini"
     ? (j.models||[]).filter(m=>(m.supportedGenerationMethods||[]).indexOf("generateContent")>=0).map(m=>String(m.name).replace(/^models\//,""))
     : (j.data||[]).map(m=>m.id);
   return ids.sort();
 }
+
 function parseJSON(t){
   t=String(t||"");
   try{return JSON.parse(t)}catch(e){}
@@ -566,16 +670,18 @@ function parseJSON(t){
   }
   throw {code:"json",raw:t};
 }
+
 function errText(e){
   const c=e&&e.code;
-  if(c==="nokey")return "Collez d'abord votre clé API dans les réglages.";
-  if(c==="auth")return "Clé API refusée. Vérifiez-la dans les réglages.";
-  if(c==="model")return "Modèle introuvable. Cliquez sur « Voir les modèles disponibles » dans les réglages et choisissez-en un.";
-  if(c==="rate")return "Trop de requêtes ou limite atteinte. Patientez un moment ou vérifiez votre quota chez le fournisseur.";
-  if(c==="net")return "Pas de réponse du fournisseur. Vérifiez votre réseau. Si c'est un fournisseur gratuit, il peut aussi refuser les appels depuis une page ouverte comme fichier.";
-  if(c==="json")return "La réponse du professeur est illisible. Renvoyez votre message.";
-  if(c==="bad")return "Requête refusée"+(e.message?" : "+String(e.message).slice(0,160):".");
-  return "Connexion interrompue. Réessayez.";
+  const pName=(PROVIDERS[S.cfg.provider]&&PROVIDERS[S.cfg.provider].name)||S.cfg.provider||"IA";
+  if(c==="nokey")return "Collez votre clé API dans les réglages ci-dessous pour démarrer.";
+  if(c==="auth")return "Clé API refusée par "+pName+". Vérifiez que la clé est active et bien copiée dans les réglages."+(e.message?" ("+e.message+")":"");
+  if(c==="model")return "Modèle introuvable chez "+pName+(e.model?" (« "+e.model+" »)":"")+". Cliquez sur « Voir les modèles disponibles » dans les réglages pour choisir un modèle valide."+(e.message?" Détail: "+e.message:"");
+  if(c==="rate")return "Limite de requêtes atteinte chez "+pName+". Patientez un moment ou vérifiez votre quota gratuit.";
+  if(c==="net")return "Impossible de joindre "+pName+". Vérifiez votre connexion Internet."+(e.message?" ("+e.message+")":"");
+  if(c==="json")return "La réponse reçue était incomplète. Renvoyez votre message.";
+  if(c==="bad")return "Requête refusée par "+pName+(e.status?" ("+e.status+")":"")+(e.message?" : "+String(e.message).slice(0,160):".");
+  return "Erreur de connexion ("+pName+(e.status?" "+e.status:"")+") : "+(e.message||"Réessayez.");
 }
 
 /* ---------- voix (sortie) ---------- */
@@ -619,21 +725,53 @@ function stopSpeak(){try{speechSynthesis.cancel()}catch(e){}S.speaking=false}
 
 /* ---------- micro (entrée) ---------- */
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+let _micPermAsked=false;
+
+async function requestMicPermission(){
+  if(_micPermAsked)return;
+  if(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia){
+    try{
+      const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+      stream.getTracks().forEach(t=>t.stop());
+      _micPermAsked=true;
+    }catch(err){
+      _micPermAsked=true;
+      if(err&&(err.name==="NotAllowedError"||err.name==="PermissionDeniedError")){
+        throw {code:"not-allowed"};
+      }
+    }
+  }
+}
+
 function listenOnce(onInterim){
-  return new Promise((resolve,reject)=>{
+  return new Promise(async(resolve,reject)=>{
     if(!SR){reject({code:"unsupported"});return}
+
+    // Libérer l'audio système avant d'ouvrir le micro
+    stopSpeak();
+    await sleep(150);
+
+    // Déclencher la demande de permission Android si pas encore accordée
+    try{await requestMicPermission()}catch(err){reject(err);return}
+
     let r;
     try{r=new SR()}catch(e){reject({code:"unsupported"});return}
     S.rec=r;
-    r.lang=SPEECH[S.lang].stt;r.interimResults=true;r.continuous=false;r.maxAlternatives=3;
+    r.lang=SPEECH[S.lang].stt;
+    r.interimResults=true;
+    r.continuous=false;
+    r.maxAlternatives=3;
+
     let final="",conf=0,err=null;
     r.onresult=e=>{
       let interim="";
       for(let i=e.resultIndex;i<e.results.length;i++){
         const x=e.results[i];
-        if(x.isFinal){final+=x[0].transcript;conf=x[0].confidence||conf}else interim+=x[0].transcript;
+        if(x.isFinal){final+=x[0].transcript;conf=x[0].confidence||conf}
+        else interim+=x[0].transcript;
       }
-      if(onInterim)onInterim((final+interim).trim());
+      const full=(final+interim).trim();
+      if(onInterim&&full)onInterim(full);
     };
     r.onerror=e=>{err=e.error};
     r.onend=()=>{
@@ -641,31 +779,52 @@ function listenOnce(onInterim){
       if(err&&err!=="no-speech"&&err!=="aborted")reject({code:err});
       else resolve({text:final.trim(),conf:conf});
     };
-    try{S.listening=true;setStatus();r.start()}catch(e){S.listening=false;S.rec=null;setStatus();reject({code:"start"})}
+    try{
+      S.listening=true;
+      setStatus();
+      r.start();
+      try{if(navigator.vibrate)navigator.vibrate(40)}catch(x){}
+    }catch(e){
+      S.listening=false;S.rec=null;setStatus();
+      reject({code:"start"});
+    }
   });
 }
 function stopListen(){try{if(S.rec)S.rec.abort()}catch(e){}}
 function micErr(e){
   const c=e&&e.code;
-  let m="Le micro n'a pas fonctionné.";
-  if(c==="not-allowed"||c==="service-not-allowed")m="Accès au micro refusé. Autorisez le micro pour cette page dans le navigateur (icône à gauche de l'adresse), puis réessayez.";
-  else if(c==="audio-capture")m="Aucun micro détecté.";
-  else if(c==="network")m="La reconnaissance vocale n'a pas pu joindre son service. Vérifiez votre connexion. Avec Brave, elle est bloquée : utilisez Chrome.";
-  else if(c==="unsupported")m="Ce navigateur ne propose pas la reconnaissance vocale. Utilisez Chrome ou Edge.";
+  let m="Le micro n'a pas pu démarrer.";
+  if(c==="not-allowed"||c==="service-not-allowed")m="Microphone bloqué dans Chrome. Cliquez sur le cadenas ou les réglages dans la barre d'adresse de Chrome > Autorisations > Microphone > Autoriser.";
+  else if(c==="audio-capture")m="Aucun micro détecté sur cet appareil.";
+  else if(c==="network")m="Reconnaissance vocale non disponible sans connexion Internet. Utilisez Chrome.";
+  else if(c==="unsupported")m="La reconnaissance vocale nécessite le navigateur Chrome.";
+  else if(c==="start")m="Impossible d'activer le micro. Fermez les autres applications utilisant le son et réessayez.";
+  
   const log=S.view==="chat"?$("#log"):null;
-  if(log)log.append(el("div","notice",m));else flash(m);
+  if(log){
+    const not=el("div","notice",m);
+    log.append(not);
+    not.scrollIntoView({block:"nearest",behavior:"smooth"});
+  }else{
+    flash(m);
+  }
 }
 function setStatus(){
   const s=$("#status");if(!s)return;
   let t="";
   if(S.view==="chat"){
-    if(S.listening)t="Je vous écoute…";
-    else if(S.busy)t="Le professeur réfléchit…";
-    else if(S.speaking)t="Le professeur parle…";
-    else if(S.hf)t="Mains libres actif : parlez quand le professeur a fini.";
+    if(S.listening)t="🔴 Je vous écoute… Parlez maintenant !";
+    else if(S.busy)t="⏳ Le professeur réfléchit…";
+    else if(S.speaking)t="🔊 Le professeur parle…";
+    else if(S.hf)t="🎙️ Mains libres actif : parlez quand le professeur a fini.";
+    else t="Touchez le micro pour parler";
   }
   s.textContent=t;
-  const m=$("#micBtn");if(m)m.classList.toggle("on",S.listening);
+  const m=$("#micBtn");
+  if(m){
+    m.classList.toggle("on",S.listening);
+    m.setAttribute("aria-label",S.listening?"Arrêter l'écoute":"Parler au micro");
+  }
 }
 
 /* ---------- parcours ---------- */
@@ -875,14 +1034,38 @@ $("#studied").addEventListener("change",e=>{S.studied=e.target.value.trim()});
   Object.keys(PROVIDERS).forEach(k=>sel.append(new Option(PROVIDERS[k].name,k)));
 })();
 function fillCfg(){
-  const p=S.cfg.provider,d=PROVIDERS[p],m=mods();
+  const p=S.cfg.provider||"gemini",d=PROVIDERS[p]||PROVIDERS.gemini,m=mods();
   $("#provider").value=p;
-  $("#provNote").textContent=d.note+" Clé à créer sur "+d.keyUrl+". Si un modèle est refusé, utilisez « Voir les modèles disponibles ».";
+  $("#provNote").textContent=d.note+" Clé à créer sur "+d.keyUrl+". En cas de doute, utilisez « Voir les modèles disponibles ».";
   $("#apikey").value=curKey();$("#mChat").value=m.chat;$("#mHeavy").value=m.heavy;
+  updateKeyDetectNote();
+}
+function updateKeyDetectNote(){
+  const val=$("#apikey").value.trim();
+  const det=detectProvider(val);
+  const note=$("#keyDetectNote");
+  if(!note)return;
+  if(det&&PROVIDERS[det]){
+    note.style.display="block";
+    note.textContent="✓ Clé reconnue : "+PROVIDERS[det].name;
+    if($("#provider").value!==det){
+      $("#provider").value=det;
+      S.cfg.provider=det;
+      const d=PROVIDERS[det],m=mods();
+      $("#mChat").value=m.chat;$("#mHeavy").value=m.heavy;
+    }
+  }else{
+    note.style.display="none";
+  }
 }
 function readCfg(){
-  const p=S.cfg.provider,d=PROVIDERS[p];
-  S.cfg.keys[p]=$("#apikey").value.trim();
+  const val=$("#apikey").value.trim();
+  const det=detectProvider(val);
+  if(det&&PROVIDERS[det])S.cfg.provider=det;
+  const p=S.cfg.provider||"gemini",d=PROVIDERS[p]||PROVIDERS.gemini;
+  if(!S.cfg.keys)S.cfg.keys={};
+  if(!S.cfg.models)S.cfg.models={};
+  S.cfg.keys[p]=val;
   S.cfg.models[p]={chat:$("#mChat").value.trim()||d.chat,heavy:$("#mHeavy").value.trim()||d.heavy};
   save();
 }
@@ -890,29 +1073,49 @@ function openSettings(msg){
   show("home");$("#cfgBox").open=true;$("#cfgBox").scrollIntoView({block:"start"});
   if(msg)flash(msg);
 }
+$("#apikey").addEventListener("input",()=>{
+  updateKeyDetectNote();
+  readCfg();
+});
 $("#provider").addEventListener("change",e=>{
   S.cfg.provider=e.target.value;save();fillCfg();$("#testRes").textContent="";$("#modelList").textContent="";
 });
 $("#saveKey").onclick=()=>{readCfg();flash("Réglages enregistrés.")};
+$("#resetCfgBtn").onclick=()=>{
+  const p=S.cfg.provider||"gemini";
+  if(!S.cfg.models)S.cfg.models={};
+  S.cfg.models[p]={chat:PROVIDERS[p].chat,heavy:PROVIDERS[p].heavy};
+  $("#mChat").value=PROVIDERS[p].chat;
+  $("#mHeavy").value=PROVIDERS[p].heavy;
+  save();
+  flash("Modèles réinitialisés aux valeurs recommandées.");
+};
 $("#testKey").onclick=async()=>{
   readCfg();
-  const out=$("#testRes");out.textContent="Test en cours…";
+  const out=$("#testRes");out.style.color="";out.textContent="Test en cours avec "+(PROVIDERS[S.cfg.provider]&&PROVIDERS[S.cfg.provider].name||S.cfg.provider)+"…";
   try{
     const q={system:"Réponds par un seul mot.",messages:[{role:"user",content:"Test"}],max:16,json:false};
-    await llm(Object.assign({model:mChat()},q));
-    if(mHeavy()!==mChat())await llm(Object.assign({model:mHeavy()},q));
-    out.textContent="Connexion réussie.";
-  }catch(e){out.textContent=errText(e)}
+    const t=await llm(Object.assign({model:mChat()},q));
+    out.style.color="var(--good)";
+    out.textContent="✓ Connexion réussie à "+(PROVIDERS[S.cfg.provider]&&PROVIDERS[S.cfg.provider].name||S.cfg.provider)+" (modèle : "+mChat()+") !";
+  }catch(e){
+    out.style.color="var(--bad)";
+    out.textContent=errText(e);
+  }
 };
 $("#listModels").onclick=async()=>{
   readCfg();
-  const out=$("#testRes");out.textContent="Recherche des modèles…";
+  const out=$("#testRes");out.style.color="";out.textContent="Recherche des modèles chez "+(PROVIDERS[S.cfg.provider]&&PROVIDERS[S.cfg.provider].name||S.cfg.provider)+"…";
   try{
     const ids=await listModels();
     const dl=$("#modelList");dl.textContent="";
     ids.forEach(id=>{const o=document.createElement("option");o.value=id;dl.append(o)});
-    out.textContent=ids.length+" modèle"+(ids.length>1?"s":"")+" disponible"+(ids.length>1?"s":"")+" : touchez un champ de modèle pour les voir.";
-  }catch(e){out.textContent=errText(e)}
+    out.style.color="var(--good)";
+    out.textContent=ids.length+" modèle"+(ids.length>1?"s":"")+" disponible"+(ids.length>1?"s":"")+" chez "+(PROVIDERS[S.cfg.provider]&&PROVIDERS[S.cfg.provider].name||S.cfg.provider)+" : touchez un champ de modèle pour choisir.";
+  }catch(e){
+    out.style.color="var(--bad)";
+    out.textContent=errText(e);
+  }
 };
 $("#voiceSel").addEventListener("change",e=>{
   S.cfg.voice[S.lang]=e.target.value;save();
@@ -1166,16 +1369,30 @@ $("#backBtn").onclick=()=>{leaveSession();show("home");renderDue();renderPath()}
 /* micro : un tour de parole */
 async function micTap(){
   if(S.mode==="hf"){toggleHF();return}
-  if(S.listening){stopListen();return}
+  if(S.listening){
+    stopListen();
+    return;
+  }
   if(S.busy)return;
   stopSpeak();
+  $("#live").textContent="Écoute en direct… Parlez maintenant !";
   try{
-    const r=await listenOnce(t=>{$("#live").textContent=t});
+    const r=await listenOnce(t=>{$("#live").textContent="« "+t+" »"});
     $("#live").textContent="";
-    if(!r.text){flash("Rien entendu. Touchez le micro et réessayez.");return}
-    if(S.mode==="write"){const i=$("#input");i.value=r.text;i.focus();return}
+    if(!r.text){
+      flash("Rien entendu : touchez le micro pour parler.");
+      setStatus();
+      return;
+    }
+    if(S.mode==="write"){
+      const i=$("#input");i.value=r.text;i.focus();
+      return;
+    }
     await submitUser(r.text,true,r.conf);
-  }catch(e){$("#live").textContent="";micErr(e)}
+  }catch(e){
+    $("#live").textContent="";
+    micErr(e);
+  }
 }
 $("#micBtn").onclick=micTap;
 
