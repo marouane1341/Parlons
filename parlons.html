@@ -725,44 +725,34 @@ function stopSpeak(){try{speechSynthesis.cancel()}catch(e){}S.speaking=false}
 
 /* ---------- micro (entrée) ---------- */
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-let _micPermAsked=false;
-
-async function requestMicPermission(){
-  if(_micPermAsked)return;
-  if(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia){
-    try{
-      const stream=await navigator.mediaDevices.getUserMedia({audio:true});
-      stream.getTracks().forEach(t=>t.stop());
-      _micPermAsked=true;
-    }catch(err){
-      _micPermAsked=true;
-      if(err&&(err.name==="NotAllowedError"||err.name==="PermissionDeniedError")){
-        throw {code:"not-allowed"};
-      }
-    }
-  }
-}
 
 function listenOnce(onInterim){
-  return new Promise(async(resolve,reject)=>{
+  return new Promise((resolve,reject)=>{
     if(!SR){reject({code:"unsupported"});return}
 
-    // Libérer l'audio système avant d'ouvrir le micro
+    // Couper la synthèse immédiatement
     stopSpeak();
-    await sleep(150);
-
-    // Déclencher la demande de permission Android si pas encore accordée
-    try{await requestMicPermission()}catch(err){reject(err);return}
 
     let r;
-    try{r=new SR()}catch(e){reject({code:"unsupported"});return}
+    try{
+      r=new SR();
+    }catch(e){
+      reject({code:"unsupported"});
+      return;
+    }
     S.rec=r;
     r.lang=SPEECH[S.lang].stt;
     r.interimResults=true;
     r.continuous=false;
     r.maxAlternatives=3;
 
-    let final="",conf=0,err=null;
+    let final="",lastInterim="",conf=0,err=null;
+
+    r.onstart=()=>{
+      S.listening=true;
+      setStatus();
+      try{if(navigator.vibrate)navigator.vibrate(30)}catch(x){}
+    };
     r.onresult=e=>{
       let interim="";
       for(let i=e.resultIndex;i<e.results.length;i++){
@@ -770,22 +760,34 @@ function listenOnce(onInterim){
         if(x.isFinal){final+=x[0].transcript;conf=x[0].confidence||conf}
         else interim+=x[0].transcript;
       }
+      lastInterim=interim;
       const full=(final+interim).trim();
       if(onInterim&&full)onInterim(full);
     };
-    r.onerror=e=>{err=e.error};
-    r.onend=()=>{
-      S.rec=null;S.listening=false;setStatus();
-      if(err&&err!=="no-speech"&&err!=="aborted")reject({code:err});
-      else resolve({text:final.trim(),conf:conf});
+    r.onerror=e=>{
+      err=e.error;
     };
+    r.onend=()=>{
+      S.rec=null;
+      S.listening=false;
+      setStatus();
+      const recognized=(final.trim()||lastInterim.trim());
+      if(err&&err!=="no-speech"&&err!=="aborted"){
+        reject({code:err});
+      }else{
+        resolve({text:recognized,conf:conf});
+      }
+    };
+
+    // Démarrage synchrone direct pour préserver la User Gesture de Chrome Android
     try{
       S.listening=true;
       setStatus();
       r.start();
-      try{if(navigator.vibrate)navigator.vibrate(40)}catch(x){}
     }catch(e){
-      S.listening=false;S.rec=null;setStatus();
+      S.listening=false;
+      S.rec=null;
+      setStatus();
       reject({code:"start"});
     }
   });
@@ -794,7 +796,7 @@ function stopListen(){try{if(S.rec)S.rec.abort()}catch(e){}}
 function micErr(e){
   const c=e&&e.code;
   let m="Le micro n'a pas pu démarrer.";
-  if(c==="not-allowed"||c==="service-not-allowed")m="Microphone bloqué dans Chrome. Cliquez sur le cadenas ou les réglages dans la barre d'adresse de Chrome > Autorisations > Microphone > Autoriser.";
+  if(c==="not-allowed"||c==="service-not-allowed")m="Microphone non autorisé. Sur Chrome : touchez le cadenas ou réglages à gauche de l'adresse > Autorisations > Microphone > Autoriser.";
   else if(c==="audio-capture")m="Aucun micro détecté sur cet appareil.";
   else if(c==="network")m="Reconnaissance vocale non disponible sans connexion Internet. Utilisez Chrome.";
   else if(c==="unsupported")m="La reconnaissance vocale nécessite le navigateur Chrome.";
