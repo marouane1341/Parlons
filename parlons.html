@@ -213,6 +213,7 @@ ul.clean{margin:0;padding-inline-start:18px;display:flex;flex-direction:column;g
       <label class="label" for="mHeavy">Modèle pour le bilan, l'écoute et l'arabe</label>
       <input class="field" id="mHeavy" type="text" autocomplete="off" list="modelList">
       <datalist id="modelList">
+        <option value="gemini-3.8-flash">
         <option value="gemini-2.5-flash">
         <option value="gemini-2.0-flash">
         <option value="gemini-1.5-flash">
@@ -355,7 +356,7 @@ const LANGS={
 
 /* ---------- fournisseurs d'IA ---------- */
 const PROVIDERS={
-  gemini:{name:"Google Gemini",chat:"gemini-2.5-flash",heavy:"gemini-2.5-flash",keyUrl:"aistudio.google.com/apikey",
+  gemini:{name:"Google Gemini",chat:"gemini-3.8-flash",heavy:"gemini-3.8-flash",keyUrl:"aistudio.google.com/apikey",
     note:"Palier gratuit sans carte bancaire, modèles ultra-rapides et récents."},
   groq:{name:"Groq",chat:"llama-3.3-70b-versatile",heavy:"llama-3.3-70b-versatile",base:"https://api.groq.com/openai/v1",keyUrl:"console.groq.com/keys",
     note:"Réponses quasi-instantanées, idéal pour la conversation orale."},
@@ -485,17 +486,19 @@ function cleanModel(m,prov){
   if(m)return m;
   return (PROVIDERS[prov]||PROVIDERS.gemini).chat;
 }
-function pickBestModel(prov,ids){
+function rankModels(prov,ids){
   ids=(ids||[]).filter(Boolean);
-  if(!ids.length)return null;
+  if(!ids.length)return [];
   if(prov==="gemini"){
     const ok=ids.filter(m=>/^gemini-\d/i.test(m)&&/flash/i.test(m)&&!NOT_STABLE.test(m));
     const ver=m=>{const x=m.match(/^gemini-(\d+(?:\.\d+)?)/i);return x?parseFloat(x[1]):0};
     ok.sort((a,b)=>ver(b)-ver(a)||a.length-b.length);
-    if(ok.length)return ok[0];
+    if(ok.length)return ok;
   }
-  return ids.find(m=>/flash|haiku|versatile|instant|small/i.test(m))||ids[0];
+  const pref=ids.filter(m=>/flash|haiku|versatile|instant|small/i.test(m));
+  return pref.length?pref:ids;
 }
+function pickBestModel(prov,ids){return rankModels(prov,ids)[0]||null}
 function adopt(prov,oldM,best){
   if(!S.cfg.models)S.cfg.models={};
   const m=S.cfg.models[prov]||(S.cfg.models[prov]={});
@@ -581,7 +584,10 @@ const GV={};
 function geminiBody(o,model,max,wantJson,v){
   const gc={maxOutputTokens:max,temperature:0.7};
   if(wantJson&&v<2)gc.responseMimeType="application/json";
-  if(v<1&&/gemini-2\.5-flash/i.test(model))gc.thinkingConfig={thinkingBudget:0};
+  if(v<1){
+    if(/gemini-2\.5-flash/i.test(model))gc.thinkingConfig={thinkingBudget:0};
+    else if(/gemini-[3-9]/i.test(model))gc.thinkingConfig={thinkingLevel:"low"};
+  }
   const contents=prepGeminiContents(o.messages);
   const sys=o.system&&o.system.trim()?o.system:"";
   const body={contents:contents,generationConfig:gc};
@@ -638,29 +644,36 @@ async function callModel(model,o,prov,def,key){
   return t;
 }
 
+/* Essaie le modèle demandé ; s'il est introuvable ou retiré (404), essaie les meilleurs modèles de la liste de la clé */
+async function withFallback(model,o,prov,def,key){
+  try{return {text:await callModel(model,o,prov,def,key),model:model}}
+  catch(err){
+    if(!(err&&err.code==="model"))throw err;
+    let ids=null;
+    try{ids=await listModels()}catch(x){}
+    const cands=rankModels(prov,ids).filter(m=>m!==model).slice(0,4);
+    let last=err;
+    for(let i=0;i<cands.length;i++){
+      try{return {text:await callModel(cands[i],o,prov,def,key),model:cands[i]}}
+      catch(e2){last=e2;if(!(e2&&e2.code==="model"))throw e2}
+    }
+    throw last;
+  }
+}
 async function llm(o){
   const key=curKey();
   if(!key)throw {code:"nokey"};
   const prov=S.cfg.provider||"gemini",def=PROVIDERS[prov]||PROVIDERS.gemini;
   const model=cleanModel(o.model,prov);
-  const run=m=>callModel(m,o,prov,def,key);
-  let err;
-  try{return await run(model)}catch(e){err=e}
-  if(err&&err.code==="upstream"){
-    await sleep(1500);
-    try{return await run(model)}catch(e2){err=e2}
+  const attempt=()=>withFallback(model,o,prov,def,key);
+  let r;
+  try{r=await attempt()}
+  catch(e){
+    if(e&&e.code==="upstream"){await sleep(1500);r=await attempt()}
+    else throw e;
   }
-  if(err&&err.code==="model"){
-    let ids=null;
-    try{ids=await listModels()}catch(x){}
-    const best=pickBestModel(prov,ids);
-    if(best&&best!==model){
-      const t=await run(best);
-      adopt(prov,model,best);
-      return t;
-    }
-  }
-  throw err;
+  if(r.model!==model)adopt(prov,model,r.model);
+  return r.text;
 }
 
 async function listModels(){
@@ -1158,7 +1171,8 @@ async function testerConnexionIA(){
     }
     step=2;
     set("Étape 2/3 : envoi d'un message au modèle « "+model+" »…");
-    await callModel(model,{system:"",messages:[{role:"user",content:"Dis simplement : ok"}],max:64,json:false},prov,def,key);
+    const r2=await withFallback(model,{system:"",messages:[{role:"user",content:"Dis simplement : ok"}],max:64,json:false},prov,def,key);
+    if(r2.model!==model){note+=" (le modèle « "+model+" » n'est plus disponible : remplacé par « "+r2.model+" »)";adopt(prov,model,r2.model);model=r2.model}
     step=3;
     set("Étape 3/3 : test des consignes et du format de réponse…");
     const t=await callModel(model,{system:"Réponds uniquement par un objet JSON valide.",messages:[{role:"user",content:"Réponds exactement {\"ok\":true}"}],max:64,json:true},prov,def,key);
