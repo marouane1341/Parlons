@@ -212,7 +212,14 @@ ul.clean{margin:0;padding-inline-start:18px;display:flex;flex-direction:column;g
       <input class="field" id="mChat" type="text" autocomplete="off" list="modelList">
       <label class="label" for="mHeavy">Modèle pour le bilan, l'écoute et l'arabe</label>
       <input class="field" id="mHeavy" type="text" autocomplete="off" list="modelList">
-      <datalist id="modelList"></datalist>
+      <datalist id="modelList">
+        <option value="gemini-2.5-flash">
+        <option value="gemini-2.0-flash">
+        <option value="gemini-1.5-flash">
+        <option value="llama-3.3-70b-versatile">
+        <option value="claude-3-5-haiku-20241022">
+        <option value="mistral-small-latest">
+      </datalist>
       <div class="row">
         <button class="btn sm" id="saveKey">Enregistrer</button>
         <button class="btn sm ghost" id="testKey">Tester la connexion IA</button>
@@ -348,7 +355,7 @@ const LANGS={
 
 /* ---------- fournisseurs d'IA ---------- */
 const PROVIDERS={
-  gemini:{name:"Google Gemini",chat:"gemini-2.0-flash",heavy:"gemini-2.0-flash",keyUrl:"aistudio.google.com/apikey",
+  gemini:{name:"Google Gemini",chat:"gemini-2.5-flash",heavy:"gemini-2.5-flash",keyUrl:"aistudio.google.com/apikey",
     note:"Palier gratuit sans carte bancaire, modèles ultra-rapides et récents."},
   groq:{name:"Groq",chat:"llama-3.3-70b-versatile",heavy:"llama-3.3-70b-versatile",base:"https://api.groq.com/openai/v1",keyUrl:"console.groq.com/keys",
     note:"Réponses quasi-instantanées, idéal pour la conversation orale."},
@@ -459,15 +466,24 @@ function load(){
       if(!S.cfg.keys[det])S.cfg.keys[det]=activeKey;
     }
     // Nettoyer les modèles invalides ou obsolètes en mémoire locale
-    const badModels=["claude-haiku-5-5","claude-sonnet-5-5","gemini-3.8-flash","gemini-3.8","gemini-1.5-pro","gemini-pro","gpt-oss-120b","openai/gpt-oss-120b","gemini-1.5-flash-latest"];
     Object.keys(PROVIDERS).forEach(p=>{
       const m=S.cfg.models[p]||(S.cfg.models[p]={});
-      if(!m.chat||badModels.indexOf(m.chat)>=0||m.chat.indexOf("5-5")>=0||m.chat.indexOf("3.8")>=0)m.chat=PROVIDERS[p].chat;
-      if(!m.heavy||badModels.indexOf(m.heavy)>=0||m.heavy.indexOf("5-5")>=0||m.heavy.indexOf("3.8")>=0)m.heavy=PROVIDERS[p].heavy;
+      m.chat=cleanModel(m.chat, p);
+      m.heavy=cleanModel(m.heavy, p);
     });
   }catch(e){}
 }
 function flash(t){const f=$("#flash");f.textContent=t;f.hidden=false;clearTimeout(flash._t);flash._t=setTimeout(()=>{f.hidden=true},4500)}
+
+function cleanModel(m, prov){
+  m=String(m||"").trim().replace(/^models\//,"");
+  const bad=/3\.8|5-5|1\.5-pro|gemini-pro$|gpt-oss|flash-latest|2\.0-flash-lite/i;
+  if(prov==="gemini"){
+    return (!m || bad.test(m)) ? "gemini-2.5-flash" : m;
+  }
+  const d=PROVIDERS[prov]||PROVIDERS.gemini;
+  return (!m || bad.test(m)) ? (d.chat || "gemini-2.5-flash") : m;
+}
 
 /* ---------- appels à l'IA ---------- */
 function curKey(){
@@ -504,11 +520,17 @@ function curKey(){
 function mods(){
   const p=S.cfg.provider||"gemini",d=PROVIDERS[p]||PROVIDERS.gemini;
   let m=(S.cfg.models&&S.cfg.models[p])||{};
-  const badModels=["claude-haiku-5-5","claude-sonnet-5-5","gemini-3.8-flash","gemini-3.8","gemini-1.5-pro","gemini-pro","gpt-oss-120b","openai/gpt-oss-120b","gemini-1.5-flash-latest"];
-  let chat=m.chat;
-  let heavy=m.heavy;
-  if(!chat || badModels.indexOf(chat)>=0 || chat.indexOf("5-5")>=0 || chat.indexOf("3.8")>=0) chat=d.chat;
-  if(!heavy || badModels.indexOf(heavy)>=0 || heavy.indexOf("5-5")>=0 || heavy.indexOf("3.8")>=0) heavy=d.heavy;
+  const mcEl=document.getElementById("mChat");
+  const mhEl=document.getElementById("mHeavy");
+  const screenChat=mcEl&&mcEl.value?mcEl.value.trim():"";
+  const screenHeavy=mhEl&&mhEl.value?mhEl.value.trim():"";
+  const chat=cleanModel(screenChat||m.chat||d.chat, p);
+  const heavy=cleanModel(screenHeavy||m.heavy||d.heavy, p);
+  if(mcEl&&mcEl.value!==chat) mcEl.value=chat;
+  if(mhEl&&mhEl.value!==heavy) mhEl.value=heavy;
+  if(!S.cfg.models[p])S.cfg.models[p]={};
+  S.cfg.models[p].chat=chat;
+  S.cfg.models[p].heavy=heavy;
   return {chat:chat, heavy:heavy};
 }
 const mChat=()=>mods().chat,mHeavy=()=>mods().heavy;
@@ -537,18 +559,17 @@ async function callSingleModel(targetModel, o, prov, def, key){
   const max=(o.max||1024)*(prov==="anthropic"?1:3);
   const wantJson=o.json!==false;
   let url,headers={"content-type":"application/json"},body;
-  const cleanModel=String(targetModel||def.chat).replace(/^models\//,"");
+  const cleanM=cleanModel(targetModel||def.chat, prov);
 
   if(prov==="anthropic"){
     url="https://api.anthropic.com/v1/messages";
     headers["x-api-key"]=key;
     headers["anthropic-version"]="2023-06-01";
     headers["anthropic-dangerous-direct-browser-access"]="true";
-    body={model:cleanModel,max_tokens:max,messages:o.messages};
+    body={model:cleanM,max_tokens:max,messages:o.messages};
     if(o.system&&o.system.trim())body.system=o.system;
   }else if(prov==="gemini"){
-    url="https://generativelanguage.googleapis.com/v1beta/models/"+encodeURIComponent(cleanModel)+":generateContent?key="+encodeURIComponent(key);
-    headers["x-goog-api-key"]=key;
+    url="https://generativelanguage.googleapis.com/v1beta/models/"+encodeURIComponent(cleanM)+":generateContent?key="+encodeURIComponent(key);
     body={
       contents:prepGeminiContents(o.messages),
       generationConfig:Object.assign({maxOutputTokens:max,temperature:0.7},wantJson?{responseMimeType:"application/json"}:{})
@@ -559,7 +580,7 @@ async function callSingleModel(targetModel, o, prov, def, key){
     headers.authorization="Bearer "+key;
     const msgs=[];
     if(o.system&&o.system.trim())msgs.push({role:"system",content:o.system});
-    body={model:cleanModel,messages:msgs.concat(o.messages),max_tokens:max,temperature:0.7};
+    body={model:cleanM,messages:msgs.concat(o.messages),max_tokens:max,temperature:0.7};
   }
 
   // Timeout strict de 10 secondes par modèle pour ne JAMAIS geler l'application
@@ -573,16 +594,16 @@ async function callSingleModel(targetModel, o, prov, def, key){
   }catch(e){
     clearTimeout(tId);
     if(o.signal&&o.signal.aborted)throw {code:"cancelled"};
-    if(tCtrl.signal.aborted)throw {code:"timeout",status:503,message:"Délai dépassé (10s)",model:cleanModel,provider:prov};
+    if(tCtrl.signal.aborted)throw {code:"timeout",status:503,message:"Délai dépassé (10s)",model:cleanM,provider:prov};
     throw {code:"net",provider:prov,message:"Connexion impossible vers "+(def.name||prov)};
   }
   clearTimeout(tId);
 
   // Si v1beta renvoie 404 pour Gemini, tenter immédiatement v1
   if(prov==="gemini"&&res.status===404){
-    const v1Url="https://generativelanguage.googleapis.com/v1/models/"+encodeURIComponent(cleanModel)+":generateContent?key="+encodeURIComponent(key);
+    const v1Url="https://generativelanguage.googleapis.com/v1/models/"+encodeURIComponent(cleanM)+":generateContent?key="+encodeURIComponent(key);
     try{
-      const retryV1=await fetch(v1Url,{method:"POST",signal:o.signal,headers:headers,body:JSON.stringify(body)});
+      const retryV1=await fetch(v1Url,{method:"POST",signal:tCtrl.signal,headers:headers,body:JSON.stringify(body)});
       if(retryV1.ok)res=retryV1;
     }catch(vx){}
   }
@@ -605,7 +626,7 @@ async function callSingleModel(targetModel, o, prov, def, key){
 
     let code=res.status===401||res.status===403?"auth":res.status===404?"model":res.status===429?"rate":res.status>=500?"upstream":"bad";
     if(res.status===400&&/api key|api_key|apikey/i.test(m))code="auth";
-    throw {code:code,message:m,status:res.status,model:cleanModel,provider:prov};
+    throw {code:code,message:m,status:res.status,model:cleanM,provider:prov};
   }
 
   const j=await res.json();
@@ -620,23 +641,27 @@ async function llm(o){
   const prov=S.cfg.provider||"gemini";
   const def=PROVIDERS[prov]||PROVIDERS.gemini;
 
-  // Modèles prioritaires certifiés
-  const candidateModels=[o.model, def.chat, def.heavy].filter(Boolean);
+  // Lecture dynamique du modèle à l'écran si disponible
+  const screenM=$("#mChat")?$("#mChat").value.trim():"";
+  const preferredModel=cleanModel(o.model||screenM||def.chat, prov);
+
+  // Modèles certifiés prioritaires avec gemini-2.5-flash en tête
+  const candidateModels=[preferredModel, def.chat, def.heavy].filter(Boolean);
   if(prov==="gemini"){
-    candidateModels.push("gemini-2.0-flash","gemini-2.5-flash","gemini-1.5-flash","gemini-2.0-flash-lite");
+    candidateModels.push("gemini-2.5-flash","gemini-2.0-flash","gemini-1.5-flash");
   }else if(prov==="anthropic"){
     candidateModels.push("claude-3-5-haiku-20241022","claude-3-5-sonnet-20241022","claude-3-haiku-20240307");
   }else if(prov==="groq"){
     candidateModels.push("llama-3.3-70b-versatile","llama-3.1-8b-instant","mixtral-8x7b-32768");
   }
-  const uniqueModels=candidateModels.filter((v,i,a)=>a.indexOf(v)===i);
+  const uniqueModels=candidateModels.map(m=>cleanModel(m, prov)).filter((v,i,a)=>a.indexOf(v)===i);
 
   let lastErr=null;
   for(let i=0;i<uniqueModels.length;i++){
     const curM=uniqueModels[i];
     try{
       const resText=await callSingleModel(curM,o,prov,def,key);
-      if(curM!==o.model){
+      if(curM!==preferredModel){
         if(!S.cfg.models[prov])S.cfg.models[prov]={};
         S.cfg.models[prov].chat=curM;
         S.cfg.models[prov].heavy=curM;
@@ -656,13 +681,12 @@ async function llm(o){
     }
   }
 
-  // Si tous les modèles ont échoué en 404, interroger la liste réelle de la clé en direct
+  // Si tous les modèles certifiés ont échoué en 404, interroger la liste réelle de la clé en direct
   if(lastErr&&(lastErr.status===404||lastErr.code==="model")){
     try{
       const liveList=await listModels();
       if(liveList&&liveList.length){
-        // Trouver le meilleur modèle disponible
-        const bestModel=liveList.find(m=>/flash|haiku|versatile|instant/i.test(m))||liveList[0];
+        const bestModel=liveList.find(m=>/2\.5-flash|2\.0-flash|1\.5-flash|flash|haiku|versatile|instant/i.test(m))||liveList[0];
         if(bestModel){
           const resText=await callSingleModel(bestModel,o,prov,def,key);
           if(!S.cfg.models[prov])S.cfg.models[prov]={};
@@ -689,7 +713,7 @@ async function listModels(){
     headers={"x-api-key":key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"};
   }else if(prov==="gemini"){
     url="https://generativelanguage.googleapis.com/v1beta/models?key="+encodeURIComponent(key)+"&pageSize=200";
-    headers={"x-goog-api-key":key};
+    headers={};
   }else{
     url=(PROVIDERS[prov].base||"https://api.openai.com/v1")+"/models";
     headers={authorization:"Bearer "+key};
@@ -1128,7 +1152,13 @@ function readCfg(){
   if(!S.cfg.keys)S.cfg.keys={};
   if(!S.cfg.models)S.cfg.models={};
   S.cfg.keys[p]=val;
-  S.cfg.models[p]={chat:$("#mChat").value.trim()||d.chat,heavy:$("#mHeavy").value.trim()||d.heavy};
+  const rawChat=$("#mChat")?$("#mChat").value.trim():"";
+  const rawHeavy=$("#mHeavy")?$("#mHeavy").value.trim():"";
+  const cleanC=cleanModel(rawChat||d.chat, p);
+  const cleanH=cleanModel(rawHeavy||d.heavy, p);
+  if($("#mChat")&&$("#mChat").value!==cleanC) $("#mChat").value=cleanC;
+  if($("#mHeavy")&&$("#mHeavy").value!==cleanH) $("#mHeavy").value=cleanH;
+  S.cfg.models[p]={chat:cleanC,heavy:cleanH};
   save();
 }
 function openSettings(msg){
@@ -1146,27 +1176,30 @@ $("#saveKey").onclick=()=>{readCfg();flash("Réglages enregistrés.")};
 $("#resetCfgBtn").onclick=async()=>{
   const p=S.cfg.provider||"gemini";
   if(!S.cfg.models)S.cfg.models={};
-  let best=PROVIDERS[p]?PROVIDERS[p].chat:"gemini-2.0-flash";
+  let best=p==="gemini"?"gemini-2.5-flash":(PROVIDERS[p]?PROVIDERS[p].chat:"gemini-2.5-flash");
   try{
     const ids=await listModels();
     if(ids&&ids.length){
       best=ids.find(m=>/2\.5-flash|2\.0-flash|1\.5-flash/i.test(m))||ids[0];
     }
   }catch(x){}
+  best=cleanModel(best, p);
   S.cfg.models[p]={chat:best,heavy:best};
-  $("#mChat").value=best;
-  $("#mHeavy").value=best;
+  if($("#mChat")) $("#mChat").value=best;
+  if($("#mHeavy")) $("#mHeavy").value=best;
   save();
   flash("Modèles réinitialisés avec succès au modèle : "+best);
 };
 $("#testKey").onclick=async()=>{
   readCfg();
-  const out=$("#testRes");out.style.color="";out.textContent="Test de connexion en cours avec "+(PROVIDERS[S.cfg.provider]&&PROVIDERS[S.cfg.provider].name||S.cfg.provider)+"…";
+  const activeModel=cleanModel($("#mChat")?$("#mChat").value.trim():mChat(), S.cfg.provider||"gemini");
+  const pName=(PROVIDERS[S.cfg.provider]&&PROVIDERS[S.cfg.provider].name)||S.cfg.provider;
+  const out=$("#testRes");out.style.color="";out.textContent="Test de connexion en cours avec "+pName+" ("+activeModel+")…";
   try{
     const q={system:"Réponds par un seul mot.",messages:[{role:"user",content:"Test"}],max:16,json:false};
-    await llm(Object.assign({model:mChat()},q));
+    await llm(Object.assign({model:activeModel},q));
     out.style.color="var(--good)";
-    out.textContent="✓ Connexion réussie à "+(PROVIDERS[S.cfg.provider]&&PROVIDERS[S.cfg.provider].name||S.cfg.provider)+" avec le modèle : "+mChat()+" !";
+    out.textContent="✓ Connexion réussie à "+pName+" avec le modèle : "+activeModel+" !";
   }catch(e){
     out.style.color="var(--bad)";
     out.textContent=errText(e);
