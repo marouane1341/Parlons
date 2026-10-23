@@ -1162,6 +1162,7 @@ $("#resetCfgBtn").onclick=async()=>{
   save();
   flash("Modèle réglé sur : "+best);
 };
+/* Test de connexion : UN seul appel, très court, sur le modèle saisi. Aucun repli, aucune liste de modèles, aucun enchaînement. */
 async function testerConnexionIA(){
   readCfg();
   const prov=S.cfg.provider||"gemini",def=PROVIDERS[prov]||PROVIDERS.gemini;
@@ -1169,33 +1170,16 @@ async function testerConnexionIA(){
   const pName=def.name||prov;
   const set=(t,c)=>{out.style.color=c||"";out.textContent=t};
   if(!key){set("Collez votre clé API dans les réglages ci-dessus pour tester.","var(--bad)");return}
-  let model=cleanModel($("#mChat")?$("#mChat").value:"",prov);
-  let step=1,note="";
+  const btn=$("#testKey");btn.disabled=true;
+  const model=cleanModel($("#mChat")?$("#mChat").value:"",prov);
+  set("Envoi de « Bonjour » à "+pName+"…");
   try{
-    set("Étape 1/3 : vérification de la clé chez "+pName+"…");
-    const ids=await listModels();
-    if(ids.length&&ids.indexOf(model)<0){
-      const best=pickBestModel(prov,ids);
-      if(best){note=" (le modèle « "+model+" » n'existe pas chez "+pName+" : remplacé par « "+best+" »)";adopt(prov,model,best);model=best}
-    }
-    step=2;
-    set("Étape 2/3 : envoi d'un message au modèle « "+model+" »…");
-    const r2=await withFallback(model,{system:"",messages:[{role:"user",content:"Dis simplement : ok"}],max:64,json:false},prov,def,key);
-    if(r2.model!==model){
-      if(r2.temp){note+=" (« "+model+" » est surchargé en ce moment : « "+r2.model+" » utilisé pour ce test, rien n'est modifié)"}
-      else{note+=" (le modèle « "+model+" » n'est plus disponible : remplacé par « "+r2.model+" »)";adopt(prov,model,r2.model)}
-      model=r2.model;
-    }
-    step=3;
-    set("Étape 3/3 : test des consignes et du format de réponse…");
-    const r3=await withFallback(model,{system:"Réponds uniquement par un objet JSON valide.",messages:[{role:"user",content:"Réponds exactement {\"ok\":true}"}],max:64,json:true},prov,def,key);
-    if(r3.model!==model){note+=" (« "+model+" » surchargé : « "+r3.model+" » utilisé)";if(!r3.temp)adopt(prov,model,r3.model);model=r3.model}
-    parseJSON(r3.text);
-    set("✓ Connexion réussie à "+pName+" avec le modèle « "+model+" »."+note,"var(--good)");
+    await callModel(model,{system:"",messages:[{role:"user",content:"Bonjour"}],max:32,json:false},prov,def,key);
+    set("✓ Connexion réussie","var(--good)");
   }catch(e){
-    set("Échec à l'étape "+step+"/3. "+errText(e),"var(--bad)");
+    set("Échec. "+errText(e),"var(--bad)");
     try{console.error("[Parlons] diagnostic",{provider:prov,model:model,error:e})}catch(x){}
-  }
+  }finally{btn.disabled=false}
 }
 $("#testKey").onclick=testerConnexionIA;
 $("#testMicBtn").onclick=async()=>{

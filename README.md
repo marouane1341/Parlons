@@ -8,11 +8,11 @@ Tout tourne dans le navigateur, sans serveur : `index.html` (copie identique : `
 
 1. Ouvrir l'application dans **Chrome** (Android ou ordinateur) ou Edge. Brave et Safari bloquent la reconnaissance vocale : l'écrit et la lecture à voix haute y fonctionnent quand même.
 2. Ouvrir « Fournisseur d'IA et clé API », coller une clé, cliquer sur **Tester la connexion**.
-3. Le test se fait en 3 étapes (clé, message simple, consignes + format JSON) et affiche, en cas d'échec, l'étape, le code HTTP et le message exact du fournisseur.
+3. Le test envoie un seul message très court (« Bonjour ») au modèle saisi, sans aucun autre appel. Il affiche « Connexion réussie » ou, en cas d'échec, le code HTTP et le message exact du fournisseur. Aucune requête n'est envoyée sans action de ta part.
 
 ### Clé Google Gemini (gratuit)
 
-Clé à créer sur <https://aistudio.google.com/apikey> (elle commence par `AIza`). L'application appelle l'API `v1beta` de Gemini avec la clé dans l'en-tête `x-goog-api-key`. Si Google refuse une option (`thinkingConfig`, `responseMimeType`, `systemInstruction`), l'application réessaie automatiquement avec une requête plus simple. Si le modèle choisi n'existe pas, elle choisit le meilleur modèle « flash » stable de la liste de la clé. Les quotas gratuits sont limités : une erreur « Limite de requêtes » signifie d'attendre un peu.
+Clé à créer sur <https://aistudio.google.com/apikey> (elle commence par `AIza`). L'application appelle l'API `v1beta` de Gemini avec la clé dans l'en-tête `x-goog-api-key`. Si Google refuse une option (`thinkingConfig`, `responseMimeType`, `systemInstruction`), l'application réessaie automatiquement avec une requête plus simple. Pendant une conversation, si le modèle est retiré (404) ou surchargé (503, silence), elle essaie d'autres modèles « flash » de la clé ; après une limite de requêtes (429), elle n'enchaîne aucun autre appel. Les quotas gratuits sont limités : une erreur « Limite de requêtes » signifie d'attendre un peu.
 
 Fournisseurs gérés : Google Gemini, Groq, Claude (Anthropic), Mistral. Chaque fournisseur a sa propre clé, enregistrée uniquement dans le navigateur (jamais exportée).
 
