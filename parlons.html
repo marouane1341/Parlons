@@ -552,10 +552,10 @@ function prepGeminiContents(messages){
   return res.length?res:[{role:"user",parts:[{text:"Bonjour"}]}];
 }
 
-/* Requête HTTP : délai de 45 s, annulation possible, erreurs détaillées (statut + message du fournisseur) */
+/* Requête HTTP : délai de 30 s, annulation possible, erreurs détaillées (statut + message du fournisseur) */
 async function httpJSON(url,headers,body,sig,prov,model){
   const tc=new AbortController();
-  const tid=setTimeout(()=>tc.abort(),45000);
+  const tid=setTimeout(()=>tc.abort(),30000);
   const onAbort=()=>tc.abort();
   if(sig)sig.addEventListener("abort",onAbort);
   let res;
@@ -563,7 +563,7 @@ async function httpJSON(url,headers,body,sig,prov,model){
     res=await fetch(url,{method:body?"POST":"GET",signal:tc.signal,headers:headers,body:body?JSON.stringify(body):undefined});
   }catch(e){
     if(sig&&sig.aborted)throw {code:"cancelled"};
-    if(tc.signal.aborted)throw {code:"timeout",provider:prov,model:model,message:"aucune réponse en 45 s"};
+    if(tc.signal.aborted)throw {code:"timeout",provider:prov,model:model,message:"aucune réponse en 30 s"};
     throw {code:"net",provider:prov,model:model,message:String(e&&e.message||e)};
   }finally{
     clearTimeout(tid);
@@ -662,15 +662,15 @@ async function tryModel(m,o,prov,def,key){
 async function withFallback(model,o,prov,def,key){
   try{return {text:await tryModel(model,o,prov,def,key),model:model}}
   catch(err){
-    if(!(err&&(err.code==="model"||err.code==="upstream")))throw err;
+    if(!(err&&(err.code==="model"||err.code==="upstream"||err.code==="timeout")))throw err;
     let ids=null;
     try{ids=await listModels()}catch(x){}
-    const cands=rankModels(prov,ids).filter(m=>m!==model).slice(0,4);
+    const cands=rankModels(prov,ids).filter(m=>m!==model).slice(0,3);
     let last=err;
-    const temp=err.code==="upstream";
+    const temp=err.code==="upstream"||err.code==="timeout";
     for(let i=0;i<cands.length;i++){
       try{return {text:await tryModel(cands[i],o,prov,def,key),model:cands[i],temp:temp}}
-      catch(e2){last=e2;if(!(e2&&(e2.code==="model"||e2.code==="upstream")))throw e2}
+      catch(e2){last=e2;if(!(e2&&(e2.code==="model"||e2.code==="upstream"||e2.code==="timeout")))throw e2}
     }
     throw last;
   }
@@ -733,7 +733,7 @@ function errText(e){
   if(c==="nokey")return "Collez votre clé API dans les réglages ci-dessous pour démarrer.";
   if(c==="auth")return "Clé API refusée par "+pName+st+". Vérifiez qu'elle est copiée en entier et qu'elle est active."+det;
   if(c==="model")return "Modèle introuvable chez "+pName+(e.model?" (« "+e.model+" »)":"")+st+". Cliquez sur « Voir modèles » et choisissez-en un."+det;
-  if(c==="timeout")return "Pas de réponse de "+pName+" au bout de 45 secondes. Réessayez.";
+  if(c==="timeout")return "Pas de réponse de "+pName+" au bout de 30 secondes, même après avoir essayé d'autres modèles. Le service est probablement saturé : réessayez dans quelques minutes.";
   if(c==="rate")return "Limite de requêtes atteinte chez "+pName+st+". Attendez une minute, ou vérifiez votre quota gratuit."+det;
   if(c==="upstream")return "Les serveurs de "+pName+" sont surchargés"+st+" : Google signale une forte demande, en général temporaire. L'application a déjà réessayé plusieurs fois, y compris avec d'autres modèles. Réessayez dans quelques minutes."+det;
   if(c==="net")return "Le navigateur n'a pas pu joindre "+pName+". Vérifiez votre connexion Internet (un VPN ou un bloqueur de publicités peut aussi gêner)."+det;
@@ -1436,7 +1436,7 @@ async function ask(){
       n.append(rb);
       log.append(n);
     }
-  },70000);
+  },110000);
 
   let spoke=Promise.resolve();
   try{
