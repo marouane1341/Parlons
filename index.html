@@ -213,6 +213,7 @@ ul.clean{margin:0;padding-inline-start:18px;display:flex;flex-direction:column;g
       <label class="label" for="mHeavy">Modèle pour le bilan, l'écoute et l'arabe</label>
       <input class="field" id="mHeavy" type="text" autocomplete="off" list="modelList">
       <datalist id="modelList">
+        <option value="gemini-3.5-flash-lite">
         <option value="gemini-3.8-flash">
         <option value="gemini-2.5-flash">
         <option value="gemini-2.0-flash">
@@ -356,7 +357,7 @@ const LANGS={
 
 /* ---------- fournisseurs d'IA ---------- */
 const PROVIDERS={
-  gemini:{name:"Google Gemini",chat:"gemini-3.8-flash",heavy:"gemini-3.8-flash",keyUrl:"aistudio.google.com/apikey",
+  gemini:{name:"Google Gemini",chat:"gemini-3.5-flash-lite",heavy:"gemini-3.5-flash-lite",keyUrl:"aistudio.google.com/apikey",
     note:"Palier gratuit sans carte bancaire, modèles ultra-rapides et récents."},
   groq:{name:"Groq",chat:"llama-3.3-70b-versatile",heavy:"llama-3.3-70b-versatile",base:"https://api.groq.com/openai/v1",keyUrl:"console.groq.com/keys",
     note:"Réponses quasi-instantanées, idéal pour la conversation orale."},
@@ -1155,7 +1156,7 @@ $("#saveKey").onclick=()=>{readCfg();flash("Réglages enregistrés.")};
 $("#resetCfgBtn").onclick=async()=>{
   const p=S.cfg.provider||"gemini",d=PROVIDERS[p]||PROVIDERS.gemini;
   let best=d.chat;
-  try{const ids=await listModels();best=pickBestModel(p,ids)||best}catch(x){}
+  try{const ids=await listModels();if(!(p==="gemini"&&ids.indexOf(d.chat)>=0))best=pickBestModel(p,ids)||best}catch(x){}
   if(!S.cfg.models)S.cfg.models={};
   S.cfg.models[p]={chat:best,heavy:best};
   $("#mChat").value=best;$("#mHeavy").value=best;
