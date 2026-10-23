@@ -459,11 +459,11 @@ function load(){
       if(!S.cfg.keys[det])S.cfg.keys[det]=activeKey;
     }
     // Nettoyer les modèles invalides ou obsolètes en mémoire locale
-    const badModels=["claude-haiku-5-5","claude-sonnet-5-5","gemini-2.5-flash","gpt-oss-120b","openai/gpt-oss-120b","gemini-1.5-flash-latest"];
+    const badModels=["claude-haiku-5-5","claude-sonnet-5-5","gemini-3.8-flash","gemini-3.8","gemini-1.5-pro","gemini-pro","gpt-oss-120b","openai/gpt-oss-120b","gemini-1.5-flash-latest"];
     Object.keys(PROVIDERS).forEach(p=>{
       const m=S.cfg.models[p]||(S.cfg.models[p]={});
-      if(!m.chat||badModels.indexOf(m.chat)>=0||m.chat.indexOf("5-5")>=0)m.chat=PROVIDERS[p].chat;
-      if(!m.heavy||badModels.indexOf(m.heavy)>=0||m.heavy.indexOf("5-5")>=0)m.heavy=PROVIDERS[p].heavy;
+      if(!m.chat||badModels.indexOf(m.chat)>=0||m.chat.indexOf("5-5")>=0||m.chat.indexOf("3.8")>=0)m.chat=PROVIDERS[p].chat;
+      if(!m.heavy||badModels.indexOf(m.heavy)>=0||m.heavy.indexOf("5-5")>=0||m.heavy.indexOf("3.8")>=0)m.heavy=PROVIDERS[p].heavy;
     });
   }catch(e){}
 }
@@ -504,14 +504,34 @@ function curKey(){
 function mods(){
   const p=S.cfg.provider||"gemini",d=PROVIDERS[p]||PROVIDERS.gemini;
   let m=(S.cfg.models&&S.cfg.models[p])||{};
-  const badModels=["claude-haiku-5-5","claude-sonnet-5-5","gemini-2.5-flash","gpt-oss-120b","openai/gpt-oss-120b","gemini-1.5-flash-latest"];
+  const badModels=["claude-haiku-5-5","claude-sonnet-5-5","gemini-3.8-flash","gemini-3.8","gemini-1.5-pro","gemini-pro","gpt-oss-120b","openai/gpt-oss-120b","gemini-1.5-flash-latest"];
   let chat=m.chat;
   let heavy=m.heavy;
-  if(!chat || badModels.indexOf(chat)>=0 || chat.indexOf("5-5")>=0) chat=d.chat;
-  if(!heavy || badModels.indexOf(heavy)>=0 || heavy.indexOf("5-5")>=0) heavy=d.heavy;
+  if(!chat || badModels.indexOf(chat)>=0 || chat.indexOf("5-5")>=0 || chat.indexOf("3.8")>=0) chat=d.chat;
+  if(!heavy || badModels.indexOf(heavy)>=0 || heavy.indexOf("5-5")>=0 || heavy.indexOf("3.8")>=0) heavy=d.heavy;
   return {chat:chat, heavy:heavy};
 }
 const mChat=()=>mods().chat,mHeavy=()=>mods().heavy;
+
+function prepGeminiContents(messages){
+  const res=[];
+  let lastRole=null;
+  (messages||[]).forEach(m=>{
+    const role=m.role==="assistant"?"model":"user";
+    const text=String(m.content||"").trim();
+    if(!text)return;
+    if(res.length&&role===lastRole){
+      res[res.length-1].parts[0].text += "\n\n" + text;
+    }else{
+      res.push({role:role,parts:[{text:text}]});
+      lastRole=role;
+    }
+  });
+  if(res.length&&res[0].role==="model"){
+    res.unshift({role:"user",parts:[{text:"Bonjour"}]});
+  }
+  return res.length?res:[{role:"user",parts:[{text:"Bonjour"}]}];
+}
 
 async function callSingleModel(targetModel, o, prov, def, key){
   const max=(o.max||1024)*(prov==="anthropic"?1:3);
@@ -530,7 +550,7 @@ async function callSingleModel(targetModel, o, prov, def, key){
     url="https://generativelanguage.googleapis.com/v1beta/models/"+encodeURIComponent(cleanModel)+":generateContent?key="+encodeURIComponent(key);
     headers["x-goog-api-key"]=key;
     body={
-      contents:o.messages.map(m=>({role:m.role==="assistant"?"model":"user",parts:[{text:m.content}]})),
+      contents:prepGeminiContents(o.messages),
       generationConfig:Object.assign({maxOutputTokens:max,temperature:0.7},wantJson?{responseMimeType:"application/json"}:{})
     };
     if(o.system&&o.system.trim())body.systemInstruction={parts:[{text:o.system}]};
@@ -545,7 +565,6 @@ async function callSingleModel(targetModel, o, prov, def, key){
   // Timeout strict de 10 secondes par modèle pour ne JAMAIS geler l'application
   const tCtrl=new AbortController();
   const tId=setTimeout(()=>tCtrl.abort(),10000);
-  const sig=o.signal?o.signal:tCtrl.signal;
   if(o.signal)o.signal.addEventListener("abort",()=>tCtrl.abort());
 
   let res;
@@ -554,10 +573,19 @@ async function callSingleModel(targetModel, o, prov, def, key){
   }catch(e){
     clearTimeout(tId);
     if(o.signal&&o.signal.aborted)throw {code:"cancelled"};
-    if(tCtrl.signal.aborted)throw {code:"timeout",status:503,message:"Le serveur a mis plus de 10s à répondre (délai dépassé)",model:cleanModel,provider:prov};
+    if(tCtrl.signal.aborted)throw {code:"timeout",status:503,message:"Délai dépassé (10s)",model:cleanModel,provider:prov};
     throw {code:"net",provider:prov,message:"Connexion impossible vers "+(def.name||prov)};
   }
   clearTimeout(tId);
+
+  // Si v1beta renvoie 404 pour Gemini, tenter immédiatement v1
+  if(prov==="gemini"&&res.status===404){
+    const v1Url="https://generativelanguage.googleapis.com/v1/models/"+encodeURIComponent(cleanModel)+":generateContent?key="+encodeURIComponent(key);
+    try{
+      const retryV1=await fetch(v1Url,{method:"POST",signal:o.signal,headers:headers,body:JSON.stringify(body)});
+      if(retryV1.ok)res=retryV1;
+    }catch(vx){}
+  }
 
   if(!res.ok){
     let m="";try{const j=await res.json();m=(j.error&&(j.error.message||j.error))||j.message||""}catch(e){}
@@ -592,10 +620,10 @@ async function llm(o){
   const prov=S.cfg.provider||"gemini";
   const def=PROVIDERS[prov]||PROVIDERS.gemini;
 
-  // Modèles prioritaires avec fallback immédiat en cas de surcharge (503), timeout ou 404
+  // Modèles prioritaires certifiés
   const candidateModels=[o.model, def.chat, def.heavy].filter(Boolean);
   if(prov==="gemini"){
-    candidateModels.push("gemini-2.0-flash","gemini-1.5-flash","gemini-2.0-flash-lite","gemini-1.5-pro");
+    candidateModels.push("gemini-2.0-flash","gemini-2.5-flash","gemini-1.5-flash","gemini-2.0-flash-lite");
   }else if(prov==="anthropic"){
     candidateModels.push("claude-3-5-haiku-20241022","claude-3-5-sonnet-20241022","claude-3-haiku-20240307");
   }else if(prov==="groq"){
@@ -610,34 +638,38 @@ async function llm(o){
       const resText=await callSingleModel(curM,o,prov,def,key);
       if(curM!==o.model){
         if(!S.cfg.models[prov])S.cfg.models[prov]={};
-        if(o.model===mHeavy())S.cfg.models[prov].heavy=curM;
-        else S.cfg.models[prov].chat=curM;
+        S.cfg.models[prov].chat=curM;
+        S.cfg.models[prov].heavy=curM;
+        const mc=$("#mChat"),mh=$("#mHeavy");
+        if(mc)mc.value=curM;if(mh)mh.value=curM;
         save();
       }
       return resText;
     }catch(err){
       lastErr=err;
-      // En cas de 503 (modèle surchargé), 500, 504, 429, timeout ou 404 : basculer immédiatement sur le modèle suivant !
       const isRetryable=err&&(err.status===404||err.status===503||err.status===500||err.status===504||err.status===429||err.code==="timeout");
       if(isRetryable&&i<uniqueModels.length-1){
-        await sleep(250);
+        await sleep(200);
         continue;
       }
-      throw err;
+      if(!isRetryable)throw err;
     }
   }
 
-  // Si tous les modèles ont échoué en 404, tenter l'auto-découverte en direct
-  if(lastErr&&lastErr.status===404){
+  // Si tous les modèles ont échoué en 404, interroger la liste réelle de la clé en direct
+  if(lastErr&&(lastErr.status===404||lastErr.code==="model")){
     try{
       const liveList=await listModels();
       if(liveList&&liveList.length){
+        // Trouver le meilleur modèle disponible
         const bestModel=liveList.find(m=>/flash|haiku|versatile|instant/i.test(m))||liveList[0];
-        if(bestModel&&uniqueModels.indexOf(bestModel)<0){
+        if(bestModel){
           const resText=await callSingleModel(bestModel,o,prov,def,key);
           if(!S.cfg.models[prov])S.cfg.models[prov]={};
           S.cfg.models[prov].chat=bestModel;
           S.cfg.models[prov].heavy=bestModel;
+          const mc=$("#mChat"),mh=$("#mHeavy");
+          if(mc)mc.value=bestModel;if(mh)mh.value=bestModel;
           save();
           return resText;
         }
@@ -669,9 +701,19 @@ async function listModels(){
     throw {code:res.status===401||res.status===403?"auth":"bad",status:res.status,message:m,provider:prov};
   }
   const j=await res.json();
-  const ids=prov==="gemini"
-    ? (j.models||[]).filter(m=>(m.supportedGenerationMethods||[]).indexOf("generateContent")>=0).map(m=>String(m.name).replace(/^models\//,""))
-    : (j.data||[]).map(m=>m.id);
+  const ids=[];
+  if(prov==="gemini"){
+    const list=j.models||[];
+    list.forEach(m=>{
+      const methods=m.supportedGenerationMethods||m.supported_generation_methods||[];
+      const name=String(m.name||"").replace(/^models\//,"");
+      if(methods.indexOf("generateContent")>=0||/^gemini/i.test(name)){
+        ids.push(name);
+      }
+    });
+  }else{
+    (j.data||[]).forEach(m=>{if(m.id)ids.push(m.id)});
+  }
   return ids.sort();
 }
 
@@ -1101,23 +1143,30 @@ $("#provider").addEventListener("change",e=>{
   S.cfg.provider=e.target.value;save();fillCfg();$("#testRes").textContent="";$("#modelList").textContent="";
 });
 $("#saveKey").onclick=()=>{readCfg();flash("Réglages enregistrés.")};
-$("#resetCfgBtn").onclick=()=>{
+$("#resetCfgBtn").onclick=async()=>{
   const p=S.cfg.provider||"gemini";
   if(!S.cfg.models)S.cfg.models={};
-  S.cfg.models[p]={chat:PROVIDERS[p].chat,heavy:PROVIDERS[p].heavy};
-  $("#mChat").value=PROVIDERS[p].chat;
-  $("#mHeavy").value=PROVIDERS[p].heavy;
+  let best=PROVIDERS[p]?PROVIDERS[p].chat:"gemini-2.0-flash";
+  try{
+    const ids=await listModels();
+    if(ids&&ids.length){
+      best=ids.find(m=>/2\.5-flash|2\.0-flash|1\.5-flash/i.test(m))||ids[0];
+    }
+  }catch(x){}
+  S.cfg.models[p]={chat:best,heavy:best};
+  $("#mChat").value=best;
+  $("#mHeavy").value=best;
   save();
-  flash("Modèles réinitialisés aux valeurs recommandées.");
+  flash("Modèles réinitialisés avec succès au modèle : "+best);
 };
 $("#testKey").onclick=async()=>{
   readCfg();
-  const out=$("#testRes");out.style.color="";out.textContent="Test en cours avec "+(PROVIDERS[S.cfg.provider]&&PROVIDERS[S.cfg.provider].name||S.cfg.provider)+"…";
+  const out=$("#testRes");out.style.color="";out.textContent="Test de connexion en cours avec "+(PROVIDERS[S.cfg.provider]&&PROVIDERS[S.cfg.provider].name||S.cfg.provider)+"…";
   try{
     const q={system:"Réponds par un seul mot.",messages:[{role:"user",content:"Test"}],max:16,json:false};
-    const t=await llm(Object.assign({model:mChat()},q));
+    await llm(Object.assign({model:mChat()},q));
     out.style.color="var(--good)";
-    out.textContent="✓ Connexion réussie à "+(PROVIDERS[S.cfg.provider]&&PROVIDERS[S.cfg.provider].name||S.cfg.provider)+" (modèle : "+mChat()+") !";
+    out.textContent="✓ Connexion réussie à "+(PROVIDERS[S.cfg.provider]&&PROVIDERS[S.cfg.provider].name||S.cfg.provider)+" avec le modèle : "+mChat()+" !";
   }catch(e){
     out.style.color="var(--bad)";
     out.textContent=errText(e);
