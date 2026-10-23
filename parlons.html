@@ -728,7 +728,7 @@ function parseJSON(t){
 function errText(e){
   const c=e&&e.code;
   const pName=(PROVIDERS[S.cfg.provider]&&PROVIDERS[S.cfg.provider].name)||S.cfg.provider||"IA";
-  const det=e&&e.message?" Détail : "+String(e.message).slice(0,300):"";
+  const det=e&&e.message?" Détail : "+String(e.message).slice(0,800):"";
   const st=e&&e.status?" [HTTP "+e.status+"]":"";
   if(c==="nokey")return "Collez votre clé API dans les réglages ci-dessous pour démarrer.";
   if(c==="auth")return "Clé API refusée par "+pName+st+". Vérifiez qu'elle est copiée en entier et qu'elle est active."+det;
@@ -1481,7 +1481,7 @@ async function ask(){
 async function submitUser(text,fromVoice,conf){
   text=String(text||"").trim();
   if(!text)return;
-  if(S.busy&&S.ctl)S.ctl.abort();
+  if(S.busy)return; /* verrou : un seul appel à la fois, jamais de double envoi */
   stopSpeak();
   const m=el("div","msg u"+(LANGS[S.lang].rtl?" ar":""),text);m.dir="auto";
   $("#log").append(m);S.lastUserEl=m;
@@ -1493,6 +1493,7 @@ async function submitUser(text,fromVoice,conf){
 function send(){
   const inp=$("#input");const v=inp.value.trim();
   if(!v)return;
+  if(S.busy){flash("Le professeur répond encore : patientez ou touchez Annuler.");return}
   inp.value="";inp.style.height="auto";
   submitUser(v,false);
 }
@@ -1509,11 +1510,7 @@ async function micTap(){
     return;
   }
   // Si le professeur réfléchissait, l'interrompre pour écouter immédiatement l'utilisateur
-  if(S.busy){
-    if(S.ctl)S.ctl.abort();
-    S.busy=false;$("#sendBtn").disabled=false;setStatus();
-    const oldTy=$("#log .typing");if(oldTy)oldTy.remove();
-  }
+  if(S.busy){flash("Le professeur répond encore : patientez ou touchez Annuler.");return}
   stopSpeak();
   $("#live").textContent="🔴 Écoute en direct… Parlez maintenant !";
   try{
