@@ -215,11 +215,13 @@ ul.clean{margin:0;padding-inline-start:18px;display:flex;flex-direction:column;g
       <datalist id="modelList"></datalist>
       <div class="row">
         <button class="btn sm" id="saveKey">Enregistrer</button>
-        <button class="btn sm ghost" id="testKey">Tester la connexion</button>
-        <button class="btn sm ghost" id="listModels">Voir les modèles disponibles</button>
+        <button class="btn sm ghost" id="testKey">Tester la connexion IA</button>
+        <button class="btn sm ghost" id="testMicBtn">🎤 Tester mon micro</button>
+        <button class="btn sm ghost" id="listModels">Voir modèles</button>
         <button class="btn sm ghost" id="resetCfgBtn" style="color:var(--bad)">Réinitialiser modèles</button>
       </div>
       <p class="small" id="testRes" role="status"></p>
+      <p class="small" id="testMicRes" role="status" style="display:none;margin-top:4px"></p>
       <label class="label" for="voiceSel">Voix du professeur (langue choisie)</label>
       <select class="field" id="voiceSel"></select>
       <div class="row">
@@ -540,13 +542,22 @@ async function callSingleModel(targetModel, o, prov, def, key){
     body={model:cleanModel,messages:msgs.concat(o.messages),max_tokens:max,temperature:0.7};
   }
 
+  // Timeout strict de 10 secondes par modèle pour ne JAMAIS geler l'application
+  const tCtrl=new AbortController();
+  const tId=setTimeout(()=>tCtrl.abort(),10000);
+  const sig=o.signal?o.signal:tCtrl.signal;
+  if(o.signal)o.signal.addEventListener("abort",()=>tCtrl.abort());
+
   let res;
   try{
-    res=await fetch(url,{method:"POST",signal:o.signal,headers:headers,body:JSON.stringify(body)});
+    res=await fetch(url,{method:"POST",signal:tCtrl.signal,headers:headers,body:JSON.stringify(body)});
   }catch(e){
-    if(e&&e.name==="AbortError")throw {code:"cancelled"};
-    throw {code:"net",provider:prov,message:"Connexion refusée ou impossible vers "+(def.name||prov)};
+    clearTimeout(tId);
+    if(o.signal&&o.signal.aborted)throw {code:"cancelled"};
+    if(tCtrl.signal.aborted)throw {code:"timeout",status:503,message:"Le serveur a mis plus de 10s à répondre (délai dépassé)",model:cleanModel,provider:prov};
+    throw {code:"net",provider:prov,message:"Connexion impossible vers "+(def.name||prov)};
   }
+  clearTimeout(tId);
 
   if(!res.ok){
     let m="";try{const j=await res.json();m=(j.error&&(j.error.message||j.error))||j.message||""}catch(e){}
@@ -581,10 +592,10 @@ async function llm(o){
   const prov=S.cfg.provider||"gemini";
   const def=PROVIDERS[prov]||PROVIDERS.gemini;
 
-  // Ordre de priorité des modèles par fournisseur
+  // Modèles prioritaires avec fallback immédiat en cas de surcharge (503), timeout ou 404
   const candidateModels=[o.model, def.chat, def.heavy].filter(Boolean);
   if(prov==="gemini"){
-    candidateModels.push("gemini-2.0-flash","gemini-2.0-flash-lite","gemini-1.5-flash","gemini-1.5-pro");
+    candidateModels.push("gemini-2.0-flash","gemini-1.5-flash","gemini-2.0-flash-lite","gemini-1.5-pro");
   }else if(prov==="anthropic"){
     candidateModels.push("claude-3-5-haiku-20241022","claude-3-5-sonnet-20241022","claude-3-haiku-20240307");
   }else if(prov==="groq"){
@@ -606,12 +617,17 @@ async function llm(o){
       return resText;
     }catch(err){
       lastErr=err;
-      if(err&&err.status===404)continue; // Essayer le modèle suivant
-      throw err; // Stop si auth, quota, etc.
+      // En cas de 503 (modèle surchargé), 500, 504, 429, timeout ou 404 : basculer immédiatement sur le modèle suivant !
+      const isRetryable=err&&(err.status===404||err.status===503||err.status===500||err.status===504||err.status===429||err.code==="timeout");
+      if(isRetryable&&i<uniqueModels.length-1){
+        await sleep(250);
+        continue;
+      }
+      throw err;
     }
   }
 
-  // Si tous les modèles standards sont introuvables (404), interroger la liste dynamique des modèles
+  // Si tous les modèles ont échoué en 404, tenter l'auto-découverte en direct
   if(lastErr&&lastErr.status===404){
     try{
       const liveList=await listModels();
@@ -677,7 +693,9 @@ function errText(e){
   if(c==="nokey")return "Collez votre clé API dans les réglages ci-dessous pour démarrer.";
   if(c==="auth")return "Clé API refusée par "+pName+". Vérifiez que la clé est active et bien copiée dans les réglages."+(e.message?" ("+e.message+")":"");
   if(c==="model")return "Modèle introuvable chez "+pName+(e.model?" (« "+e.model+" »)":"")+". Cliquez sur « Voir les modèles disponibles » dans les réglages pour choisir un modèle valide."+(e.message?" Détail: "+e.message:"");
-  if(c==="rate")return "Limite de requêtes atteinte chez "+pName+". Patientez un moment ou vérifiez votre quota gratuit.";
+  if(c==="timeout")return "Délai d'attente dépassé (serveurs "+pName+" surchargés). Patientez quelques instants ou réessayez.";
+  if(e&&e.status===503)return "Serveurs "+pName+" temporairement surchargés (erreur 503). Réessayez dans un court instant.";
+  if(c==="rate"||(e&&e.status===429))return "Limite de requêtes atteinte chez "+pName+". Patientez un moment ou vérifiez votre quota gratuit.";
   if(c==="net")return "Impossible de joindre "+pName+". Vérifiez votre connexion Internet."+(e.message?" ("+e.message+")":"");
   if(c==="json")return "La réponse reçue était incomplète. Renvoyez votre message.";
   if(c==="bad")return "Requête refusée par "+pName+(e.status?" ("+e.status+")":"")+(e.message?" : "+String(e.message).slice(0,160):".");
@@ -1105,6 +1123,24 @@ $("#testKey").onclick=async()=>{
     out.textContent=errText(e);
   }
 };
+$("#testMicBtn").onclick=async()=>{
+  const out=$("#testMicRes");out.style.display="block";out.style.color="";out.textContent="🔴 Micro ouvert… Dites quelques mots à voix haute (test en direct)…";
+  try{
+    const r=await listenOnce(t=>{out.textContent="Écoute en cours : « "+t+" »"});
+    if(r.text){
+      out.style.color="var(--good)";
+      out.textContent="✓ Micro opérationnel ! Phrase captée : « "+r.text+" »";
+    }else{
+      out.style.color="var(--bad)";
+      out.textContent="⚠️ Aucun son perçu. Rapprochez-vous du micro et réessayez.";
+    }
+  }catch(e){
+    out.style.color="var(--bad)";
+    out.textContent=e&&e.code==="not-allowed"
+      ?"❌ Accès au micro refusé dans Chrome. Touchez le cadenas ou réglages à gauche de l'adresse > Autorisations > Microphone > Autoriser."
+      :"❌ Erreur micro ("+(e&&e.code||"inconnu")+"). Vérifiez que Chrome a l'autorisation Micro dans les paramètres de votre téléphone.";
+  }
+};
 $("#listModels").onclick=async()=>{
   readCfg();
   const out=$("#testRes");out.style.color="";out.textContent="Recherche des modèles chez "+(PROVIDERS[S.cfg.provider]&&PROVIDERS[S.cfg.provider].name||S.cfg.provider)+"…";
@@ -1300,8 +1336,33 @@ async function ask(){
   if(S.busy)return;S.busy=true;
   $("#sendBtn").disabled=true;setStatus();
   const log=$("#log");
-  const ty=el("p","typing","Le professeur écrit…");log.append(ty);
+  const ty=el("p","typing","Le professeur écrit… ");
+  const cancelBtn=el("button","mini","Annuler");
+  cancelBtn.style.marginInlineStart="8px";
+  cancelBtn.onclick=()=>{
+    if(S.ctl)S.ctl.abort();
+    ty.remove();
+    S.busy=false;$("#sendBtn").disabled=false;setStatus();
+  };
+  ty.append(cancelBtn);
+  log.append(ty);
   S.ctl=new AbortController();
+  
+  // Timeout de sécurité global (22s) pour ne JAMAIS laisser l'écran bloqué
+  const globalTimeout=setTimeout(()=>{
+    if(S.busy&&S.ctl){
+      S.ctl.abort();
+      ty.remove();
+      S.busy=false;$("#sendBtn").disabled=false;setStatus();
+      const n=el("div","notice","Le serveur a mis trop de temps à répondre. Touchez Réessayer.");
+      const rb=el("button","mini","Réessayer");
+      rb.style.marginInlineStart="8px";
+      rb.onclick=()=>{n.remove();ask()};
+      n.append(rb);
+      log.append(n);
+    }
+  },22000);
+
   let spoke=Promise.resolve();
   try{
     const model=S.lang==="ar"?mHeavy():mChat();
@@ -1314,6 +1375,7 @@ async function ask(){
         if(k===1)throw e;
       }
     }
+    clearTimeout(globalTimeout);
     ty.remove();
     if(!d||typeof d.reply!=="string"||!d.reply.trim())throw {code:"json"};
     if(S.lastUserEl&&Array.isArray(d.corrections)&&d.corrections.length)S.lastUserEl.after(fixCard(d.corrections));
@@ -1329,6 +1391,7 @@ async function ask(){
     b.scrollIntoView({block:"nearest",behavior:"smooth"});
     if(S.mode!=="write")spoke=speak(d.reply);
   }catch(e){
+    clearTimeout(globalTimeout);
     ty.remove();
     if(!(e&&e.code==="cancelled")){
       const first=S.turns.length<=1;
@@ -1342,13 +1405,15 @@ async function ask(){
       log.append(n);
     }
   }finally{
+    clearTimeout(globalTimeout);
     S.busy=false;$("#sendBtn").disabled=false;setStatus();
   }
   await spoke;
 }
 async function submitUser(text,fromVoice,conf){
   text=String(text||"").trim();
-  if(!text||S.busy)return;
+  if(!text)return;
+  if(S.busy&&S.ctl)S.ctl.abort();
   stopSpeak();
   const m=el("div","msg u"+(LANGS[S.lang].rtl?" ar":""),text);m.dir="auto";
   $("#log").append(m);S.lastUserEl=m;
@@ -1359,7 +1424,7 @@ async function submitUser(text,fromVoice,conf){
 }
 function send(){
   const inp=$("#input");const v=inp.value.trim();
-  if(!v||S.busy)return;
+  if(!v)return;
   inp.value="";inp.style.height="auto";
   submitUser(v,false);
 }
@@ -1375,17 +1440,22 @@ async function micTap(){
     stopListen();
     return;
   }
-  if(S.busy)return;
+  // Si le professeur réfléchissait, l'interrompre pour écouter immédiatement l'utilisateur
+  if(S.busy){
+    if(S.ctl)S.ctl.abort();
+    S.busy=false;$("#sendBtn").disabled=false;setStatus();
+    const oldTy=$("#log .typing");if(oldTy)oldTy.remove();
+  }
   stopSpeak();
-  $("#live").textContent="Écoute en direct… Parlez maintenant !";
+  $("#live").textContent="🔴 Écoute en direct… Parlez maintenant !";
   try{
     const r=await listenOnce(t=>{$("#live").textContent="« "+t+" »"});
-    $("#live").textContent="";
     if(!r.text){
-      flash("Rien entendu : touchez le micro pour parler.");
+      $("#live").textContent="🎤 Rien capté : touchez le micro pour reparler.";
       setStatus();
       return;
     }
+    $("#live").textContent="";
     if(S.mode==="write"){
       const i=$("#input");i.value=r.text;i.focus();
       return;
