@@ -1,54 +1,35 @@
-# 🗣️ Parlons (Application d'apprentissage oral et immersif)
+# Parlons
 
-Application web progressive (PWA) d'apprentissage oral et interactif des langues : **Anglais**, **Arabe littéraire (Fusha)**, **Néerlandais**. Conçue selon une philosophie résolument **anti-scolaire**, axée sur la boucle naturelle **Écouter $\rightarrow$ Parler $\rightarrow$ Lire**, sans bloquer l'apprenant par de la grammaire abstraite sur papier.
+Application web (PWA) pour apprendre à parler **anglais**, **arabe littéraire (fusha)** et **néerlandais** avec un professeur virtuel. Approche antiscolaire : on parle dès le début, la grammaire reste en arrière-plan.
 
----
+Tout tourne dans le navigateur, sans serveur : `index.html` (copie identique : `parlons.html`) + `manifest.json` + `sw.js`.
 
-## 📂 Fichiers du projet
+## Utilisation
 
-- **[`index.html`](./index.html)** & **[`parlons.html`](./parlons.html)** : Application complète autonome (100 % côté client, responsive mobile & desktop).
-- **[`manifest.json`](./manifest.json)** : Configuration PWA (installable sur Android, iOS, Windows et macOS).
-- **[`sw.js`](./sw.js)** : Service Worker assurant le cache (PWA v3) et le fonctionnement hors-ligne.
-- **[`icon.svg`](./icon.svg)** : Icône vectorielle haute résolution.
+1. Ouvrir l'application dans **Chrome** (Android ou ordinateur) ou Edge. Brave et Safari bloquent la reconnaissance vocale : l'écrit et la lecture à voix haute y fonctionnent quand même.
+2. Ouvrir « Fournisseur d'IA et clé API », coller une clé, cliquer sur **Tester la connexion**.
+3. Le test se fait en 3 étapes (clé, message simple, consignes + format JSON) et affiche, en cas d'échec, l'étape, le code HTTP et le message exact du fournisseur.
 
----
+### Clé Google Gemini (gratuit)
 
-## ✨ Fonctionnalités majeures & Nouveautés
+Clé à créer sur <https://aistudio.google.com/apikey> (elle commence par `AIza`). L'application appelle l'API `v1beta` de Gemini avec la clé dans l'en-tête `x-goog-api-key`. Si Google refuse une option (`thinkingConfig`, `responseMimeType`, `systemInstruction`), l'application réessaie automatiquement avec une requête plus simple. Si le modèle choisi n'existe pas, elle choisit le meilleur modèle « flash » stable de la liste de la clé. Les quotas gratuits sont limités : une erreur « Limite de requêtes » signifie d'attendre un peu.
 
-### 1. Moteur vocal de nouvelle génération
-- **Transcription haute précision via Whisper IA** : Compatible avec l'API Groq Whisper (`whisper-large-v3-turbo`) pour une reconnaissance vocale parfaite, même avec du bruit ou un accent débutant.
-- **Auto-écoute comparative (Playback)** : Après chaque message parlé ou répétition de phrase, un bouton **« 🔊 Réécouter ma voix »** permet à l'apprenant d'entendre son propre enregistrement et de comparer son articulation avec la voix du modèle.
-- **Modes d'expression** :
-  - **Mains libres (Hands-Free)** : conçu comme un véritable appel téléphonique.
-  - **Voix (Push-to-talk)** : dictée fluide avec envoi instantané.
-  - **Écrit guidé** : repérer ses erreurs avant la correction finale.
+Fournisseurs gérés : Google Gemini, Groq, Claude (Anthropic), Mistral. Chaque fournisseur a sa propre clé, enregistrée uniquement dans le navigateur (jamais exportée).
 
-### 2. Module Phonétique Néerlandaise (Klankleer)
-- **100 % dédié aux francophones** pour surmonter les pièges phonétiques du néerlandais :
-  - **Les diphtongues magiques** : `UI`, `IJ/EI`, `OE`, `EU`, `OU/AU`.
-  - **Paires minimales (voyelle brève vs longue)** : *man* vs *maan*, *les* vs *lees*, *bom* vs *boom*, *bus* vs *buur*, *wit* vs *wiet*.
-  - **Les consonnes pièges** : le `G/CH` raclé et le `W` néerlandais.
-  - **Quiz auditif de discrimination** : écouter et deviner le mot prononcé pour aiguiser son oreille.
-- **Scénarios du quotidien aux Pays-Bas et en Flandre** :
-  - À la commune (*Gemeentehuis*), en gare (*NS*), au supermarché (*Albert Heijn*), visite de logement (*Woning*), pause-café (*Koffiehoek*).
+## Fonctionnalités
 
-### 3. Module « Lire l'arabe » & Al-Qā'idah An-Nūrāniyyah
-- **Makhārij al-Hurūf (Points d'articulation)** : description anatomique et conseil francophone pour chacune des 28 lettres (gorge profonde, luette, dents, lèvres).
-- **Alphabet en 7 leçons** avec 4 formes graphiques et écoute audio instantanée.
-- **Règles phonétiques Nourāniyyah** : Harakat, Soukoun, Tanwīn, Madd, Lyn et Shaddah.
-- **Décomposition syllabique analytique** : mode lecture de mots réservé aux lettres déjà maîtrisées.
+- **Conversation** par scénarios, en trois modes : écrit (la correction s'affiche après une tentative de reformulation), voix (touche pour parler) et mains libres (comme un appel). Micro-sessions de 2 minutes en option, immersion progressive (avec aide, mélangé, totale).
+- **Parcours** par langue (12 étapes en anglais et en arabe, 8 en néerlandais), chacune avec 3 capacités à démontrer. Le bilan de séance valide les capacités ; le diagnostic place le point de départ ; un contrôle hebdomadaire mesure le niveau.
+- **Bilan écrit** après chaque séance : niveau estimé, erreurs récurrentes, prononciation, éléments à revoir.
+- **Révision espacée** (1, 3, 7, 14, 30 jours) des expressions et des erreurs relevées.
+- **Répéter à voix haute** (comparaison mot à mot avec la transcription) et **écoute** d'un court texte adapté au niveau.
+- **Lire l'arabe** : 28 lettres en 7 leçons (formes, mot d'exemple, son), quiz de 3 minutes avec révision espacée, lecture de mots composés des lettres connues, règles de lecture (voyelles, tanwīn, madd, shadda). Hors ligne pour cette partie.
+- **Néerlandais** : paires minimales voyelle courte / longue à écouter.
+- **PWA** : installable, cache hors ligne (le service worker charge toujours la dernière version des pages quand le réseau est disponible).
+- Export / import des données (parcours, révisions, historique) en JSON.
 
-### 4. Répétition Espacée SuperMemo SM-2 & Export Anki
-- **Algorithme SM-2** : calcul dynamique de l'Ease Factor et des intervalles de révision optimaux.
-- **Export Anki (.tsv) en un clic** : emportez vos révisions et votre vocabulaire ciblé dans votre application Anki habituelle.
+## Limites connues
 
-### 5. Mini-Missions Orales à objectifs
-- Jeux de rôle scénarisés sous contrainte de tours de parole :
-  - *Le taxi new-yorkais pressé* (Anglais).
-  - *Négocier au Souk Khan el-Khalili* (Arabe).
-  - *Décrocher une visite de logement ce soir* (Néerlandais).
-
-### 6. Résilience technique & Hors-ligne
-- **Double stockage synchrone** : `localStorage` + base de données **IndexedDB** (`parlons_db`) pour éviter les purges intempestives sur iOS Safari.
-- **Fournisseurs IA agnostiques** : Anthropic Claude, Google Gemini, Groq, Cerebras et Mistral.
-- **100 % hors-ligne** pour les modules de lecture, quiz, règles phonétiques et révisions.
+- La reconnaissance vocale est celle du navigateur (Chrome envoie la voix aux serveurs de Google). Elle comprend mal l'arabe d'un débutant.
+- Les voix de synthèse dépendent de l'appareil : sur Android, installer la voix arabe de Google si besoin.
+- La qualité de l'arabe des modèles gratuits n'est pas garantie.

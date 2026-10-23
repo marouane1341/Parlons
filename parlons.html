@@ -217,7 +217,7 @@ ul.clean{margin:0;padding-inline-start:18px;display:flex;flex-direction:column;g
         <option value="gemini-2.0-flash">
         <option value="gemini-1.5-flash">
         <option value="llama-3.3-70b-versatile">
-        <option value="claude-3-5-haiku-20241022">
+        <option value="claude-haiku-5-5">
         <option value="mistral-small-latest">
       </datalist>
       <div class="row">
@@ -265,8 +265,8 @@ ul.clean{margin:0;padding-inline-start:18px;display:flex;flex-direction:column;g
       <span class="label">Réglages de séance</span>
       <div class="row"><span class="small muted lab">Mode</span>
         <div class="seg" id="modeSeg" role="group" aria-label="Mode">
-          <button data-mode="write" aria-pressed="true">Écrit</button>
-          <button data-mode="voice" aria-pressed="false">Voix</button>
+          <button data-mode="write" aria-pressed="false">Écrit</button>
+          <button data-mode="voice" aria-pressed="true">Voix</button>
           <button data-mode="hf" aria-pressed="false">Mains libres</button>
         </div></div>
       <div class="row"><span class="small muted lab">Immersion</span>
@@ -359,7 +359,7 @@ const PROVIDERS={
     note:"Palier gratuit sans carte bancaire, modèles ultra-rapides et récents."},
   groq:{name:"Groq",chat:"llama-3.3-70b-versatile",heavy:"llama-3.3-70b-versatile",base:"https://api.groq.com/openai/v1",keyUrl:"console.groq.com/keys",
     note:"Réponses quasi-instantanées, idéal pour la conversation orale."},
-  anthropic:{name:"Claude (Anthropic)",chat:"claude-3-5-haiku-20241022",heavy:"claude-3-5-sonnet-20241022",keyUrl:"console.anthropic.com",
+  anthropic:{name:"Claude (Anthropic)",chat:"claude-haiku-5-5",heavy:"claude-sonnet-5-5",keyUrl:"console.anthropic.com",
     note:"Excellente pédagogie et correction des tournures fines."},
   mistral:{name:"Mistral",chat:"mistral-small-latest",heavy:"mistral-large-latest",base:"https://api.mistral.ai/v1",keyUrl:"console.mistral.ai",
     note:"Modèles européens performants."}
@@ -441,7 +441,6 @@ function detectProvider(k){
   if(/^AIzaSy/i.test(k))return "gemini";
   if(/^gsk_/i.test(k))return "groq";
   if(/^sk-ant-/i.test(k))return "anthropic";
-  if(/^sk-[a-zA-Z0-9_-]{20,}/i.test(k))return "groq";
   return null;
 }
 function load(){
@@ -465,7 +464,12 @@ function load(){
       S.cfg.provider=det;
       if(!S.cfg.keys[det])S.cfg.keys[det]=activeKey;
     }
-    // Nettoyer les modèles invalides ou obsolètes en mémoire locale
+    // Au démarrage seulement : si le fournisseur choisi n'a pas de clé mais qu'un autre en a une, utiliser celui-là
+    if(!String(S.cfg.keys[S.cfg.provider]||"").trim()){
+      const other=Object.keys(PROVIDERS).find(p=>String(S.cfg.keys[p]||"").trim());
+      if(other)S.cfg.provider=other;
+    }
+    // Normaliser les noms de modèles mémorisés
     Object.keys(PROVIDERS).forEach(p=>{
       const m=S.cfg.models[p]||(S.cfg.models[p]={});
       m.chat=cleanModel(m.chat, p);
@@ -475,63 +479,56 @@ function load(){
 }
 function flash(t){const f=$("#flash");f.textContent=t;f.hidden=false;clearTimeout(flash._t);flash._t=setTimeout(()=>{f.hidden=true},4500)}
 
-function cleanModel(m, prov){
+const NOT_STABLE=/preview|exp|lite|image|tts|live|audio|thinking|embedding|aqa|learnlm|gemma|vision|robotics|computer|-8b|customtools/i;
+function cleanModel(m,prov){
   m=String(m||"").trim().replace(/^models\//,"");
-  const bad=/3\.8|5-5|1\.5-pro|gemini-pro$|gpt-oss|flash-latest|2\.0-flash-lite/i;
+  if(m)return m;
+  return (PROVIDERS[prov]||PROVIDERS.gemini).chat;
+}
+function pickBestModel(prov,ids){
+  ids=(ids||[]).filter(Boolean);
+  if(!ids.length)return null;
   if(prov==="gemini"){
-    return (!m || bad.test(m)) ? "gemini-2.5-flash" : m;
+    const ok=ids.filter(m=>/^gemini-\d/i.test(m)&&/flash/i.test(m)&&!NOT_STABLE.test(m));
+    const ver=m=>{const x=m.match(/^gemini-(\d+(?:\.\d+)?)/i);return x?parseFloat(x[1]):0};
+    ok.sort((a,b)=>ver(b)-ver(a)||a.length-b.length);
+    if(ok.length)return ok[0];
   }
-  const d=PROVIDERS[prov]||PROVIDERS.gemini;
-  return (!m || bad.test(m)) ? (d.chat || "gemini-2.5-flash") : m;
+  return ids.find(m=>/flash|haiku|versatile|instant|small/i.test(m))||ids[0];
+}
+function adopt(prov,oldM,best){
+  if(!S.cfg.models)S.cfg.models={};
+  const m=S.cfg.models[prov]||(S.cfg.models[prov]={});
+  if(!m.chat||m.chat===oldM)m.chat=best;
+  if(!m.heavy||m.heavy===oldM)m.heavy=best;
+  const mc=$("#mChat"),mh=$("#mHeavy");
+  if(mc&&(!mc.value||mc.value.trim()===oldM))mc.value=best;
+  if(mh&&(!mh.value||mh.value.trim()===oldM))mh.value=best;
+  save();
 }
 
 /* ---------- appels à l'IA ---------- */
 function curKey(){
   let p=S.cfg.provider||"gemini";
-  let k=(S.cfg.keys&&S.cfg.keys[p])||"";
-  
-  // Si la clé entrée correspond à un autre fournisseur connu, réaligner automatiquement
+  if(!S.cfg.keys)S.cfg.keys={};
+  const k=String(S.cfg.keys[p]||"").trim();
   const det=detectProvider(k);
-  if(det&&det!==p&&PROVIDERS[det]){
-    S.cfg.provider=det;
-    p=det;
-    if(!S.cfg.keys[det])S.cfg.keys[det]=k;
-  }
-  if(k&&k.trim())return k.trim();
-
-  // Si le fournisseur actuel n'a pas de clé, chercher si une clé existe ailleurs
-  if(S.cfg.keys){
-    const provs=Object.keys(PROVIDERS);
-    for(let i=0;i<provs.length;i++){
-      const prov=provs[i];
-      const cand=S.cfg.keys[prov];
-      if(cand&&cand.trim()){
-        const candDet=detectProvider(cand)||prov;
-        S.cfg.provider=candDet;
-        if(!S.cfg.keys[candDet])S.cfg.keys[candDet]=cand.trim();
-        save();
-        return cand.trim();
-      }
-    }
-  }
-  return "";
+  if(det&&det!==p&&PROVIDERS[det]){S.cfg.provider=p=det;S.cfg.keys[det]=k}
+  return k;
 }
-
 function mods(){
   const p=S.cfg.provider||"gemini",d=PROVIDERS[p]||PROVIDERS.gemini;
-  let m=(S.cfg.models&&S.cfg.models[p])||{};
-  const mcEl=document.getElementById("mChat");
-  const mhEl=document.getElementById("mHeavy");
+  const m=(S.cfg.models&&S.cfg.models[p])||{};
+  const mcEl=document.getElementById("mChat"),mhEl=document.getElementById("mHeavy");
   const screenChat=mcEl&&mcEl.value?mcEl.value.trim():"";
   const screenHeavy=mhEl&&mhEl.value?mhEl.value.trim():"";
-  const chat=cleanModel(screenChat||m.chat||d.chat, p);
-  const heavy=cleanModel(screenHeavy||m.heavy||d.heavy, p);
-  if(mcEl&&mcEl.value!==chat) mcEl.value=chat;
-  if(mhEl&&mhEl.value!==heavy) mhEl.value=heavy;
-  if(!S.cfg.models[p])S.cfg.models[p]={};
-  S.cfg.models[p].chat=chat;
-  S.cfg.models[p].heavy=heavy;
-  return {chat:chat, heavy:heavy};
+  const chat=cleanModel(screenChat||m.chat||d.chat,p);
+  const heavy=cleanModel(screenHeavy||m.heavy||d.heavy,p);
+  if(mcEl&&mcEl.value!==chat)mcEl.value=chat;
+  if(mhEl&&mhEl.value!==heavy)mhEl.value=heavy;
+  if(!S.cfg.models)S.cfg.models={};
+  S.cfg.models[p]={chat:chat,heavy:heavy};
+  return {chat:chat,heavy:heavy};
 }
 const mChat=()=>mods().chat,mHeavy=()=>mods().heavy;
 
@@ -542,199 +539,151 @@ function prepGeminiContents(messages){
     const role=m.role==="assistant"?"model":"user";
     const text=String(m.content||"").trim();
     if(!text)return;
-    if(res.length&&role===lastRole){
-      res[res.length-1].parts[0].text += "\n\n" + text;
-    }else{
-      res.push({role:role,parts:[{text:text}]});
-      lastRole=role;
-    }
+    if(res.length&&role===lastRole){res[res.length-1].parts[0].text+="\n\n"+text}
+    else{res.push({role:role,parts:[{text:text}]});lastRole=role}
   });
-  if(res.length&&res[0].role==="model"){
-    res.unshift({role:"user",parts:[{text:"Bonjour"}]});
-  }
+  if(res.length&&res[0].role==="model")res.unshift({role:"user",parts:[{text:"Bonjour"}]});
   return res.length?res:[{role:"user",parts:[{text:"Bonjour"}]}];
 }
 
-async function callSingleModel(targetModel, o, prov, def, key){
-  const max=(o.max||1024)*(prov==="anthropic"?1:3);
-  const wantJson=o.json!==false;
-  let url,headers={"content-type":"application/json"},body;
-  const cleanM=String(targetModel||def.chat).trim().replace(/^models\//,"");
-
-  if(prov==="anthropic"){
-    url="https://api.anthropic.com/v1/messages";
-    headers["x-api-key"]=key;
-    headers["anthropic-version"]="2023-06-01";
-    headers["anthropic-dangerous-direct-browser-access"]="true";
-    body={model:cleanM,max_tokens:max,messages:o.messages};
-    if(o.system&&o.system.trim())body.system=o.system;
-  }else if(prov==="gemini"){
-    // API v1 stable officielle de Google Gemini
-    url="https://generativelanguage.googleapis.com/v1/models/"+encodeURIComponent(cleanM)+":generateContent?key="+encodeURIComponent(key);
-    body={
-      contents:prepGeminiContents(o.messages),
-      generationConfig:Object.assign({maxOutputTokens:max,temperature:0.7},wantJson?{responseMimeType:"application/json"}:{})
-    };
-    if(o.system&&o.system.trim())body.systemInstruction={parts:[{text:o.system}]};
-  }else{
-    url=(def.base||"https://api.openai.com/v1")+"/chat/completions";
-    headers.authorization="Bearer "+key;
-    const msgs=[];
-    if(o.system&&o.system.trim())msgs.push({role:"system",content:o.system});
-    body={model:cleanM,messages:msgs.concat(o.messages),max_tokens:max,temperature:0.7};
-  }
-
-  // Timeout strict de 10 secondes par modèle pour ne JAMAIS geler l'application
-  const tCtrl=new AbortController();
-  const tId=setTimeout(()=>tCtrl.abort(),10000);
-  if(o.signal)o.signal.addEventListener("abort",()=>tCtrl.abort());
-
+/* Requête HTTP : délai de 45 s, annulation possible, erreurs détaillées (statut + message du fournisseur) */
+async function httpJSON(url,headers,body,sig,prov,model){
+  const tc=new AbortController();
+  const tid=setTimeout(()=>tc.abort(),45000);
+  const onAbort=()=>tc.abort();
+  if(sig)sig.addEventListener("abort",onAbort);
   let res;
   try{
-    res=await fetch(url,{method:"POST",signal:tCtrl.signal,headers:headers,body:JSON.stringify(body)});
+    res=await fetch(url,{method:body?"POST":"GET",signal:tc.signal,headers:headers,body:body?JSON.stringify(body):undefined});
   }catch(e){
-    clearTimeout(tId);
-    if(o.signal&&o.signal.aborted)throw {code:"cancelled"};
-    if(tCtrl.signal.aborted)throw {code:"timeout",status:503,message:"Délai dépassé (10s)",model:cleanM,provider:prov};
-    throw {code:"net",provider:prov,message:"Connexion impossible vers "+(def.name||prov)};
+    if(sig&&sig.aborted)throw {code:"cancelled"};
+    if(tc.signal.aborted)throw {code:"timeout",provider:prov,model:model,message:"aucune réponse en 45 s"};
+    throw {code:"net",provider:prov,model:model,message:String(e&&e.message||e)};
+  }finally{
+    clearTimeout(tid);
+    if(sig)sig.removeEventListener("abort",onAbort);
   }
-  clearTimeout(tId);
-
-  // Si v1 renvoie 404 pour Gemini, tenter v1beta en secours transparent
-  if(prov==="gemini"&&res.status===404){
-    const betaUrl="https://generativelanguage.googleapis.com/v1beta/models/"+encodeURIComponent(cleanM)+":generateContent?key="+encodeURIComponent(key);
-    try{
-      const retryBeta=await fetch(betaUrl,{method:"POST",signal:tCtrl.signal,headers:headers,body:JSON.stringify(body)});
-      if(retryBeta.ok)res=retryBeta;
-    }catch(vx){}
-  }
-
   if(!res.ok){
-    let m="";try{const j=await res.json();m=(j.error&&(j.error.message||j.error))||j.message||""}catch(e){}
-    m=typeof m==="string"?m:"";
-
-    // Si Gemini rejette avec 400 à cause de responseMimeType
-    if(prov==="gemini"&&wantJson&&res.status===400&&body.generationConfig&&body.generationConfig.responseMimeType){
-      delete body.generationConfig.responseMimeType;
-      try{
-        const retryRes=await fetch(url,{method:"POST",signal:o.signal,headers:headers,body:JSON.stringify(body)});
-        if(retryRes.ok){
-          const retryJ=await retryRes.json();
-          return ((((retryJ.candidates||[])[0]||{}).content||{}).parts||[]).map(p=>p.text||"").join("");
-        }
-      }catch(rx){}
-    }
-
+    let m="";
+    try{const j=await res.json();m=(j.error&&(j.error.message||j.error.type||JSON.stringify(j.error)))||j.message||""}catch(x){}
+    m=typeof m==="string"?m:JSON.stringify(m);
     let code=res.status===401||res.status===403?"auth":res.status===404?"model":res.status===429?"rate":res.status>=500?"upstream":"bad";
-    if(res.status===400&&/api key|api_key|apikey/i.test(m))code="auth";
-    throw {code:code,message:m,status:res.status,model:cleanM,provider:prov};
+    if(res.status===400&&/api key|api_key|apikey|x-api-key/i.test(m))code="auth";
+    throw {code:code,status:res.status,message:m,model:model,provider:prov};
   }
+  try{return await res.json()}catch(x){throw {code:"json",provider:prov,model:model,message:"réponse non JSON"}}
+}
 
-  const j=await res.json();
-  if(prov==="anthropic")return (j.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("");
-  if(prov==="gemini")return ((((j.candidates||[])[0]||{}).content||{}).parts||[]).map(p=>p.text||"").join("");
-  return (((j.choices||[])[0]||{}).message||{}).content||"";
+/* Gemini : endpoint v1beta (le seul listé par la référence officielle de generateContent), clé dans l'en-tête.
+   Si Google refuse un champ optionnel (400), on réessaie avec un corps plus simple : 0 = complet,
+   1 = sans thinkingConfig, 2 = sans responseMimeType, 3 = consigne fusionnée dans le premier message. */
+const GV={};
+function geminiBody(o,model,max,wantJson,v){
+  const gc={maxOutputTokens:max,temperature:0.7};
+  if(wantJson&&v<2)gc.responseMimeType="application/json";
+  if(v<1&&/gemini-2\.5-flash/i.test(model))gc.thinkingConfig={thinkingBudget:0};
+  const contents=prepGeminiContents(o.messages);
+  const sys=o.system&&o.system.trim()?o.system:"";
+  const body={contents:contents,generationConfig:gc};
+  if(sys){
+    if(v<3)body.systemInstruction={parts:[{text:sys}]};
+    else contents[0].parts[0].text="Consignes à suivre :\n"+sys+"\n\n---\n"+contents[0].parts[0].text;
+  }
+  return body;
+}
+function geminiText(j,model){
+  const fb=j&&j.promptFeedback;
+  if(fb&&fb.blockReason)throw {code:"blocked",provider:"gemini",model:model,message:String(fb.blockReason)};
+  const cand=((j&&j.candidates)||[])[0];
+  const parts=(cand&&cand.content&&cand.content.parts)||[];
+  const text=parts.filter(p=>!p.thought).map(p=>p.text||"").join("");
+  if(!text.trim())throw {code:"empty",provider:"gemini",model:model,message:"finishReason = "+((cand&&cand.finishReason)||"inconnu")};
+  return text;
+}
+async function callGemini(model,o,key,max,wantJson){
+  const url="https://generativelanguage.googleapis.com/v1beta/models/"+encodeURIComponent(model)+":generateContent";
+  const headers={"content-type":"application/json","x-goog-api-key":key};
+  let v=GV[model]||0;
+  for(;;){
+    try{
+      const j=await httpJSON(url,headers,geminiBody(o,model,max,wantJson,v),o.signal,"gemini",model);
+      GV[model]=v;
+      return geminiText(j,model);
+    }catch(e){
+      const degradable=e&&e.code==="bad"&&e.status===400&&v<3;
+      if(!degradable)throw e;
+      v++;
+    }
+  }
+}
+async function callModel(model,o,prov,def,key){
+  const m=cleanModel(model||def.chat,prov);
+  const max=(o.max||1024)*(prov==="anthropic"?1:3);
+  const wantJson=o.json!==false;
+  const hasSys=!!(o.system&&o.system.trim());
+  if(prov==="gemini")return callGemini(m,o,key,max,wantJson);
+  if(prov==="anthropic"){
+    const body={model:m,max_tokens:max,messages:o.messages};
+    if(hasSys)body.system=o.system;
+    const j=await httpJSON("https://api.anthropic.com/v1/messages",{"content-type":"application/json","x-api-key":key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body,o.signal,prov,m);
+    const t=(j.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("");
+    if(!t.trim())throw {code:"empty",provider:prov,model:m,message:"stop_reason = "+(j.stop_reason||"inconnu")};
+    return t;
+  }
+  const msgs=hasSys?[{role:"system",content:o.system}]:[];
+  const j=await httpJSON((def.base||"https://api.openai.com/v1")+"/chat/completions",{"content-type":"application/json",authorization:"Bearer "+key},{model:m,messages:msgs.concat(o.messages),max_tokens:max,temperature:0.7},o.signal,prov,m);
+  const ch=((j.choices||[])[0])||{};
+  const t=(ch.message&&ch.message.content)||"";
+  if(!String(t).trim())throw {code:"empty",provider:prov,model:m,message:"finish_reason = "+(ch.finish_reason||"inconnu")};
+  return t;
 }
 
 async function llm(o){
   const key=curKey();
   if(!key)throw {code:"nokey"};
-  const prov=S.cfg.provider||"gemini";
-  const def=PROVIDERS[prov]||PROVIDERS.gemini;
-
-  // Lecture dynamique du modèle à l'écran si disponible
-  const screenM=$("#mChat")?$("#mChat").value.trim():"";
-  const preferredModel=cleanModel(o.model||screenM||def.chat, prov);
-
-  // Modèles certifiés prioritaires avec gemini-2.5-flash en tête
-  const candidateModels=[preferredModel, def.chat, def.heavy].filter(Boolean);
-  if(prov==="gemini"){
-    candidateModels.push("gemini-2.5-flash","gemini-2.0-flash");
-  }else if(prov==="anthropic"){
-    candidateModels.push("claude-3-5-haiku-20241022","claude-3-5-sonnet-20241022","claude-3-haiku-20240307");
-  }else if(prov==="groq"){
-    candidateModels.push("llama-3.3-70b-versatile","llama-3.1-8b-instant","mixtral-8x7b-32768");
+  const prov=S.cfg.provider||"gemini",def=PROVIDERS[prov]||PROVIDERS.gemini;
+  const model=cleanModel(o.model,prov);
+  const run=m=>callModel(m,o,prov,def,key);
+  let err;
+  try{return await run(model)}catch(e){err=e}
+  if(err&&err.code==="upstream"){
+    await sleep(1500);
+    try{return await run(model)}catch(e2){err=e2}
   }
-  const uniqueModels=candidateModels.map(m=>cleanModel(m, prov)).filter((v,i,a)=>a.indexOf(v)===i);
-
-  let lastErr=null;
-  for(let i=0;i<uniqueModels.length;i++){
-    const curM=uniqueModels[i];
-    try{
-      const resText=await callSingleModel(curM,o,prov,def,key);
-      if(curM!==preferredModel){
-        if(!S.cfg.models[prov])S.cfg.models[prov]={};
-        S.cfg.models[prov].chat=curM;
-        S.cfg.models[prov].heavy=curM;
-        const mc=$("#mChat"),mh=$("#mHeavy");
-        if(mc)mc.value=curM;if(mh)mh.value=curM;
-        save();
-      }
-      return resText;
-    }catch(err){
-      lastErr=err;
-      const isRetryable=err&&(err.status===404||err.status===503||err.status===500||err.status===504||err.status===429||err.code==="timeout");
-      if(isRetryable&&i<uniqueModels.length-1){
-        await sleep(200);
-        continue;
-      }
-      if(!isRetryable)throw err;
+  if(err&&err.code==="model"){
+    let ids=null;
+    try{ids=await listModels()}catch(x){}
+    const best=pickBestModel(prov,ids);
+    if(best&&best!==model){
+      const t=await run(best);
+      adopt(prov,model,best);
+      return t;
     }
   }
-
-  // Si tous les modèles certifiés ont échoué en 404, interroger la liste réelle de la clé en direct
-  if(lastErr&&(lastErr.status===404||lastErr.code==="model")){
-    try{
-      const liveList=await listModels();
-      if(liveList&&liveList.length){
-        const bestModel=liveList.find(m=>/2\.5-flash|2\.0-flash|flash|haiku|versatile|instant/i.test(m))||liveList[0];
-        if(bestModel){
-          const resText=await callSingleModel(bestModel,o,prov,def,key);
-          if(!S.cfg.models[prov])S.cfg.models[prov]={};
-          S.cfg.models[prov].chat=bestModel;
-          S.cfg.models[prov].heavy=bestModel;
-          const mc=$("#mChat"),mh=$("#mHeavy");
-          if(mc)mc.value=bestModel;if(mh)mh.value=bestModel;
-          save();
-          return resText;
-        }
-      }
-    }catch(liveErr){}
-  }
-
-  throw lastErr;
+  throw err;
 }
 
 async function listModels(){
   const key=curKey(),prov=S.cfg.provider||"gemini";
   if(!key)throw {code:"nokey"};
-  let url,headers={};
+  let url,headers;
   if(prov==="anthropic"){
     url="https://api.anthropic.com/v1/models?limit=100";
     headers={"x-api-key":key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"};
   }else if(prov==="gemini"){
-    url="https://generativelanguage.googleapis.com/v1/models?key="+encodeURIComponent(key)+"&pageSize=200";
-    headers={};
+    url="https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000";
+    headers={"x-goog-api-key":key};
   }else{
-    url=(PROVIDERS[prov].base||"https://api.openai.com/v1")+"/models";
+    url=((PROVIDERS[prov]||{}).base||"https://api.openai.com/v1")+"/models";
     headers={authorization:"Bearer "+key};
   }
-  let res;
-  try{res=await fetch(url,{headers:headers})}catch(e){throw {code:"net",provider:prov}}
-  if(!res.ok){
-    let m="";try{const j=await res.json();m=(j.error&&(j.error.message||j.error))||j.message||""}catch(x){}
-    throw {code:res.status===401||res.status===403?"auth":"bad",status:res.status,message:m,provider:prov};
-  }
-  const j=await res.json();
+  const j=await httpJSON(url,headers,null,null,prov,"");
   const ids=[];
   if(prov==="gemini"){
-    const list=j.models||[];
-    list.forEach(m=>{
-      const methods=m.supportedGenerationMethods||m.supported_generation_methods||[];
+    (j.models||[]).forEach(m=>{
+      const methods=m.supportedGenerationMethods||[];
       const name=String(m.name||"").replace(/^models\//,"");
-      if(methods.indexOf("generateContent")>=0||/^gemini/i.test(name)){
-        ids.push(name);
-      }
+      if(name&&methods.indexOf("generateContent")>=0)ids.push(name);
     });
   }else{
     (j.data||[]).forEach(m=>{if(m.id)ids.push(m.id)});
@@ -757,16 +706,20 @@ function parseJSON(t){
 function errText(e){
   const c=e&&e.code;
   const pName=(PROVIDERS[S.cfg.provider]&&PROVIDERS[S.cfg.provider].name)||S.cfg.provider||"IA";
+  const det=e&&e.message?" Détail : "+String(e.message).slice(0,300):"";
+  const st=e&&e.status?" [HTTP "+e.status+"]":"";
   if(c==="nokey")return "Collez votre clé API dans les réglages ci-dessous pour démarrer.";
-  if(c==="auth")return "Clé API refusée par "+pName+". Vérifiez que la clé est active et bien copiée dans les réglages."+(e.message?" ("+e.message+")":"");
-  if(c==="model")return "Modèle introuvable chez "+pName+(e.model?" (« "+e.model+" »)":"")+". Cliquez sur « Voir les modèles disponibles » dans les réglages pour choisir un modèle valide."+(e.message?" Détail: "+e.message:"");
-  if(c==="timeout")return "Délai d'attente dépassé (serveurs "+pName+" surchargés). Patientez quelques instants ou réessayez.";
-  if(e&&e.status===503)return "Serveurs "+pName+" temporairement surchargés (erreur 503). Réessayez dans un court instant.";
-  if(c==="rate"||(e&&e.status===429))return "Limite de requêtes atteinte chez "+pName+". Patientez un moment ou vérifiez votre quota gratuit.";
-  if(c==="net")return "Impossible de joindre "+pName+". Vérifiez votre connexion Internet."+(e.message?" ("+e.message+")":"");
-  if(c==="json")return "La réponse reçue était incomplète. Renvoyez votre message.";
-  if(c==="bad")return "Requête refusée par "+pName+(e.status?" ("+e.status+")":"")+(e.message?" : "+String(e.message).slice(0,160):".");
-  return "Erreur de connexion ("+pName+(e.status?" "+e.status:"")+") : "+(e.message||"Réessayez.");
+  if(c==="auth")return "Clé API refusée par "+pName+st+". Vérifiez qu'elle est copiée en entier et qu'elle est active."+det;
+  if(c==="model")return "Modèle introuvable chez "+pName+(e.model?" (« "+e.model+" »)":"")+st+". Cliquez sur « Voir modèles » et choisissez-en un."+det;
+  if(c==="timeout")return "Pas de réponse de "+pName+" au bout de 45 secondes. Réessayez.";
+  if(c==="rate")return "Limite de requêtes atteinte chez "+pName+st+". Attendez une minute, ou vérifiez votre quota gratuit."+det;
+  if(c==="upstream")return "Les serveurs de "+pName+" ne répondent pas"+st+". Réessayez dans un instant."+det;
+  if(c==="net")return "Le navigateur n'a pas pu joindre "+pName+". Vérifiez votre connexion Internet (un VPN ou un bloqueur de publicités peut aussi gêner)."+det;
+  if(c==="json")return "La réponse reçue était illisible. Renvoyez votre message.";
+  if(c==="empty")return "Réponse vide de "+pName+"."+det+" Réessayez ; sinon choisissez un autre modèle.";
+  if(c==="blocked")return "Réponse bloquée par les filtres de "+pName+"."+det+" Reformulez votre message.";
+  if(c==="bad")return "Requête refusée par "+pName+st+"."+det;
+  return "Erreur ("+pName+st+")."+det;
 }
 
 /* ---------- voix (sortie) ---------- */
@@ -1138,7 +1091,8 @@ function updateKeyDetectNote(){
     if($("#provider").value!==det){
       $("#provider").value=det;
       S.cfg.provider=det;
-      const d=PROVIDERS[det],m=mods();
+      $("#mChat").value="";$("#mHeavy").value="";
+      const m=mods();
       $("#mChat").value=m.chat;$("#mHeavy").value=m.heavy;
     }
   }else{
@@ -1171,50 +1125,48 @@ $("#apikey").addEventListener("input",()=>{
   readCfg();
 });
 $("#provider").addEventListener("change",e=>{
-  S.cfg.provider=e.target.value;save();fillCfg();$("#testRes").textContent="";$("#modelList").textContent="";
+  S.cfg.provider=e.target.value;
+  $("#mChat").value="";$("#mHeavy").value="";
+  save();fillCfg();$("#testRes").textContent="";$("#modelList").textContent="";
 });
 $("#saveKey").onclick=()=>{readCfg();flash("Réglages enregistrés.")};
 $("#resetCfgBtn").onclick=async()=>{
-  const p=S.cfg.provider||"gemini";
+  const p=S.cfg.provider||"gemini",d=PROVIDERS[p]||PROVIDERS.gemini;
+  let best=d.chat;
+  try{const ids=await listModels();best=pickBestModel(p,ids)||best}catch(x){}
   if(!S.cfg.models)S.cfg.models={};
-  let best=p==="gemini"?"gemini-2.5-flash":(PROVIDERS[p]?PROVIDERS[p].chat:"gemini-2.5-flash");
-  try{
-    const ids=await listModels();
-    if(ids&&ids.length){
-      best=ids.find(m=>/2\.5-flash|2\.0-flash|1\.5-flash/i.test(m))||ids[0];
-    }
-  }catch(x){}
-  best=cleanModel(best, p);
   S.cfg.models[p]={chat:best,heavy:best};
-  if($("#mChat")) $("#mChat").value=best;
-  if($("#mHeavy")) $("#mHeavy").value=best;
+  $("#mChat").value=best;$("#mHeavy").value=best;
   save();
-  flash("Modèles réinitialisés avec succès au modèle : "+best);
+  flash("Modèle réglé sur : "+best);
 };
 async function testerConnexionIA(){
   readCfg();
-  const rawField=$("#mChat")?$("#mChat").value.trim():"";
-  const prov=S.cfg.provider||"gemini";
-  const def=PROVIDERS[prov]||PROVIDERS.gemini;
-  const activeModel=String(rawField||def.chat).trim().replace(/^models\//,"");
-  const key=curKey();
-  const out=$("#testRes");
-  if(!key){
-    out.style.color="var(--bad)";
-    out.textContent="Collez votre clé API dans les réglages ci-dessus pour tester.";
-    return;
-  }
-  const pName=(PROVIDERS[prov]&&PROVIDERS[prov].name)||prov;
-  out.style.color="";
-  out.textContent="Test de connexion en cours avec "+pName+" ("+activeModel+")…";
+  const prov=S.cfg.provider||"gemini",def=PROVIDERS[prov]||PROVIDERS.gemini;
+  const key=curKey(),out=$("#testRes");
+  const pName=def.name||prov;
+  const set=(t,c)=>{out.style.color=c||"";out.textContent=t};
+  if(!key){set("Collez votre clé API dans les réglages ci-dessus pour tester.","var(--bad)");return}
+  let model=cleanModel($("#mChat")?$("#mChat").value:"",prov);
+  let step=1,note="";
   try{
-    const q={system:"Réponds par un seul mot.",messages:[{role:"user",content:"Test"}],max:16,json:false};
-    await callSingleModel(activeModel,q,prov,def,key);
-    out.style.color="var(--good)";
-    out.textContent="✓ Connexion réussie à "+pName+" avec le modèle : "+activeModel+" !";
+    set("Étape 1/3 : vérification de la clé chez "+pName+"…");
+    const ids=await listModels();
+    if(ids.length&&ids.indexOf(model)<0){
+      const best=pickBestModel(prov,ids);
+      if(best){note=" (le modèle « "+model+" » n'existe pas chez "+pName+" : remplacé par « "+best+" »)";adopt(prov,model,best);model=best}
+    }
+    step=2;
+    set("Étape 2/3 : envoi d'un message au modèle « "+model+" »…");
+    await callModel(model,{system:"",messages:[{role:"user",content:"Dis simplement : ok"}],max:64,json:false},prov,def,key);
+    step=3;
+    set("Étape 3/3 : test des consignes et du format de réponse…");
+    const t=await callModel(model,{system:"Réponds uniquement par un objet JSON valide.",messages:[{role:"user",content:"Réponds exactement {\"ok\":true}"}],max:64,json:true},prov,def,key);
+    parseJSON(t);
+    set("✓ Connexion réussie à "+pName+" avec le modèle « "+model+" »."+note,"var(--good)");
   }catch(e){
-    out.style.color="var(--bad)";
-    out.textContent=errText(e);
+    set("Échec à l'étape "+step+"/3. "+errText(e),"var(--bad)");
+    try{console.error("[Parlons] diagnostic",{provider:prov,model:model,error:e})}catch(x){}
   }
 }
 $("#testKey").onclick=testerConnexionIA;
@@ -1443,7 +1395,7 @@ async function ask(){
   log.append(ty);
   S.ctl=new AbortController();
   
-  // Timeout de sécurité global (22s) pour ne JAMAIS laisser l'écran bloqué
+  // Garde-fou global : 70 s au plus, pour ne jamais laisser l'écran bloqué
   const globalTimeout=setTimeout(()=>{
     if(S.busy&&S.ctl){
       S.ctl.abort();
@@ -1456,7 +1408,7 @@ async function ask(){
       n.append(rb);
       log.append(n);
     }
-  },22000);
+  },70000);
 
   let spoke=Promise.resolve();
   try{
@@ -2304,6 +2256,14 @@ $("#courseBtn").onclick=()=>{
 load();
 if("speechSynthesis" in window){try{speechSynthesis.onvoiceschanged=refreshVoices}catch(e){}refreshVoices()}
 if(!SR||navigator.brave){if(navigator.brave)$("#srNote").textContent="Brave bloque la reconnaissance vocale de Google : le micro ne fonctionnera pas ici. Ouvrez le fichier dans Chrome (ou Edge sur ordinateur). L'écrit et la lecture à voix haute marchent quand même.";$("#srNote").hidden=false}
+if(!SR||navigator.brave){
+  S.mode="write";
+  document.querySelectorAll("#modeSeg button").forEach(x=>x.setAttribute("aria-pressed",x.dataset.mode==="write"?"true":"false"));
+}
+if(location.hash==="#alpha"){
+  S.lang="ar";
+  document.querySelectorAll("#langSeg button").forEach(x=>x.setAttribute("aria-pressed",x.dataset.lang==="ar"?"true":"false"));
+}
 syncUI();
 if(!curKey())$("#cfgBox").open=true;
 /* ---------- gestion PWA & hors-ligne ---------- */
