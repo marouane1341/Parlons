@@ -1313,6 +1313,11 @@ function renderGoals(){
   const st=unitPeek(u);
   u.can.forEach((c,j)=>{b.append(el("div","small",(st.can[j]?"✓ ":"• ")+c))});
 }
+const OPENERS={
+  en:{reply:"Hello! Nice to meet you. What's your name?",tr:"",fr:"Bonjour ! Enchanté. Comment t'appelles-tu ?"},
+  ar:{reply:"مَرْحَباً! ما اسْمُكَ؟",tr:"Marḥaban! Mā ismuka ?",fr:"Bonjour ! Comment t'appelles-tu ?"},
+  nl:{reply:"Hallo! Leuk je te ontmoeten. Hoe heet je?",tr:"",fr:"Bonjour ! Enchanté. Comment t'appelles-tu ?"}
+};
 async function start(s){
   if(!curKey()){openSettings("Collez d'abord votre clé API pour démarrer.");return}
   S.scn=s;S.turns=[{role:"user",content:"Commence la séance."}];S.targets=[];S.lastUserEl=null;S.busy=false;S.hf=false;
@@ -1324,8 +1329,12 @@ async function start(s){
   if(S.micro){S.left=120;t.textContent="2:00";t.classList.remove("low")}
   updateHF();
   show("chat");
-  await ask();
-  if(S.mode==="hf"&&S.view==="chat"&&S.turns.length>1){S.hf=true;updateHF();hfLoop()}
+  /* Ouverture en texte fixe : AUCUN appel réseau à l'ouverture d'une séance. Le premier appel part quand l'apprenant envoie un message. */
+  const op=OPENERS[S.lang]||OPENERS.en;
+  S.turns.push({role:"assistant",content:op.reply});
+  $("#log").append(bubbleT(op));
+  if(S.mode!=="write")await speak(op.reply);
+  if(S.mode==="hf"&&S.view==="chat"){S.hf=true;updateHF();hfLoop()}
 }
 function stopTimer(){if(S.timerId){clearInterval(S.timerId);S.timerId=null}}
 function startTimer(){
