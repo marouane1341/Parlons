@@ -662,15 +662,15 @@ async function tryModel(m,o,prov,def,key){
 async function withFallback(model,o,prov,def,key){
   try{return {text:await tryModel(model,o,prov,def,key),model:model}}
   catch(err){
-    if(!(err&&(err.code==="model"||err.code==="upstream"||err.code==="timeout")))throw err;
+    if(!(err&&(err.code==="model"||err.code==="upstream"||err.code==="timeout"||(err.code==="rate"&&prov==="gemini"))))throw err;
     let ids=null;
     try{ids=await listModels()}catch(x){}
     const cands=rankModels(prov,ids).filter(m=>m!==model).slice(0,3);
     let last=err;
-    const temp=err.code==="upstream"||err.code==="timeout";
+    const temp=err.code!=="model";
     for(let i=0;i<cands.length;i++){
       try{return {text:await tryModel(cands[i],o,prov,def,key),model:cands[i],temp:temp}}
-      catch(e2){last=e2;if(!(e2&&(e2.code==="model"||e2.code==="upstream"||e2.code==="timeout")))throw e2}
+      catch(e2){last=e2;if(!(e2&&(e2.code==="model"||e2.code==="upstream"||e2.code==="timeout"||e2.code==="rate")))throw e2}
     }
     throw last;
   }
@@ -1182,7 +1182,7 @@ async function testerConnexionIA(){
     set("Étape 2/3 : envoi d'un message au modèle « "+model+" »…");
     const r2=await withFallback(model,{system:"",messages:[{role:"user",content:"Dis simplement : ok"}],max:64,json:false},prov,def,key);
     if(r2.model!==model){
-      if(r2.temp){note+=" (« "+model+" » est surchargé en ce moment : « "+r2.model+" » utilisé pour ce test, rien n'est modifié)"}
+      if(r2.temp){note+=" (« "+model+" » est indisponible en ce moment (surcharge ou quota) : « "+r2.model+" » utilisé pour ce test, rien n'est modifié)"}
       else{note+=" (le modèle « "+model+" » n'est plus disponible : remplacé par « "+r2.model+" »)";adopt(prov,model,r2.model)}
       model=r2.model;
     }
