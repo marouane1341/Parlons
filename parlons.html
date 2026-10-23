@@ -480,7 +480,7 @@ function load(){
 }
 function flash(t){const f=$("#flash");f.textContent=t;f.hidden=false;clearTimeout(flash._t);flash._t=setTimeout(()=>{f.hidden=true},4500)}
 
-const NOT_STABLE=/preview|exp|lite|image|tts|live|audio|thinking|embedding|aqa|learnlm|gemma|vision|robotics|computer|-8b|customtools/i;
+const NOT_STABLE=/preview|exp|image|tts|live|audio|thinking|embedding|aqa|learnlm|gemma|vision|robotics|computer|-8b|customtools/i;
 function cleanModel(m,prov){
   m=String(m||"").trim().replace(/^models\//,"");
   if(m)return m;
@@ -490,9 +490,12 @@ function rankModels(prov,ids){
   ids=(ids||[]).filter(Boolean);
   if(!ids.length)return [];
   if(prov==="gemini"){
-    const ok=ids.filter(m=>/^gemini-\d/i.test(m)&&/flash/i.test(m)&&!NOT_STABLE.test(m));
+    const stable=ids.filter(m=>/^gemini-\d/i.test(m)&&/flash/i.test(m)&&!NOT_STABLE.test(m));
     const ver=m=>{const x=m.match(/^gemini-(\d+(?:\.\d+)?)/i);return x?parseFloat(x[1]):0};
-    ok.sort((a,b)=>ver(b)-ver(a)||a.length-b.length);
+    const byVer=(a,b)=>ver(b)-ver(a)||a.length-b.length;
+    const flash=stable.filter(m=>!/lite/i.test(m)).sort(byVer);
+    const lite=stable.filter(m=>/lite/i.test(m)).sort(byVer);
+    const ok=flash.concat(lite);
     if(ok.length)return ok;
   }
   const pref=ids.filter(m=>/flash|haiku|versatile|instant|small/i.test(m));
@@ -644,18 +647,30 @@ async function callModel(model,o,prov,def,key){
   return t;
 }
 
-/* Essaie le modèle demandé ; s'il est introuvable ou retiré (404), essaie les meilleurs modèles de la liste de la clé */
+/* Un modèle surchargé (503/500) est réessayé après 1,5 s puis 3 s */
+async function tryModel(m,o,prov,def,key){
+  let delay=1500;
+  for(let i=0;;i++){
+    try{return await callModel(m,o,prov,def,key)}
+    catch(e){
+      if(e&&e.code==="upstream"&&i<2){await sleep(delay);delay*=2;continue}
+      throw e;
+    }
+  }
+}
+/* Essaie le modèle demandé ; s'il est retiré (404) ou reste surchargé (503), essaie les meilleurs modèles de la liste de la clé */
 async function withFallback(model,o,prov,def,key){
-  try{return {text:await callModel(model,o,prov,def,key),model:model}}
+  try{return {text:await tryModel(model,o,prov,def,key),model:model}}
   catch(err){
-    if(!(err&&err.code==="model"))throw err;
+    if(!(err&&(err.code==="model"||err.code==="upstream")))throw err;
     let ids=null;
     try{ids=await listModels()}catch(x){}
     const cands=rankModels(prov,ids).filter(m=>m!==model).slice(0,4);
     let last=err;
+    const temp=err.code==="upstream";
     for(let i=0;i<cands.length;i++){
-      try{return {text:await callModel(cands[i],o,prov,def,key),model:cands[i]}}
-      catch(e2){last=e2;if(!(e2&&e2.code==="model"))throw e2}
+      try{return {text:await tryModel(cands[i],o,prov,def,key),model:cands[i],temp:temp}}
+      catch(e2){last=e2;if(!(e2&&(e2.code==="model"||e2.code==="upstream")))throw e2}
     }
     throw last;
   }
@@ -665,14 +680,8 @@ async function llm(o){
   if(!key)throw {code:"nokey"};
   const prov=S.cfg.provider||"gemini",def=PROVIDERS[prov]||PROVIDERS.gemini;
   const model=cleanModel(o.model,prov);
-  const attempt=()=>withFallback(model,o,prov,def,key);
-  let r;
-  try{r=await attempt()}
-  catch(e){
-    if(e&&e.code==="upstream"){await sleep(1500);r=await attempt()}
-    else throw e;
-  }
-  if(r.model!==model)adopt(prov,model,r.model);
+  const r=await withFallback(model,o,prov,def,key);
+  if(r.model!==model&&!r.temp)adopt(prov,model,r.model);
   return r.text;
 }
 
@@ -726,7 +735,7 @@ function errText(e){
   if(c==="model")return "Modèle introuvable chez "+pName+(e.model?" (« "+e.model+" »)":"")+st+". Cliquez sur « Voir modèles » et choisissez-en un."+det;
   if(c==="timeout")return "Pas de réponse de "+pName+" au bout de 45 secondes. Réessayez.";
   if(c==="rate")return "Limite de requêtes atteinte chez "+pName+st+". Attendez une minute, ou vérifiez votre quota gratuit."+det;
-  if(c==="upstream")return "Les serveurs de "+pName+" ne répondent pas"+st+". Réessayez dans un instant."+det;
+  if(c==="upstream")return "Les serveurs de "+pName+" sont surchargés"+st+" : Google signale une forte demande, en général temporaire. L'application a déjà réessayé plusieurs fois, y compris avec d'autres modèles. Réessayez dans quelques minutes."+det;
   if(c==="net")return "Le navigateur n'a pas pu joindre "+pName+". Vérifiez votre connexion Internet (un VPN ou un bloqueur de publicités peut aussi gêner)."+det;
   if(c==="json")return "La réponse reçue était illisible. Renvoyez votre message.";
   if(c==="empty")return "Réponse vide de "+pName+"."+det+" Réessayez ; sinon choisissez un autre modèle.";
@@ -1172,11 +1181,16 @@ async function testerConnexionIA(){
     step=2;
     set("Étape 2/3 : envoi d'un message au modèle « "+model+" »…");
     const r2=await withFallback(model,{system:"",messages:[{role:"user",content:"Dis simplement : ok"}],max:64,json:false},prov,def,key);
-    if(r2.model!==model){note+=" (le modèle « "+model+" » n'est plus disponible : remplacé par « "+r2.model+" »)";adopt(prov,model,r2.model);model=r2.model}
+    if(r2.model!==model){
+      if(r2.temp){note+=" (« "+model+" » est surchargé en ce moment : « "+r2.model+" » utilisé pour ce test, rien n'est modifié)"}
+      else{note+=" (le modèle « "+model+" » n'est plus disponible : remplacé par « "+r2.model+" »)";adopt(prov,model,r2.model)}
+      model=r2.model;
+    }
     step=3;
     set("Étape 3/3 : test des consignes et du format de réponse…");
-    const t=await callModel(model,{system:"Réponds uniquement par un objet JSON valide.",messages:[{role:"user",content:"Réponds exactement {\"ok\":true}"}],max:64,json:true},prov,def,key);
-    parseJSON(t);
+    const r3=await withFallback(model,{system:"Réponds uniquement par un objet JSON valide.",messages:[{role:"user",content:"Réponds exactement {\"ok\":true}"}],max:64,json:true},prov,def,key);
+    if(r3.model!==model){note+=" (« "+model+" » surchargé : « "+r3.model+" » utilisé)";if(!r3.temp)adopt(prov,model,r3.model);model=r3.model}
+    parseJSON(r3.text);
     set("✓ Connexion réussie à "+pName+" avec le modèle « "+model+" »."+note,"var(--good)");
   }catch(e){
     set("Échec à l'étape "+step+"/3. "+errText(e),"var(--bad)");
