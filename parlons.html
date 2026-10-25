@@ -245,6 +245,15 @@ ul.clean{margin:0;padding-inline-start:18px;display:flex;flex-direction:column;g
     <div class="panel" id="nlBox" hidden></div>
     <div class="panel" id="pathBox"></div>
 
+    <div class="panel" id="tutorCard" style="border:1.5px solid var(--accent);background:linear-gradient(135deg,rgba(56,189,248,0.08),rgba(99,102,241,0.05));box-shadow:0 2px 8px rgba(0,0,0,0.06)">
+      <div class="row" style="align-items:center;justify-content:space-between;margin-bottom:6px">
+        <span class="label" style="color:var(--accent);margin:0;font-weight:700">Tuteur libre</span>
+        <span class="chip" style="font-size:11px;padding:2px 8px">Hors parcours</span>
+      </div>
+      <p class="small" style="margin:0 0 10px 0;color:var(--ink)">Une question de grammaire, de vocabulaire ou de prononciation ? Posez-la directement au professeur.</p>
+      <button class="btn" id="tutorBtn" style="width:100%;font-size:15px;padding:12px">💬 Poser une question au professeur</button>
+    </div>
+
     <div class="panel">
       <label class="label" for="goal">Mon objectif pour cette langue</label>
       <input class="field" id="goal" type="text" maxlength="160" placeholder="Par exemple : tenir 10 minutes de conversation sur mon travail">
@@ -314,6 +323,9 @@ ul.clean{margin:0;padding-inline-start:18px;display:flex;flex-direction:column;g
     <div class="log" id="log" aria-live="polite"></div>
     <div class="status" id="status" role="status"></div>
     <div class="live small muted" id="live"></div>
+    <div id="tutorSttBar" class="row" style="justify-content:center;margin-bottom:2px" hidden>
+      <button class="mini" id="tutorSttBtn" type="button" style="border-radius:12px;padding:4px 12px;font-weight:600">🎤 Micro : Français (toucher pour changer)</button>
+    </div>
     <div class="composer">
       <button class="mic" id="micBtn" aria-label="Parler">
         <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-2.08A7 7 0 0 0 19 12h-2z"/></svg>
@@ -348,7 +360,7 @@ const $=s=>document.querySelector(s);
 const el=(t,c,x)=>{const e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e};
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 
-const SPEECH={en:{tts:"en-GB",stt:"en-GB"},ar:{tts:"ar-SA",stt:"ar-SA"},nl:{tts:"nl-NL",stt:"nl-NL"}};
+const SPEECH={en:{tts:"en-GB",stt:"en-GB"},ar:{tts:"ar-SA",stt:"ar-SA"},nl:{tts:"nl-NL",stt:"nl-NL"},fr:{tts:"fr-FR",stt:"fr-FR"}};
 const LANGS={
   en:{name:"anglais",label:"Anglais",rtl:false},
   ar:{name:"arabe littéraire (fusha)",label:"Arabe",rtl:true},
@@ -802,7 +814,8 @@ function listenOnce(onInterim){
       return;
     }
     S.rec=r;
-    r.lang=SPEECH[S.lang].stt;
+    const activeStt=(S.scn&&S.scn.id==="tutor"&&S.tutorStt&&SPEECH[S.tutorStt])?SPEECH[S.tutorStt].stt:SPEECH[S.lang].stt;
+    r.lang=activeStt;
     r.interimResults=true;
     r.continuous=false;
     r.maxAlternatives=3;
@@ -1250,6 +1263,22 @@ function arRules(){
 function rules(){
   const L=LANGS[S.lang];const lvl=levelNow();const goal=S.goals[S.lang];
   const id=S.scn.id;
+
+  if(id==="tutor"){
+    return [
+      "Tu es un tuteur linguistique virtuel bienveillant, clair et expert en "+L.name+" pour un apprenant francophone.",
+      "Rôle : Répondre avec précision et concision aux questions linguistiques posées par l'apprenant (vocabulaire, grammaire, conjugaison, orthographe, prononciation, différences de sens, expressions, syntaxe). L'apprenant peut poser ses questions en français ou en "+L.name+".",
+      "Consignes impératives :",
+      "- Réponds TOUJOURS en français de manière claire et concise. Va droit au but, pas de pavé théorique.",
+      S.lang==="ar"
+        ? "- OBLIGATION ABSOLUE POUR L'ARABE : Tout exemple, phrase, mot ou lettre en arabe doit OBLIGATOIREMENT comporter TOUTES ses voyelles et signes diacritiques complets (Tashkeel / تشكيل : fat-ha, damma, kasra, soukoun, shadda, tanween). Aucun mot arabe ne doit être écrit sans voyelles. Chaque exemple ou mot arabe doit obligatoirement être accompagné de sa translittération phonétique latine et de sa traduction en français."
+        : "- Chaque exemple dans la langue cible ("+L.name+") doit être systématiquement accompagné de sa traduction en français.",
+      "- Structure ta réponse pour qu'elle soit agréable et facile à lire sur mobile (puces courtes, exemples mis en valeur).",
+      "- Si la question ou phrase de l'apprenant contient une erreur, relève brièvement et gentiment la bonne forme.",
+      "Format de réponse : Réponds UNIQUEMENT par un objet JSON valide, sans texte autour : {\"reply\":string,\"fr\":\"\",\"tr\":\"\",\"corrections\":[],\"tip\":null,\"targets\":[],\"used\":[],\"end\":false}",
+      "Dans \"reply\", insère ton explication en français avec les exemples vocalisés, translittérés et traduits."
+    ].filter(Boolean).join("\n");
+  }
   const immIdx=id==="check"?2:S.imm;
   const immTxt=["Écris ta réponse dans la langue cible, simple et courte. Ajoute dans \"fr\" une aide en français (traduction ou explication d'un mot clé).",
     "Écris ta réponse surtout dans la langue cible. Dans \"fr\", donne uniquement l'aide minimale en français pour un mot ou une tournure difficile, sinon laisse \"fr\" vide.",
@@ -1299,6 +1328,9 @@ function show(id){
   S.view=id;window.scrollTo(0,0);setStatus();
 }
 function leaveSession(){
+  $("#endBtn").hidden=false;
+  $("#input").placeholder="Écrivez ou dictez votre message…";
+  const tBar=$("#tutorSttBar");if(tBar)tBar.hidden=true;
   S.hf=false;stopListen();stopSpeak();stopTimer();
   if(S.ctl)S.ctl.abort();
   try{if(S.wl){S.wl.release();S.wl=null}}catch(e){}
@@ -1337,6 +1369,55 @@ async function start(s){
   if(S.mode!=="write")await speak(op.reply);
   if(S.mode==="hf"&&S.view==="chat"){S.hf=true;updateHF();hfLoop()}
 }
+
+function updateTutorSttUI(){
+  const bar=$("#tutorSttBar");if(!bar)return;
+  const isTutor=S.scn&&S.scn.id==="tutor";
+  if(!isTutor){bar.hidden=true;return}
+  bar.hidden=false;
+  const b=$("#tutorSttBtn");
+  if(b){
+    const cur=S.tutorStt||"fr";
+    const targetLabel=LANGS[S.lang].label;
+    b.textContent=cur==="fr"?"🎤 Micro : Français (toucher pour "+targetLabel+")":"🎤 Micro : "+targetLabel+" (toucher pour Français)";
+  }
+}
+
+function startTutor(){
+  if(!curKey()){openSettings("Collez d'abord votre clé API pour démarrer.");return}
+  S.scn={
+    id:"tutor",
+    t:"Tuteur · "+LANGS[S.lang].name,
+    p:"Mode tuteur linguistique libre hors parcours."
+  };
+  S.turns=[];
+  S.targets=[];
+  S.lastUserEl=null;
+  S.busy=false;
+  S.hf=false;
+  S.tutorStt="fr";
+  renderTargets();
+  renderGoals();
+  $("#log").textContent="";
+  $("#chatTitle").textContent="💬 Tuteur libre · "+LANGS[S.lang].label;
+  $("#live").textContent="";
+  const inp=$("#input");
+  inp.dir="auto";
+  inp.value="";
+  inp.placeholder="Posez votre question (ex: grammaire, vocabulaire, traduction…)";
+  stopTimer();
+  $("#timer").hidden=true;
+  $("#endBtn").hidden=true;
+  updateHF();
+  updateTutorSttUI();
+  show("chat");
+  /* AUCUN appel automatique au chargement : message d'accueil fixe invitant à poser une question */
+  const welcome=el("div","msg t");
+  const wText=el("div",null,"Bonjour ! Je suis votre tuteur en "+LANGS[S.lang].name+". Posez-moi n'importe quelle question linguistique (en français ou en "+LANGS[S.lang].label+"). Écrivez ou touchez le micro ci-dessous pour parler.");
+  welcome.append(wText);
+  $("#log").append(welcome);
+  inp.focus();
+}
 function stopTimer(){if(S.timerId){clearInterval(S.timerId);S.timerId=null}}
 function startTimer(){
   if(!S.micro||S.timerId)return;
@@ -1372,13 +1453,14 @@ function markUsed(list){
 }
 function bubbleT(d){
   const b=el("div","msg t");
-  const main=el("div",LANGS[S.lang].rtl?"ar":null,d.reply);main.dir="auto";
+  const isTutor=S.scn&&S.scn.id==="tutor";
+  const main=el("div",LANGS[S.lang].rtl&&!isTutor?"ar":null,d.reply);main.dir="auto";
   b.append(main);
   if(d.tr&&typeof d.tr==="string"&&d.tr.trim()){const t=el("div","tr",d.tr);t.dir="ltr";b.append(t)}
-  if(d.fr&&typeof d.fr==="string"&&d.fr.trim()&&S.imm<2&&S.scn.id!=="check")b.append(el("div","gloss",d.fr));
+  if(d.fr&&typeof d.fr==="string"&&d.fr.trim()&&S.imm<2&&S.scn.id!=="check"&&!isTutor)b.append(el("div","gloss",d.fr));
   const tools=el("div","tools");
-  const say=el("button","mini","Écouter");say.onclick=()=>speak(d.reply);
-  const slow=el("button","mini","Plus lentement");slow.onclick=()=>speak(d.reply,.65);
+  const say=el("button","mini","Écouter");say.onclick=()=>speak(d.reply,null,isTutor?"fr":null);
+  const slow=el("button","mini","Plus lentement");slow.onclick=()=>speak(d.reply,.65,isTutor?"fr":null);
   tools.append(say,slow);b.append(tools);
   return b;
 }
@@ -1448,7 +1530,7 @@ async function ask(){
     ty.remove();
     if(!d||typeof d.reply!=="string"||!d.reply.trim())throw {code:"json"};
     if(S.lastUserEl&&Array.isArray(d.corrections)&&d.corrections.length)S.lastUserEl.after(fixCard(d.corrections));
-    const noT=S.scn.id==="diag"||S.scn.id==="review"||S.scn.id==="check";
+    const noT=S.scn.id==="diag"||S.scn.id==="review"||S.scn.id==="check"||S.scn.id==="tutor";
     if(!S.targets.length&&Array.isArray(d.targets)&&d.targets.length&&!noT){
       S.targets=d.targets.slice(0,3).map(x=>({expr:String(x&&x.expr||x||""),fr:String(x&&x.fr||""),used:false})).filter(x=>x.expr);
     }
@@ -1456,9 +1538,9 @@ async function ask(){
     S.turns.push({role:"assistant",content:d.reply});
     const b=bubbleT(d);log.append(b);
     if(d.tip&&typeof d.tip==="string")log.append(el("div","tip",d.tip));
-    if(d.end)log.append(el("p","typing","La séance est terminée. Touchez « Bilan » pour voir le résultat."));
+    if(d.end&&S.scn.id!=="tutor")log.append(el("p","typing","La séance est terminée. Touchez « Bilan » pour voir le résultat."));
     b.scrollIntoView({block:"nearest",behavior:"smooth"});
-    if(S.mode!=="write")spoke=speak(d.reply);
+    if(S.mode!=="write")spoke=speak(d.reply,null,S.scn&&S.scn.id==="tutor"?"fr":null);
   }catch(e){
     clearTimeout(globalTimeout);
     ty.remove();
@@ -1484,7 +1566,8 @@ async function submitUser(text,fromVoice,conf){
   if(!text)return;
   if(S.busy)return; /* verrou : un seul appel à la fois, jamais de double envoi */
   stopSpeak();
-  const m=el("div","msg u"+(LANGS[S.lang].rtl?" ar":""),text);m.dir="auto";
+  const isTutor=S.scn&&S.scn.id==="tutor";
+  const m=el("div","msg u"+(LANGS[S.lang].rtl&&!isTutor?" ar":""),text);m.dir="auto";
   $("#log").append(m);S.lastUserEl=m;
   S.turns.push({role:"user",content:fromVoice?text+" [reco vocale, confiance "+(conf?conf.toFixed(2):"?")+"]":text});
   startTimer();
@@ -1591,6 +1674,8 @@ function alignWords(target,heard){
   }
   return ok;
 }
+const tutorBtn=$("#tutorBtn");if(tutorBtn)tutorBtn.onclick=()=>startTutor();
+const tutorSttBtn=$("#tutorSttBtn");if(tutorSttBtn)tutorSttBtn.onclick=()=>{S.tutorStt=(S.tutorStt==="fr"?S.lang:"fr");updateTutorSttUI();};
 $("#repeatBtn").onclick=()=>openRepeat();
 $("#repeatBack").onclick=()=>{leaveSession();show("home")};
 async function openRepeat(){
