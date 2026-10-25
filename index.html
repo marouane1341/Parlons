@@ -15,26 +15,43 @@
 <meta name="apple-mobile-web-app-title" content="Parlons">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Instrument+Sans:wght@400;500;600&family=Noto+Naskh+Arabic:wght@400;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Instrument+Sans:wght@400;500;600&family=Noto+Naskh+Arabic:wght@400;600;700&display=swap">
 <style>
 /* Layout: une colonne étroite. Accueil (parcours en tête) -> conversation (écrit, voix, mains libres) / écoute / répétition -> bilan. */
 :root{
   color-scheme:light;
-  --paper:#F2F5F7; --card:#FFFFFF; --ink:#14202B; --muted:#5B6B79; --line:#D5DDE3;
-  --accent:#1B6B8A; --accent-ink:#FFFFFF; --tint:#E3EFF4;
-  --bad:#B4410F; --bad-tint:#FBEBE2; --good:#1D7A4B; --good-tint:#E3F3EA;
+  --paper:#F8FAFC; --card:#FFFFFF; --ink:#0F172A; --muted:#64748B; --line:#E2E8F0;
+  --accent:#2563EB; --accent-ink:#FFFFFF; --tint:#EFF6FF;
+  --bad:#DC2626; --bad-tint:#FEF2F2; --good:#16A34A; --good-tint:#F0FDF4;
   --display:"Bricolage Grotesque","Helvetica Neue",Arial,sans-serif;
   --body:"Instrument Sans","Helvetica Neue",Arial,sans-serif;
-  --arabic:"Noto Naskh Arabic","Geeza Pro","Segoe UI",serif;
+  --arabic:"Amiri","Noto Naskh Arabic","Geeza Pro","Traditional Arabic",serif;
 }
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --paper:#0F1A22; --card:#17252F; --ink:#E8EEF2; --muted:#93A5B3; --line:#2A3B47;
-  --accent:#5BB3D3; --accent-ink:#0B1820; --tint:#1B3342;
-  --bad:#F0905E; --bad-tint:#33231A; --good:#6CCB98; --good-tint:#16301F; color-scheme:dark}}
-:root[data-theme="dark"]{
-  --paper:#0F1A22; --card:#17252F; --ink:#E8EEF2; --muted:#93A5B3; --line:#2A3B47;
-  --accent:#5BB3D3; --accent-ink:#0B1820; --tint:#1B3342;
-  --bad:#F0905E; --bad-tint:#33231A; --good:#6CCB98; --good-tint:#16301F; color-scheme:dark}
+:root[data-theme="orient"]{
+  color-scheme:dark;
+  --paper:#0B1320; --card:#152238; --ink:#F8FAFC; --muted:#94A3B8; --line:#223552;
+  --accent:#E5A93C; --accent-ink:#0B1320; --tint:#1C2D4A;
+  --bad:#F87171; --bad-tint:#371B1D; --good:#34D399; --good-tint:#113329;
+}
+:root[data-theme="sapphire"]{
+  color-scheme:light;
+  --paper:#F0F5F9; --card:#FFFFFF; --ink:#0A192F; --muted:#4B637D; --line:#D0DFEC;
+  --accent:#0284C7; --accent-ink:#FFFFFF; --tint:#E0F2FE;
+  --bad:#E11D48; --bad-tint:#FFE4E6; --good:#059669; --good-tint:#D1FAE5;
+}
+:root[data-theme="parchment"]{
+  color-scheme:light;
+  --paper:#F6F1E7; --card:#FFFDF9; --ink:#2B2118; --muted:#786654; --line:#E4D7C5;
+  --accent:#C25E34; --accent-ink:#FFFFFF; --tint:#F3E7D7;
+  --bad:#9F2D20; --bad-tint:#FBEBE8; --good:#376E4B; --good-tint:#E8F4EC;
+}
+
+
+
+
+
+
+
 
 [hidden]{display:none!important}
 *{box-sizing:border-box}
@@ -111,7 +128,7 @@ select.field{width:auto}
 .msg{max-width:88%;padding:10px 14px;border-radius:14px;overflow-wrap:anywhere;white-space:pre-wrap}
 .msg.t{align-self:flex-start;background:var(--card);border:1px solid var(--line)}
 .msg.u{align-self:flex-end;background:var(--accent);color:var(--accent-ink)}
-.ar{font-family:var(--arabic);font-size:19px;line-height:1.8}
+.ar{font-family:var(--arabic);font-size:26px;line-height:2.1;letter-spacing:0.02em;text-rendering:optimizeLegibility}
 .gloss{margin-top:6px;font-size:14px;color:var(--muted)}
 .tr{margin-top:4px;font-size:14px;color:var(--muted);font-style:italic}
 .tools{display:flex;gap:8px;margin-top:6px}
@@ -175,13 +192,72 @@ ul.clean{margin:0;padding-inline-start:18px;display:flex;flex-direction:column;g
 .rule-chip{border:1px solid var(--line);border-radius:10px;padding:8px 4px;text-align:center;font-family:var(--arabic);font-size:28px;background:var(--card);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px}
 .rule-chip:hover{border-color:var(--accent);background:var(--tint)}
 .rule-chip small{font-family:var(--body);font-size:11px;color:var(--muted)}
+
+/* Barre d'outils supérieure, Sélecteur de thème & Bouton Réglages */
+.icon-btn{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:10px;padding:6px 10px;font-size:16px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:all .15s ease}
+.icon-btn:hover{background:var(--tint);border-color:var(--accent)}
+.theme-select{border:1px solid var(--line);border-radius:10px;padding:6px 10px;background:var(--card);color:var(--ink);font-size:13px;font-weight:500;cursor:pointer}
+.theme-select:focus{border-color:var(--accent);outline:none}
+
+/* Fenêtre modale des réglages (Modal) */
+.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.6);backdrop-filter:blur(5px);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px}
+.modal-card{background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:18px;max-width:580px;width:100%;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 24px 48px rgba(0,0,0,0.25);overflow:hidden}
+.modal-header{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--line);background:var(--paper)}
+.modal-body{padding:18px;overflow-y:auto;display:flex;flex-direction:column;gap:12px}
+
+/* Avatar animé du professeur */
+.avatar-container{display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;padding:12px;margin:2px 0 6px 0;background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:0 2px 10px rgba(0,0,0,0.03);transition:all .25s ease}
+.avatar-figure{position:relative;width:92px;height:92px;display:flex;align-items:center;justify-content:center;border-radius:50%;z-index:2}
+.avatar-ripple{position:absolute;width:92px;height:92px;border-radius:50%;top:12px;pointer-events:none;z-index:1;border:2px solid transparent}
+.avatar-status-pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--muted);background:var(--tint);padding:2px 10px;border-radius:999px;margin-top:6px;transition:all .2s ease}
+.avatar-dot{width:7px;height:7px;border-radius:50%;background:var(--muted);transition:all .2s ease}
+
+/* État Neutre : clignement d'yeux subtil toutes les 4s */
+.avatar-container.state-neutral .avatar-eyes{animation:avatarBlink 4s infinite}
+@keyframes avatarBlink{
+  0%,92%,100%{transform:scaleY(1);transform-origin:center}
+  95%,97%{transform:scaleY(0.1);transform-origin:center}
+}
+
+/* État Écoute : ondes d'écoute lumineuses autour de l'avatar */
+.avatar-container.state-listening{border-color:var(--good);background:linear-gradient(180deg,var(--good-tint) 0%,var(--card) 60%)}
+.avatar-container.state-listening .avatar-status-pill{background:var(--good-tint);color:var(--good)}
+.avatar-container.state-listening .avatar-dot{background:var(--good);box-shadow:0 0 6px var(--good)}
+.avatar-container.state-listening .avatar-ripple{border-color:var(--good);animation:avatarWaves 1.5s cubic-bezier(0,0.2,0.8,1) infinite}
+@keyframes avatarWaves{
+  0%{transform:scale(0.95);opacity:0.9;border-width:3px}
+  100%{transform:scale(1.35);opacity:0;border-width:1px}
+}
+
+/* État Parole : bouche et tête animées en synchronisation avec speechSynthesis */
+.avatar-container.state-speaking{border-color:var(--accent);background:linear-gradient(180deg,var(--tint) 0%,var(--card) 60%)}
+.avatar-container.state-speaking .avatar-status-pill{background:var(--tint);color:var(--accent)}
+.avatar-container.state-speaking .avatar-dot{background:var(--accent);box-shadow:0 0 6px var(--accent)}
+.avatar-container.state-speaking .avatar-mouth{animation:avatarMouthTalk .28s ease-in-out infinite alternate}
+.avatar-container.state-speaking .avatar-head{animation:avatarHeadTalk 1.1s ease-in-out infinite alternate}
+@keyframes avatarMouthTalk{
+  0%{transform:scaleY(0.6);transform-origin:50px 65px}
+  100%{transform:scaleY(1.4);transform-origin:50px 65px}
+}
+@keyframes avatarHeadTalk{
+  0%{transform:translateY(0) rotate(0deg);transform-origin:50px 75px}
+  100%{transform:translateY(-1.5px) rotate(1deg);transform-origin:50px 75px}
+}
+
+/* Style de l'avatar selon le thème (chèche/traditionnel pour Parchemin & Orient, moderne/costume pour Studio & Saphir) */
+:root[data-theme="orient"] .avatar-theme-modern,
+:root[data-theme="parchment"] .avatar-theme-modern{display:none}
+:root[data-theme="orient"] .avatar-theme-traditional,
+:root[data-theme="parchment"] .avatar-theme-traditional{display:inline}
+:root:not([data-theme="orient"]):not([data-theme="parchment"]) .avatar-theme-traditional{display:none}
+:root:not([data-theme="orient"]):not([data-theme="parchment"]) .avatar-theme-modern{display:inline}
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="top">
     <div class="brand">🗣️ Parlons <span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;background:var(--tint);color:var(--accent);vertical-align:middle;margin-left:4px;text-transform:uppercase;letter-spacing:0.5px">Oral</span></div>
-    <div class="row" style="gap:8px">
+    <div class="row" style="gap:8px;align-items:center">
       <button id="installBtn" class="btn sm" style="display:inline-flex;align-items:center;gap:6px" hidden>
         <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
         Installer
@@ -885,22 +961,38 @@ function micErr(e){
     flash(m);
   }
 }
+function updateAvatar(){
+  const av=$("#avatarWrap");if(!av)return;
+  const label=$("#avatarStateText");
+  av.classList.remove("state-neutral","state-listening","state-speaking");
+  if(S.speaking){
+    av.classList.add("state-speaking");
+    if(label)label.textContent="Le professeur parle\u2026";
+  } else if(S.listening){
+    av.classList.add("state-listening");
+    if(label)label.textContent="\u00C0 votre \u00E9coute\u2026";
+  } else {
+    av.classList.add("state-neutral");
+    if(label)label.textContent=S.busy?"En r\u00E9flexion\u2026":"Professeur pr\u00EAt";
+  }
+}
 function setStatus(){
   const s=$("#status");if(!s)return;
   let t="";
   if(S.view==="chat"){
-    if(S.listening)t="🔴 Je vous écoute… Parlez maintenant !";
-    else if(S.busy)t="⏳ Le professeur réfléchit…";
-    else if(S.speaking)t="🔊 Le professeur parle…";
-    else if(S.hf)t="🎙️ Mains libres actif : parlez quand le professeur a fini.";
+    if(S.listening)t="\uD83C\uDFA4 Je vous \u00E9coute. Parlez maintenant !";
+    else if(S.busy)t="\u23F3 Le professeur r\u00E9fl\u00E9chit.";
+    else if(S.speaking)t="\uD83D\uDD0A Le professeur parle.";
+    else if(S.hf)t="\uD83C\uDFA7 Mains libres actif : parlez quand le professeur a fini.";
     else t="Touchez le micro pour parler";
   }
   s.textContent=t;
   const m=$("#micBtn");
   if(m){
     m.classList.toggle("on",S.listening);
-    m.setAttribute("aria-label",S.listening?"Arrêter l'écoute":"Parler au micro");
+    m.setAttribute("aria-label",S.listening?"Arr\u00EAter l'\u00E9coute":"Parler au micro");
   }
+  updateAvatar();
 }
 
 /* ---------- parcours ---------- */
@@ -1152,9 +1244,19 @@ function readCfg(){
   S.cfg.models[p]={chat:cleanC,heavy:cleanH};
   save();
 }
+function applyTheme(name){
+  const valid=["studio","orient","sapphire","parchment"];
+  const t=valid.includes(name)?name:"studio";
+  document.documentElement.setAttribute("data-theme",t);
+  try{localStorage.setItem("parlons.theme",t)}catch(e){}
+  const sel=$("#themeSelect");if(sel&&sel.value!==t)sel.value=t;
+}
 function openSettings(msg){
-  show("home");$("#cfgBox").open=true;$("#cfgBox").scrollIntoView({block:"start"});
+  const m=$("#cfgModal");if(m)m.hidden=false;
   if(msg)flash(msg);
+}
+function closeSettings(){
+  const m=$("#cfgModal");if(m)m.hidden=true;
 }
 $("#apikey").addEventListener("input",()=>{
   updateKeyDetectNote();
@@ -2369,7 +2471,14 @@ if(location.hash==="#alpha"){
   document.querySelectorAll("#langSeg button").forEach(x=>x.setAttribute("aria-pressed",x.dataset.lang==="ar"?"true":"false"));
 }
 syncUI();
-if(!curKey())$("#cfgBox").open=true;
+if(!curKey())openSettings();
+// Initialisation du theme visuel
+const savedTheme=localStorage.getItem("parlons.theme")||"studio";
+applyTheme(savedTheme);
+const ts=$("#themeSelect");if(ts)ts.addEventListener("change",e=>applyTheme(e.target.value));
+const ob=$("#cfgOpenBtn");if(ob)ob.addEventListener("click",()=>openSettings());
+const cb=$("#cfgCloseBtn");if(cb)cb.addEventListener("click",()=>closeSettings());
+const cm=$("#cfgModal");if(cm)cm.addEventListener("click",e=>{if(e.target===cm)closeSettings()});
 /* ---------- gestion PWA & hors-ligne ---------- */
 let deferredInstallPrompt=null;
 window.addEventListener("beforeinstallprompt",e=>{
