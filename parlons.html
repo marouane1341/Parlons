@@ -18,32 +18,32 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Instrument+Sans:wght@400;500;600&family=Noto+Naskh+Arabic:wght@400;600;700&display=swap">
 <style>
 /* Layout: une colonne étroite. Accueil (parcours en tête) -> conversation (écrit, voix, mains libres) / écoute / répétition -> bilan. */
-:root{
+:root, :root[data-theme="studio"]{
   color-scheme:light;
-  --paper:#F8FAFC; --card:#FFFFFF; --ink:#0F172A; --muted:#64748B; --line:#E2E8F0;
+  --paper:#F9FAFB; --card:#FFFFFF; --ink:#111827; --muted:#6B7280; --line:#E5E7EB;
   --accent:#2563EB; --accent-ink:#FFFFFF; --tint:#EFF6FF;
-  --bad:#DC2626; --bad-tint:#FEF2F2; --good:#16A34A; --good-tint:#F0FDF4;
+  --bad:#EF4444; --bad-tint:#FEE2E2; --good:#10B981; --good-tint:#D1FAE5;
   --display:"Bricolage Grotesque","Helvetica Neue",Arial,sans-serif;
   --body:"Instrument Sans","Helvetica Neue",Arial,sans-serif;
   --arabic:"Amiri","Noto Naskh Arabic","Geeza Pro","Traditional Arabic",serif;
 }
 :root[data-theme="orient"]{
   color-scheme:dark;
-  --paper:#0B1320; --card:#152238; --ink:#F8FAFC; --muted:#94A3B8; --line:#223552;
-  --accent:#E5A93C; --accent-ink:#0B1320; --tint:#1C2D4A;
-  --bad:#F87171; --bad-tint:#371B1D; --good:#34D399; --good-tint:#113329;
+  --paper:#0B132B; --card:#1C2541; --ink:#E0E1DD; --muted:#94A3B8; --line:#233554;
+  --accent:#F5A623; --accent-ink:#0B132B; --tint:#1E2D48;
+  --bad:#F87171; --bad-tint:#3A1E20; --good:#34D399; --good-tint:#14382D;
 }
 :root[data-theme="sapphire"]{
   color-scheme:light;
-  --paper:#F0F5F9; --card:#FFFFFF; --ink:#0A192F; --muted:#4B637D; --line:#D0DFEC;
+  --paper:#F0F4F8; --card:#FFFFFF; --ink:#0F172A; --muted:#475569; --line:#D0DFEC;
   --accent:#0284C7; --accent-ink:#FFFFFF; --tint:#E0F2FE;
-  --bad:#E11D48; --bad-tint:#FFE4E6; --good:#059669; --good-tint:#D1FAE5;
+  --bad:#E11D48; --bad-tint:#FFE4E6; --good:#10B981; --good-tint:#D1FAE5;
 }
 :root[data-theme="parchment"]{
   color-scheme:light;
-  --paper:#F6F1E7; --card:#FFFDF9; --ink:#2B2118; --muted:#786654; --line:#E4D7C5;
-  --accent:#C25E34; --accent-ink:#FFFFFF; --tint:#F3E7D7;
-  --bad:#9F2D20; --bad-tint:#FBEBE8; --good:#376E4B; --good-tint:#E8F4EC;
+  --paper:#F7F3E9; --card:#EFEAD8; --ink:#2C221E; --muted:#756254; --line:#DFD7C4;
+  --accent:#C85A32; --accent-ink:#FFFFFF; --tint:#F2E7D7;
+  --bad:#A83226; --bad-tint:#F9E9E7; --good:#3D7853; --good-tint:#E8F3EC;
 }
 
 
@@ -263,10 +263,11 @@ ul.clean{margin:0;padding-inline-start:18px;display:flex;flex-direction:column;g
         Installer
       </button>
       <div class="seg" role="group" aria-label="Langue" id="langSeg">
-        <button data-lang="en" aria-pressed="true">🇬🇧 Anglais</button>
-        <button data-lang="ar" aria-pressed="false">🇸🇦 Arabe</button>
-        <button data-lang="nl" aria-pressed="false">🇳🇱 Néerlandais</button>
+        <button data-lang="en" aria-pressed="true">&#127468;&#127463; Anglais</button>
+        <button data-lang="ar" aria-pressed="false">&#127480;&#127462; Arabe</button>
+        <button data-lang="nl" aria-pressed="false">&#127475;&#127473; N&eacute;erlandais</button>
       </div>
+      <button id="cfgOpenBtn" class="icon-btn" title="Param&egrave;tres (IA, voix, th&egrave;me)" aria-label="Param&egrave;tres">&#9881;&#65039;</button>
     </div>
   </div>
 
@@ -274,61 +275,84 @@ ul.clean{margin:0;padding-inline-start:18px;display:flex;flex-direction:column;g
   <div id="srNote" class="notice" hidden>Ce navigateur ne propose pas la reconnaissance vocale. Utilisez Chrome ou Edge sur ordinateur, ou Chrome sur Android. Le mode écrit reste disponible.</div>
   <div id="flash" class="okmsg" hidden role="status"></div>
 
+    <!-- Modal des ParamÃ¨tres (âš™ï¸) -->
+  <div id="cfgModal" class="modal-backdrop" hidden>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="cfgModalTitle">
+      <div class="modal-header">
+        <h2 id="cfgModalTitle" style="font-size:17px;font-weight:700;display:flex;align-items:center;gap:8px">&#9881;&#65039; <span>Param&egrave;tres &amp; Configuration</span></h2>
+        <button id="cfgCloseBtn" class="icon-btn" aria-label="Fermer les param&egrave;tres" style="font-size:18px;line-height:1;padding:4px 10px">&#10005;</button>
+      </div>
+      <div class="modal-body" id="cfgBox">
+        <label class="label" for="themeSelModal">Th&egrave;me visuel</label>
+        <select class="field" id="themeSelModal">
+          <option value="studio">&#127912; Studio Minimaliste</option>
+          <option value="orient">&#127769; Nuit d'Orient</option>
+          <option value="sapphire">&#128142; Saphir &amp; Menthe</option>
+          <option value="parchment">&#128220; Parchemin &amp; Encre</option>
+        </select>
+
+        <label class="label" for="provider">Fournisseur d'IA</label>
+        <select class="field" id="provider"></select>
+        <p class="small muted" id="provNote"></p>
+
+        <label class="label" for="apikey">Cl&eacute; API</label>
+        <input class="field" id="apikey" type="password" autocomplete="off" placeholder="Collez votre cl&eacute; API ici (ex. Google Gemini)">
+        <p class="small" id="keyDetectNote" style="color:var(--good);font-weight:600;display:none;margin-top:4px"></p>
+
+        <label class="label" for="mChat">Mod&egrave;le de conversation (rapide)</label>
+        <input class="field" id="mChat" type="text" autocomplete="off" list="modelList" value="gemini-3.5-flash-lite">
+        <label class="label" for="mHeavy">Mod&egrave;le pour le bilan &amp; l'arabe</label>
+        <input class="field" id="mHeavy" type="text" autocomplete="off" list="modelList" value="gemini-3.5-flash-lite">
+        <datalist id="modelList">
+          <option value="gemini-3.5-flash-lite">
+          <option value="gemini-3.8-flash">
+          <option value="gemini-2.5-flash">
+          <option value="gemini-2.0-flash">
+          <option value="llama-3.3-70b-versatile">
+          <option value="claude-haiku-5-5">
+          <option value="mistral-small-latest">
+        </datalist>
+
+        <div class="row">
+          <button class="btn sm" id="saveKey">Enregistrer</button>
+          <button class="btn sm ghost" id="testKey">Tester connexion IA</button>
+          <button class="btn sm ghost" id="testMicBtn">&#127908; Tester mon micro</button>
+          <button class="btn sm ghost" id="listModels">Voir mod&egrave;les</button>
+          <button class="btn sm ghost" id="resetCfgBtn" style="color:var(--bad)">R&eacute;initialiser</button>
+        </div>
+        <p class="small" id="testRes" role="status"></p>
+        <p class="small" id="testMicRes" role="status" style="display:none;margin-top:4px"></p>
+
+        <label class="label" for="voiceSel">Voix du professeur (synth&egrave;se locale)</label>
+        <select class="field" id="voiceSel"></select>
+        <div class="row">
+          <button class="btn sm ghost" id="testVoiceBtn">&#128266; Tester la voix en direct</button>
+        </div>
+
+        <div class="row" style="margin-top:8px">
+          <button class="btn sm ghost" id="exportBtn">Exporter mes donn&eacute;es</button>
+          <label class="btn sm ghost" for="importFile" style="cursor:pointer">Importer</label>
+          <input type="file" id="importFile" accept="application/json" hidden>
+        </div>
+        <p class="small muted">La cl&eacute; reste uniquement stock&eacute;e dans ce navigateur et n'est jamais export&eacute;e.</p>
+      </div>
+    </div>
+  </div>
+
   <section id="home" class="col">
-    <details class="panel" id="cfgBox">
-      <summary>Fournisseur d'IA et clé API</summary>
-      <label class="label" for="provider">Fournisseur</label>
-      <select class="field" id="provider"></select>
-      <p class="small muted" id="provNote"></p>
-      <p class="small muted">La clé reste uniquement dans ce navigateur, sur cet ordinateur : ne l'enregistrez pas sur un appareil partagé. Chaque fournisseur a sa propre clé.</p>
-      <label class="label" for="apikey">Clé API</label>
-      <input class="field" id="apikey" type="password" autocomplete="off" placeholder="Collez votre clé ici (Gemini, Groq, Claude, Mistral)">
-      <p class="small" id="keyDetectNote" style="color:var(--good);font-weight:600;display:none;margin-top:4px"></p>
-      <label class="label" for="mChat">Modèle de conversation (rapide)</label>
-      <input class="field" id="mChat" type="text" autocomplete="off" list="modelList">
-      <label class="label" for="mHeavy">Modèle pour le bilan, l'écoute et l'arabe</label>
-      <input class="field" id="mHeavy" type="text" autocomplete="off" list="modelList">
-      <datalist id="modelList">
-        <option value="gemini-3.5-flash-lite">
-        <option value="gemini-3.8-flash">
-        <option value="gemini-2.5-flash">
-        <option value="gemini-2.0-flash">
-        <option value="gemini-1.5-flash">
-        <option value="llama-3.3-70b-versatile">
-        <option value="claude-haiku-5-5">
-        <option value="mistral-small-latest">
-      </datalist>
-      <div class="row">
-        <button class="btn sm" id="saveKey">Enregistrer</button>
-        <button class="btn sm ghost" id="testKey">Tester la connexion IA</button>
-        <button class="btn sm ghost" id="testMicBtn">🎤 Tester mon micro</button>
-        <button class="btn sm ghost" id="listModels">Voir modèles</button>
-        <button class="btn sm ghost" id="resetCfgBtn" style="color:var(--bad)">Réinitialiser modèles</button>
+    <div class="panel" id="tutorCard" style="border:2px solid var(--accent);background:linear-gradient(135deg,var(--tint),var(--card));box-shadow:0 4px 16px rgba(0,0,0,0.06)">
+      <div class="row" style="align-items:center;justify-content:space-between;margin-bottom:6px">
+        <span class="label" style="color:var(--accent);margin:0;font-weight:700">&#128172; Tuteur Libre</span>
+        <span class="chip" style="font-size:11px;padding:2px 8px">Hors parcours</span>
       </div>
-      <p class="small" id="testRes" role="status"></p>
-      <p class="small" id="testMicRes" role="status" style="display:none;margin-top:4px"></p>
-      <label class="label" for="voiceSel">Voix du professeur (langue choisie)</label>
-      <select class="field" id="voiceSel"></select>
-      <div class="row">
-        <button class="btn sm ghost" id="exportBtn">Exporter mes données</button>
-        <label class="btn sm ghost" for="importFile" style="cursor:pointer">Importer</label>
-        <input type="file" id="importFile" accept="application/json" hidden>
-      </div>
-      <p class="small muted">La reconnaissance vocale de Chrome envoie votre voix aux serveurs de Google pour la transcrire. Votre parcours, vos révisions et vos bilans restent dans ce navigateur : exportez-les de temps en temps. La clé n'est jamais exportée.</p>
-    </details>
+      <p style="margin:0 0 12px 0;color:var(--ink);font-size:14px">Une question de grammaire, de vocabulaire ou de prononciation ? Posez-la directement au professeur en fran&ccedil;ais ou en arabe.</p>
+      <button class="btn" id="tutorBtn" style="width:100%;font-size:16px;padding:12px">&#128172; Poser une question au professeur</button>
+    </div>
+    
 
     <div class="panel" id="alphaBox" hidden></div>
     <div class="panel" id="nlBox" hidden></div>
     <div class="panel" id="pathBox"></div>
-
-    <div class="panel" id="tutorCard" style="border:1.5px solid var(--accent);background:linear-gradient(135deg,rgba(56,189,248,0.08),rgba(99,102,241,0.05));box-shadow:0 2px 8px rgba(0,0,0,0.06)">
-      <div class="row" style="align-items:center;justify-content:space-between;margin-bottom:6px">
-        <span class="label" style="color:var(--accent);margin:0;font-weight:700">Tuteur libre</span>
-        <span class="chip" style="font-size:11px;padding:2px 8px">Hors parcours</span>
-      </div>
-      <p class="small" style="margin:0 0 10px 0;color:var(--ink)">Une question de grammaire, de vocabulaire ou de prononciation ? Posez-la directement au professeur.</p>
-      <button class="btn" id="tutorBtn" style="width:100%;font-size:15px;padding:12px">💬 Poser une question au professeur</button>
-    </div>
 
     <div class="panel">
       <label class="label" for="goal">Mon objectif pour cette langue</label>
@@ -393,6 +417,66 @@ ul.clean{margin:0;padding-inline-start:18px;display:flex;flex-direction:column;g
       <span class="timer" id="timer" hidden></span>
       <button class="mini" id="hfBtn" hidden></button>
       <button class="btn sm" id="endBtn">Bilan</button>
+    </div>
+
+    <!-- Avatar animÃ© rÃ©actif du Professeur -->
+    <div id="avatarWrap" class="avatar-container state-neutral" aria-label="Professeur virtuel">
+      <div class="avatar-ripple"></div>
+      <div class="avatar-figure">
+        <svg viewBox="0 0 100 100" width="86" height="86" aria-hidden="true" style="overflow:visible">
+          <defs>
+            <linearGradient id="avatarBgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="var(--tint)" stop-opacity="0.9"/>
+              <stop offset="100%" stop-color="var(--card)"/>
+            </linearGradient>
+          </defs>
+          <circle cx="50" cy="50" r="46" fill="url(#avatarBgGrad)" stroke="var(--line)" stroke-width="2"/>
+          <g class="avatar-theme-modern">
+            <path d="M 22 88 Q 50 78 78 88 L 78 96 L 22 96 Z" fill="var(--ink)" opacity="0.85"/>
+            <path d="M 40 82 L 50 94 L 60 82 Z" fill="var(--accent)"/>
+            <path d="M 46 76 L 50 82 L 54 76 Z" fill="#F8FAFC"/>
+          </g>
+          <g class="avatar-theme-traditional">
+            <path d="M 20 88 Q 50 76 80 88 L 80 96 L 20 96 Z" fill="var(--accent)" opacity="0.9"/>
+            <path d="M 28 86 Q 50 94 72 86 Q 50 98 28 86 Z" fill="var(--tint)" stroke="var(--accent)" stroke-width="1"/>
+          </g>
+          <g class="avatar-head">
+            <rect x="44" y="65" width="12" height="14" rx="4" fill="#F3C59D"/>
+            <ellipse cx="50" cy="52" rx="20" ry="22" fill="#FAD6A5"/>
+            <g class="avatar-theme-modern">
+              <path d="M 30 46 C 30 32 40 25 50 25 C 60 25 70 32 70 46 C 68 36 60 31 50 31 C 40 31 32 36 30 46 Z" fill="#2D241E"/>
+            </g>
+            <g class="avatar-theme-traditional">
+              <path d="M 27 48 C 27 28 36 22 50 22 C 64 22 73 28 73 48 C 76 38 72 26 50 26 C 32 26 25 38 27 48 Z" fill="var(--tint)"/>
+              <path d="M 26 38 C 28 26 40 22 50 22 C 60 22 72 26 74 38 C 72 32 62 27 50 27 C 38 27 28 32 26 38 Z" fill="var(--accent)"/>
+              <path d="M 26 42 Q 50 32 74 42 Q 50 36 26 42 Z" fill="#FFFFFF" opacity="0.4"/>
+              <path d="M 28 45 Q 24 58 26 74 Q 30 72 31 60 Z" fill="var(--accent)" opacity="0.8"/>
+            </g>
+            <path d="M 36 56 C 38 68 45 74 50 74 C 55 74 62 68 64 56 C 60 62 55 64 50 64 C 45 64 40 62 36 56 Z" fill="#3D2D24" opacity="0.35"/>
+            <path d="M 37 42 Q 43 40 47 43" stroke="#2D241E" stroke-width="1.8" stroke-linecap="round" fill="none"/>
+            <path d="M 53 43 Q 57 40 63 42" stroke="#2D241E" stroke-width="1.8" stroke-linecap="round" fill="none"/>
+            <g class="avatar-eyes">
+              <ellipse cx="42" cy="48" rx="3.5" ry="3.5" fill="#2D241E"/>
+              <circle cx="43" cy="47" r="1.2" fill="#FFFFFF"/>
+              <ellipse cx="58" cy="48" rx="3.5" ry="3.5" fill="#2D241E"/>
+              <circle cx="59" cy="47" r="1.2" fill="#FFFFFF"/>
+            </g>
+            <g stroke="var(--ink)" stroke-width="1.4" fill="none" opacity="0.85">
+              <rect x="36" y="43" width="12" height="10" rx="3"/>
+              <rect x="52" y="43" width="12" height="10" rx="3"/>
+              <line x1="48" y1="48" x2="52" y2="48"/>
+              <line x1="32" y1="46" x2="36" y2="46"/>
+              <line x1="64" y1="46" x2="68" y2="46"/>
+            </g>
+            <path d="M 50 49 L 48.5 56 L 51.5 56" stroke="#DCA278" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+            <path class="avatar-mouth" d="M 44 64 Q 50 68 56 64" stroke="#8A3B2B" stroke-width="2" stroke-linecap="round" fill="none"/>
+          </g>
+        </svg>
+      </div>
+      <div class="avatar-status-pill">
+        <span class="avatar-dot"></span>
+        <span id="avatarStateText">À votre écoute</span>
+      </div>
     </div>
     <div id="goalsBox" class="targets" hidden></div>
     <div id="targets" class="targets" hidden></div>
@@ -835,39 +919,106 @@ function errText(e){
 
 /* ---------- voix (sortie) ---------- */
 let VOICES=[];
-function refreshVoices(){try{VOICES=speechSynthesis.getVoices()||[]}catch(e){VOICES=[]}fillVoiceSelect()}
-function voicesFor(lang){const p=SPEECH[lang].tts.slice(0,2);return VOICES.filter(v=>v.lang&&v.lang.toLowerCase().indexOf(p)===0)}
+function refreshVoices(){
+  try{VOICES=window.speechSynthesis.getVoices()||[]}catch(e){VOICES=[]}
+  fillVoiceSelect();
+}
+if(typeof window!=="undefined"&&"speechSynthesis" in window){
+  try{window.speechSynthesis.onvoiceschanged=refreshVoices}catch(e){}
+  refreshVoices();
+}
+
+function extractArabicOnly(text){
+  if(!text)return "";
+  const clean=String(text).replace(/[*_`#]/g," ").trim();
+  const arabicMatches=clean.match(/[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF][\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF\s\d\u060C\u061B\u061F\u0640.\-\u2014\u00AB\u00BB()"]*/g);
+  if(!arabicMatches||!arabicMatches.length)return "";
+  return arabicMatches.map(s=>s.trim()).filter(Boolean).join(" ");
+}
+
+function voicesFor(lang){
+  const p=SPEECH[lang].tts.slice(0,2).toLowerCase();
+  return VOICES.filter(v=>v.lang&&v.lang.toLowerCase().indexOf(p)===0);
+}
+
 function voiceFor(lang){
   const list=voicesFor(lang),saved=S.cfg.voice[lang];
-  return list.find(v=>v.voiceURI===saved)||list.find(v=>v.lang.toLowerCase()===SPEECH[lang].tts.toLowerCase())||list[0]||null;
+  if(saved){const f=list.find(v=>v.voiceURI===saved);if(f)return f}
+  if(lang==="ar"){
+    const arabicVoice=VOICES.find(v=>v.lang&&(v.lang.startsWith("ar")||v.lang.includes("ar-SA")||v.lang.includes("ar-XA")));
+    if(arabicVoice)return arabicVoice;
+  }
+  return list.find(v=>v.lang.toLowerCase()===SPEECH[lang].tts.toLowerCase())||list[0]||null;
 }
+
 function fillVoiceSelect(){
   const sel=$("#voiceSel");if(!sel)return;
   sel.textContent="";
-  const list=voicesFor(S.lang);
-  if(!list.length){sel.append(new Option("Voix par défaut du navigateur",""));return}
+  const list=VOICES.length?VOICES:(window.speechSynthesis?speechSynthesis.getVoices():[]);
+  if(!list.length){sel.append(new Option("Aucune voix detectee (voix systeme par defaut)",""));return}
   const cur=voiceFor(S.lang);
-  list.forEach(v=>{const o=new Option(v.name+" ("+v.lang+")",v.voiceURI);if(cur&&cur.voiceURI===v.voiceURI)o.selected=true;sel.append(o)});
+  list.forEach(v=>{
+    const isAr=v.lang&&v.lang.startsWith("ar");
+    const o=new Option(v.name+" ("+v.lang+")"+(isAr?" \u2B50 Arabe":""),v.voiceURI);
+    if(cur&&cur.voiceURI===v.voiceURI)o.selected=true;
+    sel.append(o);
+  });
 }
-function cleanTTS(t){return String(t||"").replace(/[*_`#]/g," ")}
+
+function cleanTTS(t){ return String(t||"").replace(/[*_`#]/g," "); }
+
 function speak(text,rate,forceLang){
   return new Promise(res=>{
     if(!("speechSynthesis" in window)||!text){res();return}
     try{
       speechSynthesis.cancel();
       const cleaned=cleanTTS(text);
-      const u=new SpeechSynthesisUtterance(cleaned);
-      const langKey=forceLang||(/[\u0600-\u06FF]/.test(cleaned)?"ar":S.lang);
-      const v=voiceFor(langKey);
-      if(v){u.voice=v;u.lang=v.lang}else u.lang=SPEECH[langKey].tts;
-      u.rate=rate||0.95;
+      const isArabic=(forceLang==="ar")||(forceLang!=="en"&&forceLang!=="fr"&&forceLang!=="nl"&&(S.lang==="ar"||/[\u0600-\u06FF]/.test(cleaned)));
+      
+      let speakText=cleaned;
+      let targetVoice=null;
+      let targetLang="fr-FR";
+
+      if(isArabic){
+        // Isole rigoureusement le texte : seule la phrase en caracteres arabes purs doit etre envoyee a la synthese vocale
+        speakText=extractArabicOnly(cleaned);
+        if(!speakText){res();return}
+
+        const voices=(window.speechSynthesis&&speechSynthesis.getVoices())||VOICES||[];
+        const arabicVoice=voices.find(v=>v.lang&&(v.lang.startsWith("ar")||v.lang.includes("ar-SA")||v.lang.includes("ar-XA")));
+
+        // Interdiction absolue de lancer speak() si la voix assignee commence par 'fr' ou 'en'
+        if(!arabicVoice||!arabicVoice.lang||arabicVoice.lang.startsWith("fr")||arabicVoice.lang.startsWith("en")){
+          console.warn("Synthese vocale annulee : aucune voix arabe native detectee (voix fr/en interdites pour l'arabe).");
+          res();
+          return;
+        }
+        targetVoice=arabicVoice;
+        targetLang=arabicVoice.lang||"ar-SA";
+      }else{
+        const langKey=forceLang||S.lang;
+        targetVoice=voiceFor(langKey);
+        targetLang=(targetVoice&&targetVoice.lang)||SPEECH[langKey].tts;
+      }
+
+      const u=new SpeechSynthesisUtterance(speakText);
+      if(targetVoice)u.voice=targetVoice;
+      u.lang=targetLang;
+      u.rate=rate||(isArabic?0.88:0.95);
+
       let done=false;
       const fin=()=>{if(done)return;done=true;S.speaking=false;setStatus();res()};
-      u.onend=fin;u.onerror=fin;
-      S.speaking=true;setStatus();
+      u.onend=fin;
+      u.onerror=fin;
+
+      S.speaking=true;
+      setStatus();
       speechSynthesis.speak(u);
-      setTimeout(fin,6000+String(text).length*130);
-    }catch(e){S.speaking=false;res()}
+      setTimeout(fin,6000+String(speakText).length*130);
+    }catch(e){
+      S.speaking=false;
+      res();
+    }
   });
 }
 function stopSpeak(){try{speechSynthesis.cancel()}catch(e){}S.speaking=false}
@@ -1249,10 +1400,13 @@ function applyTheme(name){
   const t=valid.includes(name)?name:"studio";
   document.documentElement.setAttribute("data-theme",t);
   try{localStorage.setItem("parlons.theme",t)}catch(e){}
-  const sel=$("#themeSelect");if(sel&&sel.value!==t)sel.value=t;
+  const sel=$("#themeSelModal");if(sel&&sel.value!==t)sel.value=t;
 }
 function openSettings(msg){
   const m=$("#cfgModal");if(m)m.hidden=false;
+  const savedTheme=localStorage.getItem("parlons.theme")||"studio";
+  const sel=$("#themeSelModal");if(sel)sel.value=savedTheme;
+  fillVoiceSelect();
   if(msg)flash(msg);
 }
 function closeSettings(){
@@ -1368,17 +1522,12 @@ function rules(){
 
   if(id==="tutor"){
     return [
-      "Tu es un tuteur linguistique virtuel bienveillant, clair et expert en "+L.name+" pour un apprenant francophone.",
-      "Rôle : Répondre avec précision et concision aux questions linguistiques posées par l'apprenant (vocabulaire, grammaire, conjugaison, orthographe, prononciation, différences de sens, expressions, syntaxe). L'apprenant peut poser ses questions en français ou en "+L.name+".",
-      "Consignes impératives :",
-      "- Réponds TOUJOURS en français de manière claire et concise. Va droit au but, pas de pavé théorique.",
-      S.lang==="ar"
-        ? "- OBLIGATION ABSOLUE POUR L'ARABE : Tout exemple, phrase, mot ou lettre en arabe doit OBLIGATOIREMENT comporter TOUTES ses voyelles et signes diacritiques complets (Tashkeel / تشكيل : fat-ha, damma, kasra, soukoun, shadda, tanween). Aucun mot arabe ne doit être écrit sans voyelles. Chaque exemple ou mot arabe doit obligatoirement être accompagné de sa translittération phonétique latine et de sa traduction en français."
-        : "- Chaque exemple dans la langue cible ("+L.name+") doit être systématiquement accompagné de sa traduction en français.",
-      "- Structure ta réponse pour qu'elle soit agréable et facile à lire sur mobile (puces courtes, exemples mis en valeur).",
-      "- Si la question ou phrase de l'apprenant contient une erreur, relève brièvement et gentiment la bonne forme.",
-      "Format de réponse : Réponds UNIQUEMENT par un objet JSON valide, sans texte autour : {\"reply\":string,\"fr\":\"\",\"tr\":\"\",\"corrections\":[],\"tip\":null,\"targets\":[],\"used\":[],\"end\":false}",
-      "Dans \"reply\", insère ton explication en français avec les exemples vocalisés, translittérés et traduits."
+      "Tu es un professeur d'arabe patient, clair et rigoureux. Quand l'utilisateur te pose une question, réponds de façon concise et pédagogique en français (pas de pavé théorique inutile). Chaque exemple ou mot en arabe doit obligatoirement comporter TOUTES ses voyelles courtes (Tachkil complet), suivi de sa translittération phonétique et de sa traduction française.",
+      "Consignes de forme :",
+      "- Sois chaleureux, concis et directement utile pour un apprenant.",
+      "- Réponds STRICTEMENT au format JSON valide, sans texte superflu autour :",
+      "{\"reply\":string,\"fr\":\"\",\"tr\":\"\",\"corrections\":[],\"tip\":null,\"targets\":[],\"used\":[],\"end\":false}",
+      "Dans \"reply\", insère ton explication en français avec les mots/exemples arabes entièrement vocalisés (avec voyelles brèves complètes), leur phonétique et leur traduction française."
     ].filter(Boolean).join("\n");
   }
   const immIdx=id==="check"?2:S.imm;
@@ -2471,14 +2620,24 @@ if(location.hash==="#alpha"){
   document.querySelectorAll("#langSeg button").forEach(x=>x.setAttribute("aria-pressed",x.dataset.lang==="ar"?"true":"false"));
 }
 syncUI();
-if(!curKey())openSettings();
 // Initialisation du theme visuel
 const savedTheme=localStorage.getItem("parlons.theme")||"studio";
 applyTheme(savedTheme);
-const ts=$("#themeSelect");if(ts)ts.addEventListener("change",e=>applyTheme(e.target.value));
+
+const tsm=$("#themeSelModal");if(tsm)tsm.addEventListener("change",e=>applyTheme(e.target.value));
 const ob=$("#cfgOpenBtn");if(ob)ob.addEventListener("click",()=>openSettings());
 const cb=$("#cfgCloseBtn");if(cb)cb.addEventListener("click",()=>closeSettings());
 const cm=$("#cfgModal");if(cm)cm.addEventListener("click",e=>{if(e.target===cm)closeSettings()});
+const tvb=$("#testVoiceBtn");
+if(tvb){
+  tvb.onclick=()=>{
+    const sample=S.lang==="ar"
+      ?"\u0627\u0644\u0633\u0651\u064E\u0644\u064E\u0627\u0645\u064F \u0639\u064E\u0644\u064E\u064A\u0652\u064F\u0643\u064F\u0645\u0652 \u0648\u064E\u0631\u064E\u062D\u0652\u0645\u064E\u0629\u064F \u0627\u0644\u0644\u0647\u0650"
+      :(S.lang==="en"?"Hello! How are you doing today?":"Hallo, hoe gaat het met je vandaag?");
+    speak(sample);
+  };
+}
+if(!curKey())openSettings();
 /* ---------- gestion PWA & hors-ligne ---------- */
 let deferredInstallPrompt=null;
 window.addEventListener("beforeinstallprompt",e=>{
