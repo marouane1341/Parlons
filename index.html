@@ -899,7 +899,7 @@ function loadVoices() {
 
   voiceSelect.innerHTML = '';
   // Prioriser les voix arabes
-  const arabicVoices = voices.filter(v => v.lang && v.lang.startsWith('ar'));
+  const arabicVoices = voices.filter(v => v.lang && (v.lang.startsWith('ar') || v.lang.includes('ar-XA') || v.lang.includes('ar-SA')));
 
   // Si des voix arabes existent, les mettre en tete de liste
   const listToDisplay = arabicVoices.length > 0 ? arabicVoices : voices;
@@ -912,7 +912,7 @@ function loadVoices() {
     opt.textContent = `${v.name} (${v.lang})`;
     if (saved && (saved === v.name || saved === v.voiceURI)) {
       opt.selected = true;
-    } else if (v.lang && v.lang.startsWith('ar')) {
+    } else if (v.lang && (v.lang.startsWith('ar') || v.lang.includes('ar-XA') || v.lang.includes('ar-SA'))) {
       opt.selected = true;
     }
     voiceSelect.appendChild(opt);
@@ -966,41 +966,38 @@ function speak(text,rate,forceLang){
     try{
       speechSynthesis.cancel();
       const cleaned=cleanTTS(text);
-      const isArabic=(forceLang==="ar")||(forceLang!=="en"&&forceLang!=="fr"&&forceLang!=="nl"&&(S.lang==="ar"||/[\u0600-\u06FF]/.test(cleaned)));
+      const isArabic=(forceLang==="ar")||(S.lang==="ar")||/[\u0600-\u06FF]/.test(cleaned);
       
-      let speakText=cleaned;
-      let targetVoice=null;
-      let targetLang="fr-FR";
+      let u;
+
 
       if(isArabic){
-        // Isole rigoureusement le texte : seule la phrase en caractÃ¨res arabes purs doit Ãªtre envoyÃ©e Ã  la synthÃ¨se vocale
-        speakText=extractArabicOnly(cleaned);
+        // Seul le texte en caracteres arabes doit etre lu
+        const speakText=extractArabicOnly(cleaned);
         if(!speakText){res();return}
 
         const voices=(window.speechSynthesis&&window.speechSynthesis.getVoices())||VOICES||[];
-        const arabicVoice=voices.find(v=>v.lang&&v.lang.startsWith("ar"));
+        const arabicVoice=voices.find(v=>v.lang&&(v.lang.startsWith('ar')||v.lang.includes('ar-XA')||v.lang.includes('ar-SA')));
 
-        // Si aucune voix arabe n'est trouvÃ©e, n'utilise surtout pas une voix anglaise ou franÃ§aise : affiche une courte notification discrÃ¨te
-        if(!arabicVoice||!arabicVoice.lang||arabicVoice.lang.startsWith("fr")||arabicVoice.lang.startsWith("en")){
-          console.warn("Synthese vocale : aucune voix arabe native detectee.");
-          flash("Voix arabe non detectee sur cet appareil. Verifiez les parametres de synthese vocale de votre telephone.");
-          res();
-          return;
+        u=new SpeechSynthesisUtterance(speakText);
+        if(arabicVoice){
+          u.voice=arabicVoice;
+          u.lang=arabicVoice.lang;
+        }else{
+          u.lang='ar-SA';
         }
-
-        // Si une voix commenÃ§ant par ar est prÃ©sente dans getVoices(), impose-la systÃ©matiquement
-        targetVoice=arabicVoice;
-        targetLang=arabicVoice.lang;
+        u.rate=rate||0.88;
       }else{
         const langKey=forceLang||S.lang;
-        targetVoice=voiceFor(langKey);
-        targetLang=(targetVoice&&targetVoice.lang)||SPEECH[langKey].tts;
+        const targetVoice=voiceFor(langKey);
+        const targetLang=(targetVoice&&targetVoice.lang)||SPEECH[langKey].tts;
+        u=new SpeechSynthesisUtterance(cleaned);
+        if(targetVoice)u.voice=targetVoice;
+        u.lang=targetLang;
+        u.rate=rate||0.95;
       }
 
-      const u=new SpeechSynthesisUtterance(speakText);
-      if(targetVoice)u.voice=targetVoice;
-      u.lang=targetLang;
-      u.rate=rate||(isArabic?0.88:0.95);
+
 
       let done=false;
       const fin=()=>{if(done)return;done=true;S.speaking=false;setStatus();res()};
@@ -1010,7 +1007,7 @@ function speak(text,rate,forceLang){
       S.speaking=true;
       setStatus();
       speechSynthesis.speak(u);
-      setTimeout(fin,6000+String(speakText).length*130);
+      setTimeout(fin,6000+(u.text?u.text.length:20)*130);
     }catch(e){
       S.speaking=false;
       res();
@@ -1718,8 +1715,8 @@ function bubbleT(d){
   if(d.tr&&typeof d.tr==="string"&&d.tr.trim()){const t=el("div","tr",d.tr);t.dir="ltr";b.append(t)}
   if(d.fr&&typeof d.fr==="string"&&d.fr.trim()&&S.imm<2&&S.scn.id!=="check"&&!isTutor)b.append(el("div","gloss",d.fr));
   const tools=el("div","tools");
-  const say=el("button","mini","Écouter");say.onclick=()=>speak(d.reply,null,isTutor?"fr":null);
-  const slow=el("button","mini","Plus lentement");slow.onclick=()=>speak(d.reply,.65,isTutor?"fr":null);
+  const say=el("button","mini","Écouter");say.onclick=()=>speak(d.reply,null);
+  const slow=el("button","mini","Plus lentement");slow.onclick=()=>speak(d.reply,.65);
   tools.append(say,slow);b.append(tools);
   return b;
 }
@@ -1799,7 +1796,7 @@ async function ask(){
     if(d.tip&&typeof d.tip==="string")log.append(el("div","tip",d.tip));
     if(d.end&&S.scn.id!=="tutor")log.append(el("p","typing","La séance est terminée. Touchez « Bilan » pour voir le résultat."));
     b.scrollIntoView({block:"nearest",behavior:"smooth"});
-    if(S.mode!=="write")spoke=speak(d.reply,null,S.scn&&S.scn.id==="tutor"?"fr":null);
+    if(S.mode!=="write")spoke=speak(d.reply,null);
   }catch(e){
     clearTimeout(globalTimeout);
     ty.remove();
