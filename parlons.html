@@ -205,52 +205,39 @@ ul.clean{margin:0;padding-inline-start:18px;display:flex;flex-direction:column;g
 .modal-header{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--line);background:var(--paper)}
 .modal-body{padding:18px;overflow-y:auto;display:flex;flex-direction:column;gap:12px}
 
-/* Avatar animé du professeur */
-.avatar-container{display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;padding:12px;margin:2px 0 6px 0;background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:0 2px 10px rgba(0,0,0,0.03);transition:all .25s ease}
-.avatar-figure{position:relative;width:92px;height:92px;display:flex;align-items:center;justify-content:center;border-radius:50%;z-index:2}
-.avatar-ripple{position:absolute;width:92px;height:92px;border-radius:50%;top:12px;pointer-events:none;z-index:1;border:2px solid transparent}
-.avatar-status-pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--muted);background:var(--tint);padding:2px 10px;border-radius:999px;margin-top:6px;transition:all .2s ease}
-.avatar-dot{width:7px;height:7px;border-radius:50%;background:var(--muted);transition:all .2s ease}
+/* Medaillon circulaire - Sceau d'apprentissage */
+.avatar-container{display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;padding:14px 12px;margin:4px 0 8px 0;background:var(--card);border:1px solid var(--line);border-radius:18px;box-shadow:0 2px 12px rgba(0,0,0,0.04);transition:all .3s ease}
+.seal-medallion{position:relative;width:90px;height:90px;display:flex;align-items:center;justify-content:center;border-radius:50%;z-index:2}
+.avatar-ripple{position:absolute;width:90px;height:90px;border-radius:50%;top:14px;pointer-events:none;z-index:1;border:2px solid transparent}
+.avatar-status-pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--muted);background:var(--tint);padding:3px 12px;border-radius:999px;margin-top:8px;transition:all .25s ease}
+.avatar-dot{width:7px;height:7px;border-radius:50%;background:var(--muted);transition:all .25s ease}
 
-/* État Neutre : clignement d'yeux subtil toutes les 4s */
-.avatar-container.state-neutral .avatar-eyes{animation:avatarBlink 4s infinite}
-@keyframes avatarBlink{
-  0%,92%,100%{transform:scaleY(1);transform-origin:center}
-  95%,97%{transform:scaleY(0.1);transform-origin:center}
+/* Repos : pulsation lumineuse legere de la bordure doree */
+.avatar-container.state-neutral .seal-base{animation:sealIdleGlow 3.6s ease-in-out infinite alternate}
+@keyframes sealIdleGlow{
+  0%{filter:drop-shadow(0 0 2px rgba(245,166,35,0.25));stroke-opacity:0.8}
+  100%{filter:drop-shadow(0 0 9px rgba(245,166,35,0.7));stroke-opacity:1}
 }
 
-/* État Écoute : ondes d'écoute lumineuses autour de l'avatar */
+/* Micro actif : onde concentrique qui s'elargit doucement autour du cercle */
 .avatar-container.state-listening{border-color:var(--good);background:linear-gradient(180deg,var(--good-tint) 0%,var(--card) 60%)}
 .avatar-container.state-listening .avatar-status-pill{background:var(--good-tint);color:var(--good)}
 .avatar-container.state-listening .avatar-dot{background:var(--good);box-shadow:0 0 6px var(--good)}
-.avatar-container.state-listening .avatar-ripple{border-color:var(--good);animation:avatarWaves 1.5s cubic-bezier(0,0.2,0.8,1) infinite}
-@keyframes avatarWaves{
-  0%{transform:scale(0.95);opacity:0.9;border-width:3px}
-  100%{transform:scale(1.35);opacity:0;border-width:1px}
+.avatar-container.state-listening .avatar-ripple{border-color:var(--good);animation:sealConcentricWave 1.6s cubic-bezier(0,0.2,0.8,1) infinite}
+@keyframes sealConcentricWave{
+  0%{transform:scale(0.96);opacity:0.85;border-width:3px}
+  100%{transform:scale(1.42);opacity:0;border-width:1px}
 }
 
-/* État Parole : bouche et tête animées en synchronisation avec speechSynthesis */
+/* Parole : pulsation rythmee de l'icone jusqu'a la fin de la lecture audio */
 .avatar-container.state-speaking{border-color:var(--accent);background:linear-gradient(180deg,var(--tint) 0%,var(--card) 60%)}
 .avatar-container.state-speaking .avatar-status-pill{background:var(--tint);color:var(--accent)}
 .avatar-container.state-speaking .avatar-dot{background:var(--accent);box-shadow:0 0 6px var(--accent)}
-.avatar-container.state-speaking .avatar-mouth{animation:avatarMouthTalk .28s ease-in-out infinite alternate}
-.avatar-container.state-speaking .avatar-head{animation:avatarHeadTalk 1.1s ease-in-out infinite alternate}
-@keyframes avatarMouthTalk{
-  0%{transform:scaleY(0.6);transform-origin:50px 65px}
-  100%{transform:scaleY(1.4);transform-origin:50px 65px}
+.avatar-container.state-speaking .seal-glyph-wrap{animation:sealTalkPulse 0.55s ease-in-out infinite alternate;transform-origin:50px 50px}
+@keyframes sealTalkPulse{
+  0%{transform:scale(0.96);filter:drop-shadow(0 0 3px rgba(245,166,35,0.4))}
+  100%{transform:scale(1.14);filter:drop-shadow(0 0 12px rgba(245,166,35,0.95))}
 }
-@keyframes avatarHeadTalk{
-  0%{transform:translateY(0) rotate(0deg);transform-origin:50px 75px}
-  100%{transform:translateY(-1.5px) rotate(1deg);transform-origin:50px 75px}
-}
-
-/* Style de l'avatar selon le thème (chèche/traditionnel pour Parchemin & Orient, moderne/costume pour Studio & Saphir) */
-:root[data-theme="orient"] .avatar-theme-modern,
-:root[data-theme="parchment"] .avatar-theme-modern{display:none}
-:root[data-theme="orient"] .avatar-theme-traditional,
-:root[data-theme="parchment"] .avatar-theme-traditional{display:inline}
-:root:not([data-theme="orient"]):not([data-theme="parchment"]) .avatar-theme-traditional{display:none}
-:root:not([data-theme="orient"]):not([data-theme="parchment"]) .avatar-theme-modern{display:inline}
 </style>
 </head>
 <body>
@@ -419,66 +406,49 @@ ul.clean{margin:0;padding-inline-start:18px;display:flex;flex-direction:column;g
       <button class="btn sm" id="endBtn">Bilan</button>
     </div>
 
-    <!-- Avatar animÃ© rÃ©actif du Professeur -->
-    <div id="avatarWrap" class="avatar-container state-neutral" aria-label="Professeur virtuel">
+        <!-- MÃ©daillon calligraphique animÃ© (Sceau du professeur) -->
+    <div id="avatarWrap" class="avatar-container state-neutral" aria-label="Sceau d'apprentissage">
       <div class="avatar-ripple"></div>
-      <div class="avatar-figure">
-        <svg viewBox="0 0 100 100" width="86" height="86" aria-hidden="true" style="overflow:visible">
+      <div class="seal-medallion">
+        <svg viewBox="0 0 100 100" width="88" height="88" aria-hidden="true" style="overflow:visible">
           <defs>
-            <linearGradient id="avatarBgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stop-color="var(--tint)" stop-opacity="0.9"/>
-              <stop offset="100%" stop-color="var(--card)"/>
+            <linearGradient id="sealBgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="var(--card)" stop-opacity="0.95"/>
+              <stop offset="100%" stop-color="var(--tint)" stop-opacity="0.9"/>
+            </linearGradient>
+            <linearGradient id="sealGoldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#FCD34D"/>
+              <stop offset="50%" stop-color="#F5A623"/>
+              <stop offset="100%" stop-color="#D97706"/>
             </linearGradient>
           </defs>
-          <circle cx="50" cy="50" r="46" fill="url(#avatarBgGrad)" stroke="var(--line)" stroke-width="2"/>
-          <g class="avatar-theme-modern">
-            <path d="M 22 88 Q 50 78 78 88 L 78 96 L 22 96 Z" fill="var(--ink)" opacity="0.85"/>
-            <path d="M 40 82 L 50 94 L 60 82 Z" fill="var(--accent)"/>
-            <path d="M 46 76 L 50 82 L 54 76 Z" fill="#F8FAFC"/>
+
+          <!-- Cercles concentriques dorÃ©s du mÃ©daillon -->
+          <circle class="seal-base" cx="50" cy="50" r="44" fill="url(#sealBgGrad)" stroke="url(#sealGoldGrad)" stroke-width="2.5"/>
+          <circle class="seal-inner-ring" cx="50" cy="50" r="38" fill="none" stroke="url(#sealGoldGrad)" stroke-width="1" stroke-dasharray="2 3" opacity="0.75"/>
+          <circle cx="50" cy="50" r="35" fill="none" stroke="var(--line)" stroke-width="0.8" opacity="0.6"/>
+
+          <!-- Symbole calligraphique arabe Â« Ø¶ Â» (DÄd - emblÃ¨me de la langue arabe) -->
+          <g class="seal-glyph-wrap" id="sealGlyphAr">
+            <text x="50" y="62" text-anchor="middle" font-family="'Amiri', 'Noto Naskh Arabic', serif" font-size="44" font-weight="700" fill="url(#sealGoldGrad)" class="seal-glyph">&#x0636;</text>
           </g>
-          <g class="avatar-theme-traditional">
-            <path d="M 20 88 Q 50 76 80 88 L 80 96 L 20 96 Z" fill="var(--accent)" opacity="0.9"/>
-            <path d="M 28 86 Q 50 94 72 86 Q 50 98 28 86 Z" fill="var(--tint)" stroke="var(--accent)" stroke-width="1"/>
-          </g>
-          <g class="avatar-head">
-            <rect x="44" y="65" width="12" height="14" rx="4" fill="#F3C59D"/>
-            <ellipse cx="50" cy="52" rx="20" ry="22" fill="#FAD6A5"/>
-            <g class="avatar-theme-modern">
-              <path d="M 30 46 C 30 32 40 25 50 25 C 60 25 70 32 70 46 C 68 36 60 31 50 31 C 40 31 32 36 30 46 Z" fill="#2D241E"/>
-            </g>
-            <g class="avatar-theme-traditional">
-              <path d="M 27 48 C 27 28 36 22 50 22 C 64 22 73 28 73 48 C 76 38 72 26 50 26 C 32 26 25 38 27 48 Z" fill="var(--tint)"/>
-              <path d="M 26 38 C 28 26 40 22 50 22 C 60 22 72 26 74 38 C 72 32 62 27 50 27 C 38 27 28 32 26 38 Z" fill="var(--accent)"/>
-              <path d="M 26 42 Q 50 32 74 42 Q 50 36 26 42 Z" fill="#FFFFFF" opacity="0.4"/>
-              <path d="M 28 45 Q 24 58 26 74 Q 30 72 31 60 Z" fill="var(--accent)" opacity="0.8"/>
-            </g>
-            <path d="M 36 56 C 38 68 45 74 50 74 C 55 74 62 68 64 56 C 60 62 55 64 50 64 C 45 64 40 62 36 56 Z" fill="#3D2D24" opacity="0.35"/>
-            <path d="M 37 42 Q 43 40 47 43" stroke="#2D241E" stroke-width="1.8" stroke-linecap="round" fill="none"/>
-            <path d="M 53 43 Q 57 40 63 42" stroke="#2D241E" stroke-width="1.8" stroke-linecap="round" fill="none"/>
-            <g class="avatar-eyes">
-              <ellipse cx="42" cy="48" rx="3.5" ry="3.5" fill="#2D241E"/>
-              <circle cx="43" cy="47" r="1.2" fill="#FFFFFF"/>
-              <ellipse cx="58" cy="48" rx="3.5" ry="3.5" fill="#2D241E"/>
-              <circle cx="59" cy="47" r="1.2" fill="#FFFFFF"/>
-            </g>
-            <g stroke="var(--ink)" stroke-width="1.4" fill="none" opacity="0.85">
-              <rect x="36" y="43" width="12" height="10" rx="3"/>
-              <rect x="52" y="43" width="12" height="10" rx="3"/>
-              <line x1="48" y1="48" x2="52" y2="48"/>
-              <line x1="32" y1="46" x2="36" y2="46"/>
-              <line x1="64" y1="46" x2="68" y2="46"/>
-            </g>
-            <path d="M 50 49 L 48.5 56 L 51.5 56" stroke="#DCA278" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-            <path class="avatar-mouth" d="M 44 64 Q 50 68 56 64" stroke="#8A3B2B" stroke-width="2" stroke-linecap="round" fill="none"/>
+
+          <!-- Symbole alternatif Ã©purÃ© livre ouvert / savoir (pour autres langues) -->
+          <g class="seal-glyph-wrap" id="sealGlyphOther" style="display:none">
+            <path d="M 32 38 Q 42 34 50 38 Q 58 34 68 38 L 68 62 Q 58 58 50 62 Q 42 58 32 62 Z" fill="none" stroke="url(#sealGoldGrad)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+            <line x1="50" y1="38" x2="50" y2="62" stroke="url(#sealGoldGrad)" stroke-width="2"/>
+            <path d="M 36 44 Q 43 41 47 44" stroke="var(--muted)" stroke-width="1.2" stroke-linecap="round" fill="none"/>
+            <path d="M 36 50 Q 43 47 47 50" stroke="var(--muted)" stroke-width="1.2" stroke-linecap="round" fill="none"/>
+            <path d="M 53 44 Q 57 41 64 44" stroke="var(--muted)" stroke-width="1.2" stroke-linecap="round" fill="none"/>
+            <path d="M 53 50 Q 57 47 64 50" stroke="var(--muted)" stroke-width="1.2" stroke-linecap="round" fill="none"/>
           </g>
         </svg>
       </div>
       <div class="avatar-status-pill">
         <span class="avatar-dot"></span>
-        <span id="avatarStateText">À votre écoute</span>
+        <span id="avatarStateText">Professeur pr&ecirc;t</span>
       </div>
-    </div>
-    <div id="goalsBox" class="targets" hidden></div>
+    </div><div id="goalsBox" class="targets" hidden></div>
     <div id="targets" class="targets" hidden></div>
     <div class="log" id="log" aria-live="polite"></div>
     <div class="status" id="status" role="status"></div>
@@ -918,15 +888,45 @@ function errText(e){
 }
 
 /* ---------- voix (sortie) ---------- */
-let VOICES=[];
-function refreshVoices(){
-  try{VOICES=window.speechSynthesis.getVoices()||[]}catch(e){VOICES=[]}
-  fillVoiceSelect();
+let VOICES = [];
+
+function loadVoices() {
+  if (!("speechSynthesis" in window)) return;
+  const voices = window.speechSynthesis.getVoices() || [];
+  VOICES = voices;
+  const voiceSelect = document.getElementById('voiceSel');
+  if (!voiceSelect || voices.length === 0) return;
+
+  voiceSelect.innerHTML = '';
+  // Prioriser les voix arabes
+  const arabicVoices = voices.filter(v => v.lang && v.lang.startsWith('ar'));
+
+  // Si des voix arabes existent, les mettre en tete de liste
+  const listToDisplay = arabicVoices.length > 0 ? arabicVoices : voices;
+
+  const saved = S.cfg && S.cfg.voice && S.cfg.voice[S.lang];
+
+  listToDisplay.forEach(v => {
+    const opt = document.createElement('option');
+    opt.value = v.name;
+    opt.textContent = `${v.name} (${v.lang})`;
+    if (saved && (saved === v.name || saved === v.voiceURI)) {
+      opt.selected = true;
+    } else if (v.lang && v.lang.startsWith('ar')) {
+      opt.selected = true;
+    }
+    voiceSelect.appendChild(opt);
+  });
 }
-if(typeof window!=="undefined"&&"speechSynthesis" in window){
-  try{window.speechSynthesis.onvoiceschanged=refreshVoices}catch(e){}
-  refreshVoices();
+
+// Ecouter l'evenement indispensable sur mobile
+if (typeof window !== "undefined" && "speechSynthesis" in window) {
+  window.speechSynthesis.onvoiceschanged = loadVoices;
+  loadVoices();
 }
+
+const fillVoiceSelect = loadVoices;
+const refreshVoices = loadVoices;
 
 function extractArabicOnly(text){
   if(!text)return "";
@@ -937,32 +937,25 @@ function extractArabicOnly(text){
 }
 
 function voicesFor(lang){
-  const p=SPEECH[lang].tts.slice(0,2).toLowerCase();
-  return VOICES.filter(v=>v.lang&&v.lang.toLowerCase().indexOf(p)===0);
+  const p = SPEECH[lang].tts.slice(0,2).toLowerCase();
+  const list = VOICES.length ? VOICES : ((window.speechSynthesis && window.speechSynthesis.getVoices()) || []);
+  return list.filter(v => v.lang && v.lang.toLowerCase().indexOf(p) === 0);
 }
 
 function voiceFor(lang){
-  const list=voicesFor(lang),saved=S.cfg.voice[lang];
-  if(saved){const f=list.find(v=>v.voiceURI===saved);if(f)return f}
-  if(lang==="ar"){
-    const arabicVoice=VOICES.find(v=>v.lang&&(v.lang.startsWith("ar")||v.lang.includes("ar-SA")||v.lang.includes("ar-XA")));
-    if(arabicVoice)return arabicVoice;
+  const voices = (window.speechSynthesis && window.speechSynthesis.getVoices()) || VOICES || [];
+  const p = SPEECH[lang].tts.slice(0,2).toLowerCase();
+  const list = voices.filter(v => v.lang && v.lang.toLowerCase().indexOf(p) === 0);
+  const saved = S.cfg && S.cfg.voice && S.cfg.voice[lang];
+  if(saved){
+    const f = voices.find(v => v.name === saved || v.voiceURI === saved);
+    if(f) return f;
   }
-  return list.find(v=>v.lang.toLowerCase()===SPEECH[lang].tts.toLowerCase())||list[0]||null;
-}
-
-function fillVoiceSelect(){
-  const sel=$("#voiceSel");if(!sel)return;
-  sel.textContent="";
-  const list=VOICES.length?VOICES:(window.speechSynthesis?speechSynthesis.getVoices():[]);
-  if(!list.length){sel.append(new Option("Aucune voix detectee (voix systeme par defaut)",""));return}
-  const cur=voiceFor(S.lang);
-  list.forEach(v=>{
-    const isAr=v.lang&&v.lang.startsWith("ar");
-    const o=new Option(v.name+" ("+v.lang+")"+(isAr?" \u2B50 Arabe":""),v.voiceURI);
-    if(cur&&cur.voiceURI===v.voiceURI)o.selected=true;
-    sel.append(o);
-  });
+  if(lang === "ar"){
+    const arabicVoice = voices.find(v => v.lang && v.lang.startsWith("ar"));
+    if(arabicVoice) return arabicVoice;
+  }
+  return list.find(v => v.lang && v.lang.toLowerCase() === SPEECH[lang].tts.toLowerCase()) || list[0] || null;
 }
 
 function cleanTTS(t){ return String(t||"").replace(/[*_`#]/g," "); }
@@ -980,21 +973,24 @@ function speak(text,rate,forceLang){
       let targetLang="fr-FR";
 
       if(isArabic){
-        // Isole rigoureusement le texte : seule la phrase en caracteres arabes purs doit etre envoyee a la synthese vocale
+        // Isole rigoureusement le texte : seule la phrase en caractÃ¨res arabes purs doit Ãªtre envoyÃ©e Ã  la synthÃ¨se vocale
         speakText=extractArabicOnly(cleaned);
         if(!speakText){res();return}
 
-        const voices=(window.speechSynthesis&&speechSynthesis.getVoices())||VOICES||[];
-        const arabicVoice=voices.find(v=>v.lang&&(v.lang.startsWith("ar")||v.lang.includes("ar-SA")||v.lang.includes("ar-XA")));
+        const voices=(window.speechSynthesis&&window.speechSynthesis.getVoices())||VOICES||[];
+        const arabicVoice=voices.find(v=>v.lang&&v.lang.startsWith("ar"));
 
-        // Interdiction absolue de lancer speak() si la voix assignee commence par 'fr' ou 'en'
+        // Si aucune voix arabe n'est trouvÃ©e, n'utilise surtout pas une voix anglaise ou franÃ§aise : affiche une courte notification discrÃ¨te
         if(!arabicVoice||!arabicVoice.lang||arabicVoice.lang.startsWith("fr")||arabicVoice.lang.startsWith("en")){
-          console.warn("Synthese vocale annulee : aucune voix arabe native detectee (voix fr/en interdites pour l'arabe).");
+          console.warn("Synthese vocale : aucune voix arabe native detectee.");
+          flash("Voix arabe non detectee sur cet appareil. Verifiez les parametres de synthese vocale de votre telephone.");
           res();
           return;
         }
+
+        // Si une voix commenÃ§ant par ar est prÃ©sente dans getVoices(), impose-la systÃ©matiquement
         targetVoice=arabicVoice;
-        targetLang=arabicVoice.lang||"ar-SA";
+        targetLang=arabicVoice.lang;
       }else{
         const langKey=forceLang||S.lang;
         targetVoice=voiceFor(langKey);
@@ -1126,8 +1122,20 @@ function updateAvatar(){
     av.classList.add("state-neutral");
     if(label)label.textContent=S.busy?"En r\u00E9flexion\u2026":"Professeur pr\u00EAt";
   }
-}
-function setStatus(){
+
+  // Adapter le symbole selon la langue active
+  const arGlyph = $("#sealGlyphAr");
+  const otherGlyph = $("#sealGlyphOther");
+  if(arGlyph && otherGlyph){
+    if(S.lang === "ar"){
+      arGlyph.style.display = "inline";
+      otherGlyph.style.display = "none";
+    } else {
+      arGlyph.style.display = "none";
+      otherGlyph.style.display = "inline";
+    }
+  }
+}function setStatus(){
   const s=$("#status");if(!s)return;
   let t="";
   if(S.view==="chat"){
@@ -1269,7 +1277,7 @@ function syncUI(){
   $("#level").value=S.level;
   $("#vow").checked=!!S.ar.vow;$("#trl").checked=!!S.ar.tr;
   $("#arOpts").hidden=S.lang!=="ar";
-  fillCfg();fillVoiceSelect();renderScn();renderLast();renderDue();renderPath();renderAlpha();renderDutch();modeNote();
+  fillCfg();fillVoiceSelect();renderScn();renderLast();renderDue();renderPath();renderAlpha();renderDutch();modeNote();updateAvatar();
 }
 function renderDutch(){
   const box=$("#nlBox");if(!box)return;
