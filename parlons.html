@@ -230,10 +230,10 @@ ul.clean{margin:0;padding-inline-start:18px;display:flex;flex-direction:column;g
 }
 
 /* Parole : pulsation rythmee de l'icone jusqu'a la fin de la lecture audio */
-.avatar-container.state-speaking{border-color:var(--accent);background:linear-gradient(180deg,var(--tint) 0%,var(--card) 60%)}
-.avatar-container.state-speaking .avatar-status-pill{background:var(--tint);color:var(--accent)}
-.avatar-container.state-speaking .avatar-dot{background:var(--accent);box-shadow:0 0 6px var(--accent)}
-.avatar-container.state-speaking .seal-glyph-wrap{animation:sealTalkPulse 0.55s ease-in-out infinite alternate;transform-origin:50px 50px}
+.avatar-container.state-speaking, .prof-avatar.speaking{border-color:var(--accent);background:linear-gradient(180deg,var(--tint) 0%,var(--card) 60%)}
+.avatar-container.state-speaking .avatar-status-pill, .prof-avatar.speaking .avatar-status-pill{background:var(--tint);color:var(--accent)}
+.avatar-container.state-speaking .avatar-dot, .prof-avatar.speaking .avatar-dot{background:var(--accent);box-shadow:0 0 6px var(--accent)}
+.avatar-container.state-speaking .seal-glyph-wrap, .prof-avatar.speaking .seal-glyph-wrap{animation:sealTalkPulse 0.55s ease-in-out infinite alternate;transform-origin:50px 50px}
 @keyframes sealTalkPulse{
   0%{transform:scale(0.96);filter:drop-shadow(0 0 3px rgba(245,166,35,0.4))}
   100%{transform:scale(1.14);filter:drop-shadow(0 0 12px rgba(245,166,35,0.95))}
@@ -407,7 +407,7 @@ ul.clean{margin:0;padding-inline-start:18px;display:flex;flex-direction:column;g
     </div>
 
         <!-- MÃ©daillon calligraphique animÃ© (Sceau du professeur) -->
-    <div id="avatarWrap" class="avatar-container state-neutral" aria-label="Sceau d'apprentissage">
+    <div id="avatarWrap" class="avatar-container prof-avatar state-neutral" aria-label="Sceau d'apprentissage">
       <div class="avatar-ripple"></div>
       <div class="seal-medallion">
         <svg viewBox="0 0 100 100" width="88" height="88" aria-hidden="true" style="overflow:visible">
@@ -967,114 +967,124 @@ function voiceFor(lang){
 
 function cleanTTS(t){ return String(t||"").replace(/[*_`#]/g," "); }
 
-function speak(text,rate,forceLang){
-  return new Promise(res=>{
-    if(!("speechSynthesis" in window)||!text){res();return}
-    try{
-      speechSynthesis.cancel();
-      const cleaned=cleanTTS(text);
-      const isArabic=(forceLang==="ar")||(S.lang==="ar")||/[\u0600-\u06FF]/.test(cleaned);
-      
-      const voices=(window.speechSynthesis&&window.speechSynthesis.getVoices())||VOICES||[];
+function speakBilingualText(rawText) {
+  return new Promise(resolve => {
+    try { window.speechSynthesis.cancel(); } catch(e) {}
+    if (!rawText) { resolve(); return; }
 
-      let done=false;
-      const fin=()=>{
-        if(done)return;
-        done=true;
-        S.speaking=false;
+    // 1. Nettoyer les parentheses de phonetique (ex: "(Salamu Allahi - Que la paix...)")
+    // pour eviter que la voix ne bute sur la translitteration
+    const textToRead = rawText.replace(/\([^\)]+\)/g, ' ');
+
+    // 2. Decouper le texte en segments selon l'alphabet (Arabe vs Francais/Latin)
+    // Regex detectant les blocs de caracteres arabes
+    const segments = [];
+    const regex = /([\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\s\.\,\!\؟]+)|([^\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]+)/g;
+    let match;
+
+    while ((match = regex.exec(textToRead)) !== null) {
+      const part = match[0].trim();
+      if (!part) continue;
+      const isArabic = /[\u0600-\u06FF]/.test(part);
+      segments.push({ text: part, lang: isArabic ? 'ar' : 'fr' });
+    }
+
+    if (segments.length === 0) { resolve(); return; }
+
+    // 3. Recuperer les voix Google installees
+    const voices = (window.speechSynthesis && window.speechSynthesis.getVoices()) || VOICES || [];
+    const arabicVoice = voices.find(v => v.lang && (v.lang.startsWith('ar') || v.lang.includes('ar-SA') || v.lang.includes('ar-XA')));
+    const frenchVoice = voices.find(v => v.lang && v.lang.startsWith('fr'));
+
+    // 4. Chainage sequentiel des morceaux
+    let index = 0;
+    let done = false;
+    function playNext() {
+      if (done) return;
+      if (index >= segments.length) {
+        // Fin de prise de parole : desactiver l'animation du medaillon
+        done = true;
+        S.speaking = false;
         setStatus();
-        res();
+        document.querySelector('.prof-avatar')?.classList.remove('speaking');
+        resolve();
+        return;
+      }
+
+      const current = segments[index];
+      const utterance = new SpeechSynthesisUtterance(current.text);
+
+      if (current.lang === 'ar') {
+        utterance.voice = arabicVoice || null;
+        utterance.lang = arabicVoice ? arabicVoice.lang : 'ar-SA';
+        utterance.rate = 0.88;
+      } else {
+        utterance.voice = frenchVoice || null;
+        utterance.lang = frenchVoice ? frenchVoice.lang : 'fr-FR';
+        utterance.rate = 1.0;
+      }
+
+      utterance.onend = () => {
+        index++;
+        playNext();
       };
 
-      if(isArabic){
-        const arText=extractArabicOnly(cleaned);
-        const isTutorMode=(S.scn&&S.scn.id==="tutor");
-        const frText=(isTutorMode||cleaned.length>(arText.length+15))?extractFrenchExplanation(cleaned):"";
+      utterance.onerror = () => {
+        index++;
+        playNext();
+      };
 
-        if(!arText&&!frText){res();return}
+      window.speechSynthesis.speak(utterance);
+    }
 
-        const arabicVoice=voices.find(v=>v.lang&&(v.lang.startsWith('ar')||v.lang.includes('ar-XA')||v.lang.includes('ar-SA')));
-        const frenchVoice=voices.find(v=>v.lang&&(v.lang==='fr-FR'||v.lang.startsWith('fr-FR')))
-          ||voices.find(v=>v.lang&&v.lang.startsWith('fr')&&!v.lang.includes('CA'))
-          ||voices.find(v=>v.lang&&v.lang.startsWith('fr'))
-          ||null;
+    // Demarrer la lecture et activer l'animation
+    S.speaking = true;
+    setStatus();
+    document.querySelector('.prof-avatar')?.classList.add('speaking');
+    playNext();
+  });
+}
 
-        let arUtterance=null;
-        if(arText){
-          arUtterance=new SpeechSynthesisUtterance(arText);
-          if(arabicVoice){
-            arUtterance.voice=arabicVoice;
-            arUtterance.lang=arabicVoice.lang;
-          }else{
-            arUtterance.lang='ar-SA';
-          }
-          arUtterance.rate=rate||0.88;
-        }
+function speak(text, rate, forceLang){
+  if (S.lang === "ar" || forceLang === "ar" || (text && /[\u0600-\u06FF]/.test(text))) {
+    return speakBilingualText(text);
+  }
+  return new Promise(res => {
+    if (!("speechSynthesis" in window) || !text) { res(); return; }
+    try {
+      speechSynthesis.cancel();
+      const cleaned = cleanTTS(text);
+      const langKey = forceLang || S.lang;
+      const targetVoice = voiceFor(langKey);
+      const targetLang = (targetVoice && targetVoice.lang) || SPEECH[langKey].tts;
 
-        let frUtterance=null;
-        if(frText){
-          frUtterance=new SpeechSynthesisUtterance(frText);
-          if(frenchVoice)frUtterance.voice=frenchVoice;
-          frUtterance.lang=(frenchVoice&&frenchVoice.lang)||'fr-FR';
-          frUtterance.rate=rate||0.95;
-        }
+      const u = new SpeechSynthesisUtterance(cleaned);
+      if (targetVoice) u.voice = targetVoice;
+      u.lang = targetLang;
+      u.rate = rate || 0.95;
 
-        S.speaking=true;
-        setStatus();
+      let done = false;
+      const fin = () => { if (done) return; done = true; S.speaking = false; setStatus(); res(); };
+      u.onend = fin;
+      u.onerror = fin;
 
-        if(arUtterance&&frUtterance){
-          // Lecture bilingue enchainee : l'arabe en premier, puis le francais des la fin du segment arabe
-          arUtterance.onend=()=>{
-            if(done)return;
-            speechSynthesis.speak(frUtterance);
-          };
-          arUtterance.onerror=()=>{
-            if(done)return;
-            speechSynthesis.speak(frUtterance);
-          };
-
-          frUtterance.onend=fin;
-          frUtterance.onerror=fin;
-
-          speechSynthesis.speak(arUtterance);
-          setTimeout(fin,8000+(arText.length+frText.length)*130);
-        }else if(arUtterance){
-          arUtterance.onend=fin;
-          arUtterance.onerror=fin;
-          speechSynthesis.speak(arUtterance);
-          setTimeout(fin,6000+arText.length*130);
-        }else if(frUtterance){
-          frUtterance.onend=fin;
-          frUtterance.onerror=fin;
-          speechSynthesis.speak(frUtterance);
-          setTimeout(fin,6000+frText.length*130);
-        }
-      }else{
-        const langKey=forceLang||S.lang;
-        const targetVoice=voiceFor(langKey);
-        const targetLang=(targetVoice&&targetVoice.lang)||SPEECH[langKey].tts;
-
-        const u=new SpeechSynthesisUtterance(cleaned);
-        if(targetVoice)u.voice=targetVoice;
-        u.lang=targetLang;
-        u.rate=rate||0.95;
-
-        u.onend=fin;
-        u.onerror=fin;
-
-        S.speaking=true;
-        setStatus();
-        speechSynthesis.speak(u);
-        setTimeout(fin,6000+(u.text?u.text.length:20)*130);
-      }
-    }catch(e){
-      S.speaking=false;
+      S.speaking = true;
+      setStatus();
+      speechSynthesis.speak(u);
+      setTimeout(fin, 6000 + (u.text ? u.text.length : 20) * 130);
+    } catch(e) {
+      S.speaking = false;
       setStatus();
       res();
     }
   });
 }
-function stopSpeak(){try{speechSynthesis.cancel()}catch(e){}S.speaking=false;setStatus()}
+function stopSpeak(){
+  try{ window.speechSynthesis.cancel(); }catch(e){}
+  S.speaking = false;
+  setStatus();
+  document.querySelector('.prof-avatar')?.classList.remove('speaking');
+}
 
 /* ---------- micro (entrée) ---------- */
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
