@@ -1,7 +1,7 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="fr">
 <head>
-<meta charset="utf-8">
+<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Parlons</title>
 <link rel="manifest" href="./manifest.json">
@@ -772,7 +772,7 @@ div[hidden],
         <button class="icon-circle-btn" id="chatCfgBtn" aria-label="Parametres" title="Parametres">&#9881;&#65039;</button>
       </div>
 
-      <!-- Medaillon calligraphique dore Â« Ø¶ Â» agrandi et centre avec onde reactive -->
+      <!-- Medaillon calligraphique dore « ض » agrandi et centre avec onde reactive -->
       <div id="avatarWrap" class="avatar-container prof-avatar state-neutral" aria-label="Sceau d'apprentissage">
         <div class="avatar-ripple"></div>
         <div class="seal-medallion large-seal">
@@ -794,7 +794,7 @@ div[hidden],
             <circle class="seal-inner-ring" cx="50" cy="50" r="38" fill="none" stroke="url(#sealGoldGrad)" stroke-width="1.2" stroke-dasharray="2 3" opacity="0.8"/>
             <circle cx="50" cy="50" r="35" fill="none" stroke="var(--line)" stroke-width="0.8" opacity="0.6"/>
 
-            <!-- Symbole calligraphique arabe Â« Ø¶ Â» -->
+            <!-- Symbole calligraphique arabe « ض » -->
             <g class="seal-glyph-wrap" id="sealGlyphAr">
               <text x="50" y="63" text-anchor="middle" font-family="'Amiri', 'Noto Naskh Arabic', serif" font-size="50" font-weight="700" fill="url(#sealGoldGrad)" class="seal-glyph">&#x0636;</text>
             </g>
@@ -888,19 +888,19 @@ div[hidden],
 
   <!-- Barre de navigation inferieure fixe (4 onglets natifs) -->
   <nav id="bottomNav" class="bottom-nav" aria-label="Navigation principale">
-    <button class="bnav-btn nav-tab nav-item nav-tab active" data-tab="lessons" id="navLessonsBtn" aria-label="LeÃ§ons" aria-selected="true">
+    <button class="bnav-btn nav-tab active" data-tab="lessons" id="navLessonsBtn" aria-label="Leçons" aria-selected="true">
       <span class="bnav-icon">&#128506;&#65039;</span>
       <span class="bnav-label">Le&ccedil;ons</span>
     </button>
-    <button class="bnav-btn nav-tab nav-item nav-tab" data-tab="roleplay" id="navRoleplayBtn" aria-label="Jeux de rÃ´le" aria-selected="false">
+    <button class="bnav-btn nav-tab" data-tab="roleplay" id="navRoleplayBtn" aria-label="Jeux de rôle" aria-selected="false">
       <span class="bnav-icon">&#127917;</span>
       <span class="bnav-label">Jeux de r&ocirc;le</span>
     </button>
-    <button class="bnav-btn nav-tab nav-item nav-tab" data-tab="tutor" id="navTutorBtn" aria-label="Tuteur Libre" aria-selected="false">
+    <button class="bnav-btn nav-tab" data-tab="tutor" id="navTutorBtn" aria-label="Tuteur Libre" aria-selected="false">
       <span class="bnav-icon">&#128172;</span>
       <span class="bnav-label">Tuteur Libre</span>
     </button>
-    <button class="bnav-btn nav-tab nav-item nav-tab" data-tab="profile" id="navProfileBtn" aria-label="Profil &amp; RÃ©glages" aria-selected="false">
+    <button class="bnav-btn nav-tab" data-tab="profile" id="navProfileBtn" aria-label="Profil &amp; Réglages" aria-selected="false">
       <span class="bnav-icon">&#9881;&#65039;</span>
       <span class="bnav-label">Profil</span>
     </button>
@@ -1711,52 +1711,52 @@ function renderPath(){
   const box=$("#pathBox");box.textContent="";
   const us=PATH[S.lang],p=P(),t=totals();
   const cur=currentUnit();
-  const lvlTag = cur ? (cur.u.lvl + " - " + (cur.u.lvl.startsWith("A1") ? "DÃ©butant" : (cur.u.lvl.startsWith("A2") ? "Ã‰lÃ©mentaire" : "IntermÃ©diaire"))) : "AvancÃ©";
+  const lvlTag = cur ? (cur.u.lvl + " - " + (cur.u.lvl.startsWith("A1") ? "Débutant" : (cur.u.lvl.startsWith("A2") ? "Élémentaire" : "Intermédiaire"))) : "Avancé";
   const head=el("div","row spread");
   head.style.alignItems="center";
-  head.append(el("h2",null,"Mon parcours Â· "+LANGS[S.lang].label), el("span","chip",lvlTag));
+  head.append(el("h2",null,"Mon parcours · "+LANGS[S.lang].label), el("span","chip",lvlTag));
   box.append(head);
   const progRow = el("div","row spread");
   progRow.style.margin = "4px 0 6px 0";
-  progRow.append(el("span","small muted","Progression globale"), el("span","small muted",t.n+" / "+t.total+" Ã©tapes validÃ©es"));
+  progRow.append(el("span","small muted","Progression globale"), el("span","small muted",t.n+" / "+t.total+" étapes validées"));
   box.append(progRow);
   const tr=el("div","track"),f=el("div","fill");f.style.width=Math.round(100*t.n/t.total)+"%";tr.append(f);box.append(tr);
   if(cur){
     const card=el("div","next");
-    card.append(el("span","label","Prochaine Ã©tape en cours"));
-    const h=el("div","row");h.append(el("b",null,"Ã‰tape "+(cur.i+1)+" Â· "+cur.u.t),el("span","badge",cur.u.lvl));
+    card.append(el("span","label","Prochaine étape en cours"));
+    const h=el("div","row");h.append(el("b",null,"Étape "+(cur.i+1)+" · "+cur.u.t),el("span","badge",cur.u.lvl));
     card.append(h);
     cur.u.can.forEach((c,j)=>card.append(canRow(cur.u,j,c)));
-    const go=el("button","btn","Continuer cette Ã©tape");go.id="goUnit";go.onclick=()=>startUnit(cur.u,cur.i);
+    const go=el("button","btn","Continuer cette étape");go.id="goUnit";go.onclick=()=>startUnit(cur.u,cur.i);
     card.append(go);
     box.append(card);
   }else{
-    box.append(el("p",null,"Parcours terminÃ©. Faites la conversation de contrÃ´le pour mesurer oÃ¹ vous en Ãªtes."));
+    box.append(el("p",null,"Parcours terminé. Faites la conversation de contrôle pour mesurer où vous en êtes."));
   }
   if(!p.levels.length){
     const row=el("div","row");
-    row.append(el("span","small muted","Pas encore de diagnostic : il place votre point de dÃ©part dans le parcours."));
+    row.append(el("span","small muted","Pas encore de diagnostic : il place votre point de départ dans le parcours."));
     const d=el("button","btn sm ghost","Faire le diagnostic");d.id="diagBtn";d.onclick=()=>start(SCENARIOS[0]);row.append(d);
     box.append(row);
   }
   if(checkDue()){
     const row=el("div","row");
-    row.append(el("span","small","Conversation de contrÃ´le de la semaine : mesurez votre progression."));
-    const c=el("button","btn sm","Lancer le contrÃ´le");c.id="checkBtn";c.onclick=startCheck;row.append(c);
+    row.append(el("span","small","Conversation de contrôle de la semaine : mesurez votre progression."));
+    const c=el("button","btn sm","Lancer le contrôle");c.id="checkBtn";c.onclick=startCheck;row.append(c);
     box.append(row);
   }
   if(p.levels.length){
-    const last=p.levels.slice(-5).map(x=>x.level).join(" â†’ ");
-    box.append(el("p","small muted","Niveaux estimÃ©s : "+last));
+    const last=p.levels.slice(-5).map(x=>x.level).join(" → ");
+    box.append(el("p","small muted","Niveaux estimés : "+last));
   }
   const det=document.createElement("details");
   det.open=true;
-  det.append(el("summary","small","Toutes les Ã©tapes du parcours"));
+  det.append(el("summary","small","Toutes les étapes du parcours"));
   const list=el("div","units");list.style.marginTop="10px";
   us.forEach((u,i)=>{
     const s=unitState(u,i);
     const row=el("div","unit"+(s.done?" done":""));
-    const lab=el("span","ut",(s.done?"âœ“ ":"")+"Ã‰tape "+(i+1)+" Â· "+u.t+(s.acquired?" (acquise au diagnostic)":""));
+    const lab=el("span","ut",(s.done?"✓ ":"")+"Étape "+(i+1)+" · "+u.t+(s.acquired?" (acquise au diagnostic)":""));
     const b=el("span","badge",u.lvl);
     const go=el("button","btn sm ghost",s.done?"Revoir":"Travailler");go.onclick=()=>startUnit(u,i);
     row.append(lab,b,go);list.append(row);
@@ -1794,7 +1794,7 @@ function applyReviewed(rev){
 function renderDue(){
   const n=dueItems().length;const b=$("#reviewBtn");
   if(b){
-    b.hidden=!n;b.textContent="RÃ©vision du jour ("+n+")";
+    b.hidden=!n;b.textContent="Révision du jour ("+n+")";
   }
 }
 
@@ -1854,24 +1854,24 @@ function renderScn(){
   g.textContent="";
   g.style.marginTop="8px";
   const icons={
-    taaruf:"ðŸ¤",house_ar:"ðŸ ",cafe:"â˜•",job:"ðŸ’¼",
-    doc:"ðŸ©º",trip:"âœˆï¸",work:"ðŸ¢",free:"ðŸ—£ï¸",diag:"ðŸ§­"
+    taaruf:"\uD83E\uDD1D",house_ar:"\uD83C\uDFE0",cafe:"\u2615",job:"\uD83D\uDCBC",
+    doc:"\uD83E\uDE7A",trip:"\u2708\uFE0F",work:"\uD83C\uDFE2",free:"\uD83D\uDDE3\uFE0F",diag:"\uD83E\uDDED"
   };
   const durations={
-    diag:"5 min",taaruf:"3 min",house_ar:"4 min",cafe:"3 min",
-    job:"5 min",doc:"4 min",trip:"4 min",work:"5 min",free:"Libre"
+    taaruf:"\uD83E\uDD1D",house_ar:"\uD83C\uDFE0",cafe:"\u2615",job:"\uD83D\uDCBC",
+    doc:"\uD83E\uDE7A",trip:"\u2708\uFE0F",work:"\uD83C\uDFE2",free:"\uD83D\uDDE3\uFE0F",diag:"\uD83E\uDDED"
   };
   const levels={
-    diag:"Ã‰valuation",taaruf:"A1 DÃ©butant",house_ar:"A1+",cafe:"A1-A2",
-    job:"B1",doc:"A2",trip:"A2",work:"B1",free:"Tous niveaux"
+    diag:"Évaluation",taaruf:"A1 Débutant",house_ar:"A1+",cafe:"A1-A2",
+    doc:"\uD83E\uDE7A",trip:"\u2708\uFE0F",work:"\uD83C\uDFE2",free:"\uD83D\uDDE3\uFE0F",diag:"\uD83E\uDDED"
   };
   SCENARIOS.filter(s=>!s.lang||s.lang===S.lang).forEach(s=>{
     const card=el("div","scn-card"+(s.first?" first":""));
     const topRow=el("div","scn-badges-row");
-    topRow.append(el("span","scn-badge duration","â±ï¸ "+(durations[s.id]||"3-5 min")));
+    topRow.append(el("span","scn-badge duration","\u23F1\uFE0F "+(durations[s.id]||"3-5 min")));
     topRow.append(el("span","scn-badge",levels[s.id]||"A1-B1"));
     card.append(topRow);
-    const icon=icons[s.id]||"ðŸŽ­";
+    const icon=icons[s.id]||"\uD83C\uDFAD";
     card.append(el("b",null,icon+" "+s.t));
     card.append(el("span","small muted",s.d));
     card.onclick=()=>start(s);
@@ -1886,7 +1886,7 @@ function renderLast(){
   S.resume=r;if(card)card.hidden=false;
   const d=new Date(r.ts).toLocaleDateString("fr-FR",{day:"numeric",month:"long"});
   const lt=$("#lastText");
-  if(lt)lt.textContent=d+" Â· niveau estimÃ© "+(r.level||"?")+". "+(r.summary||"")+(r.next?" Prochain sujet suggÃ©rÃ© : "+r.next+".":"");
+  if(lt)lt.textContent=d+" · niveau estimé "+(r.level||"?")+". "+(r.summary||"")+(r.next?" Prochain sujet suggéré : "+r.next+".":"");
 }
 function seg(id,attr,fn){
   const elSeg=$(id);
@@ -1907,7 +1907,7 @@ if($("#vow"))$("#vow").addEventListener("change",e=>{S.ar.vow=e.target.checked;s
 if($("#trl"))$("#trl").addEventListener("change",e=>{S.ar.tr=e.target.checked;save()});
 if($("#studied"))$("#studied").addEventListener("change",e=>{S.studied=e.target.value.trim()});
 
-/* rÃ©glages du fournisseur */
+/* réglages du fournisseur */
 (function(){
   const sel=$("#provider");
   if(!sel)return;
@@ -1916,7 +1916,7 @@ if($("#studied"))$("#studied").addEventListener("change",e=>{S.studied=e.target.
 function fillCfg(){
   const p=S.cfg.provider||"gemini",d=PROVIDERS[p]||PROVIDERS.gemini,m=mods();
   if($("#provider"))$("#provider").value=p;
-  if($("#provNote"))$("#provNote").textContent=d.note+" ClÃ© Ã  crÃ©er sur "+d.keyUrl+". En cas de doute, utilisez Â« Voir les modÃ¨les disponibles Â».";
+  if($("#provNote"))$("#provNote").textContent=d.note+" Clé à créer sur "+d.keyUrl+". En cas de doute, utilisez « Voir les modèles disponibles ».";
   if($("#apikey"))$("#apikey").value=curKey();
   if($("#mChat"))$("#mChat").value=m.chat;
   if($("#mHeavy"))$("#mHeavy").value=m.heavy;
@@ -1929,7 +1929,7 @@ function updateKeyDetectNote(){
   if(!note)return;
   if(det&&PROVIDERS[det]){
     note.style.display="block";
-    note.textContent="âœ“ ClÃ© reconnue : "+PROVIDERS[det].name;
+    note.textContent="✓ Clé reconnue : "+PROVIDERS[det].name;
     if($("#provider")&&$("#provider").value!==det){
       $("#provider").value=det;
       S.cfg.provider=det;
@@ -1988,7 +1988,7 @@ if($("#provider")) $("#provider").addEventListener("change",e=>{
   $("#mChat").value="";$("#mHeavy").value="";
   save();fillCfg();$("#testRes").textContent="";$("#modelList").textContent="";
 });
-if($("#saveKey")) $("#saveKey").onclick = () => {readCfg();flash("RÃ©glages enregistrÃ©s."); };
+if($("#saveKey")) $("#saveKey").onclick = () => {readCfg();flash("Réglages enregistrés."); };
 $("#resetCfgBtn").onclick=async()=>{
   const p=S.cfg.provider||"gemini",d=PROVIDERS[p]||PROVIDERS.gemini;
   let best=d.chat;
@@ -2295,7 +2295,7 @@ function bubbleT(d){
   if(d.tr&&typeof d.tr==="string"&&d.tr.trim()){trEl=el("div","tr",d.tr);trEl.dir="ltr";b.append(trEl)}
   if(d.fr&&typeof d.fr==="string"&&d.fr.trim()&&S.imm<2&&S.scn.id!=="check"){glossEl=el("div","gloss",d.fr);b.append(glossEl)}
 
-  // Sous la bulle, deux boutons ronds discrets : ðŸ”Š Reecouter et ðŸŒ Traduire
+  // Sous la bulle, deux boutons ronds discrets : \uD83D\uDD0A Reecouter et \uD83C\uDF10 Traduire
   const tools=el("div","bubble-actions-row");
   const say=el("button","bubble-round-btn","\uD83D\uDD0A");
   say.setAttribute("title","Reecouter la phrase");
@@ -2946,7 +2946,7 @@ function renderAlpha(){
   row.append(wb,rb);
   box.append(row);
   const det=document.createElement("details");
-  det.append(el("summary","small","Toutes les lettres et règles"));
+  det.append(el("summary","small","Toutes les étapes du parcours"));
   const g=el("div","lgrid");g.style.marginTop="10px";
   ALPHA.forEach((a,i)=>{const c=el("div","lchip"+(knownL(i)?" on":""),a.l);g.append(c)});
   det.append(g);
@@ -3263,10 +3263,10 @@ if(hintBtn){
     if(isTutor){
       const suggestions=S.lang==="ar"
         ?[
-          "Comment dit-on Â« enchantÃ© de faire votre connaissance Â» en arabe ?",
-          "Peux-tu m'expliquer la diffÃ©rence entre la fat-ha et la kasra ?",
-          "Comment exprimer Â« oÃ¹ se trouve la gare ? Â» avec le Tashkeel complet ?",
-          "Donne-moi 3 expressions utiles du quotidien avec leur phonÃ©tique et traduction."
+          "Comment dit-on « enchanté de faire votre connaissance » en arabe ?",
+          "Peux-tu m'expliquer la différence entre la fat-ha et la kasra ?",
+          "Comment exprimer « où se trouve la gare ? » avec le Tashkeel complet ?",
+          "Donne-moi 3 expressions utiles du quotidien avec leur phonétique et traduction."
         ]
         :(S.lang==="en"
           ?["How do I politely order food?","What is the difference between 'make' and 'do'?","Can you teach me 3 common idioms?"]
@@ -3277,18 +3277,18 @@ if(hintBtn){
         if(drawer)drawer.hidden=false;
         inp.focus();
       }
-      flash("ðŸ’¡ Suggestion prÃªte : Â« "+chosen.slice(0,35)+"â€¦ Â»");
+      flash("\uD83D\uDCA1 Suggestion prête : « "+chosen.slice(0,35)+"… »");
     }else{
       if(S.targets&&S.targets.length){
         const remaining=S.targets.filter(t=>!(S.used||[]).includes(t));
         const hintText=remaining.length?remaining[0]:S.targets[0];
-        flash("ðŸ’¡ Expression recommandÃ©e : Â« "+hintText+" Â»");
+        flash("\uD83D\uDCA1 Expression recommandée : « "+hintText+" »");
         if(inp){
           inp.value=hintText;
           if(drawer)drawer.hidden=false;
         }
       }else{
-        flash("ðŸ’¡ RÃ©pondez spontanÃ©ment au professeur ou posez une question.");
+        flash("\uD83D\uDCA1 Répondez spontanément au professeur ou posez une question.");
       }
     }
   });
@@ -3333,14 +3333,14 @@ function switchMainTab(tabName){
 
 // Bloc d'initialisation securise
 function initApp(){
-  console.log('App initialisÃ©e');
+  console.log('App initialisée');
 
   // Bouton conversation informelle / start
   const startBtn = document.querySelector('.btn-primary') || document.getElementById('startConversationBtn') || document.getElementById('informalBtn');
   if (startBtn) {
     startBtn.onclick = (e) => {
       e.preventDefault();
-      const scn = SCENARIOS.find(s => s.id === "free") || {id:"free",t:"Conversation libre",d:"Parler de ce que vous voulez",p:"Conversation libre : suis les sujets de l'apprenant, relance avec curiositÃ©."};
+      const scn = SCENARIOS.find(s => s.id === "free") || {id:"free",t:"Conversation libre",d:"Parler de ce que vous voulez",p:"Conversation libre : suis les sujets de l'apprenant, relance avec curiosité."};
       start(scn);
     };
   }
