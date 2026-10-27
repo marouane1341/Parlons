@@ -624,15 +624,20 @@ div[hidden],
     <section id="home" class="col">
     <!-- Onglet 1 : Lecons & Parcours -->
     <div id="tabLessonsView" class="tab-view tab-content">
-            <div class="panel informal-hero-card" id="informalCard">
+      <div class="panel informal-hero-card" id="informalCard">
         <div class="row spread" style="align-items:center;margin-bottom:6px">
           <span class="label" style="color:var(--accent);margin:0;font-weight:700">&#9889; Pratique directe</span>
           <span class="chip" style="font-size:11px;padding:2px 8px">Sans sc&eacute;nario</span>
         </div>
         <h3 style="margin:0 0 4px 0;font-size:17px;font-weight:700">Conversation informelle</h3>
         <p style="margin:0 0 12px 0;color:var(--muted);font-size:14px">&Eacute;changez librement avec le professeur, parlez de ce que vous voulez sans contrainte.</p>
-        <button class="btn" id="informalBtn" type="button" style="width:100%;font-size:16px;padding:12px;font-weight:600;background:var(--accent);color:#fff;pointer-events:auto!important;cursor:pointer!important" style="width:100%;font-size:16px;padding:12px;font-weight:600">&#128483;&#65039; D&eacute;marrer la conversation informelle</button>
+        <button class="btn btn-primary" id="informalBtn" type="button" style="width:100%;font-size:16px;padding:12px;font-weight:600;background:var(--accent);color:#fff;pointer-events:auto!important;cursor:pointer!important">&#128483;&#65039; D&eacute;marrer la conversation informelle</button>
       </div>
+
+      <div class="panel" id="alphaBox" hidden></div>
+      <div class="panel" id="nlBox" hidden></div>
+      <div class="panel" id="pathBox"></div>
+    </div>
 
     <!-- Onglet 2 : Jeux de role & Situations -->
     <div id="tabRoleplayView" class="tab-view tab-content" hidden>
@@ -883,19 +888,19 @@ div[hidden],
 
   <!-- Barre de navigation inferieure fixe (4 onglets natifs) -->
   <nav id="bottomNav" class="bottom-nav" aria-label="Navigation principale">
-    <button class="bnav-btn nav-tab active" data-tab="lessons" id="navLessonsBtn" aria-label="LeÃ§ons" aria-selected="true">
+    <button class="bnav-btn nav-tab nav-item nav-tab active" data-tab="lessons" id="navLessonsBtn" aria-label="LeÃ§ons" aria-selected="true">
       <span class="bnav-icon">&#128506;&#65039;</span>
       <span class="bnav-label">Le&ccedil;ons</span>
     </button>
-    <button class="bnav-btn nav-tab" data-tab="roleplay" id="navRoleplayBtn" aria-label="Jeux de rÃ´le" aria-selected="false">
+    <button class="bnav-btn nav-tab nav-item nav-tab" data-tab="roleplay" id="navRoleplayBtn" aria-label="Jeux de rÃ´le" aria-selected="false">
       <span class="bnav-icon">&#127917;</span>
       <span class="bnav-label">Jeux de r&ocirc;le</span>
     </button>
-    <button class="bnav-btn nav-tab" data-tab="tutor" id="navTutorBtn" aria-label="Tuteur Libre" aria-selected="false">
+    <button class="bnav-btn nav-tab nav-item nav-tab" data-tab="tutor" id="navTutorBtn" aria-label="Tuteur Libre" aria-selected="false">
       <span class="bnav-icon">&#128172;</span>
       <span class="bnav-label">Tuteur Libre</span>
     </button>
-    <button class="bnav-btn nav-tab" data-tab="profile" id="navProfileBtn" aria-label="Profil &amp; RÃ©glages" aria-selected="false">
+    <button class="bnav-btn nav-tab nav-item nav-tab" data-tab="profile" id="navProfileBtn" aria-label="Profil &amp; RÃ©glages" aria-selected="false">
       <span class="bnav-icon">&#9881;&#65039;</span>
       <span class="bnav-label">Profil</span>
     </button>
@@ -907,6 +912,10 @@ div[hidden],
 "use strict";
 const $=s=>document.querySelector(s);
 const el=(t,c,x)=>{const e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e};
+const safeClick=(sel,fn)=>{const e=$(sel);if(e)e.onclick=fn;return e};
+const safeOn=(sel,evt,fn)=>{const e=$(sel);if(e)e.addEventListener(evt,fn);return e};
+window.openTutorView=function(){if(typeof startTutor==="function")startTutor()};
+window.switchTab=function(id){if(typeof switchMainTab==="function")switchMainTab(id)};
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 
 const SPEECH={en:{tts:"en-GB",stt:"en-GB"},ar:{tts:"ar-SA",stt:"ar-SA"},nl:{tts:"nl-NL",stt:"nl-NL"},fr:{tts:"fr-FR",stt:"fr-FR"}};
@@ -1784,15 +1793,18 @@ function applyReviewed(rev){
 }
 function renderDue(){
   const n=dueItems().length;const b=$("#reviewBtn");
-  b.hidden=!n;b.textContent="Révision du jour ("+n+")";
+  if(b){
+    b.hidden=!n;b.textContent="RÃ©vision du jour ("+n+")";
+  }
 }
 
 /* ---------- accueil ---------- */
 function syncUI(){
-  $("#goal").value=S.goals[S.lang]||"";
-  $("#level").value=S.level;
-  $("#vow").checked=!!S.ar.vow;$("#trl").checked=!!S.ar.tr;
-  $("#arOpts").hidden=S.lang!=="ar";
+  const g=$("#goal");if(g)g.value=S.goals[S.lang]||"";
+  const l=$("#level");if(l)l.value=S.level;
+  const v=$("#vow");if(v)v.checked=!!S.ar.vow;
+  const tr=$("#trl");if(tr)tr.checked=!!S.ar.tr;
+  const ao=$("#arOpts");if(ao)ao.hidden=S.lang!=="ar";
   fillCfg();fillVoiceSelect();renderScn();renderLast();renderDue();renderPath();renderAlpha();renderDutch();modeNote();updateAvatar();
 }
 function renderDutch(){
@@ -1865,7 +1877,69 @@ function renderScn(){
     card.onclick=()=>start(s);
     g.append(card);
   });
-}else{
+}
+
+function renderLast(){
+  const r=S.history.find(x=>x.lang===S.lang);
+  const card=$("#lastCard");
+  if(!r){if(card)card.hidden=true;S.resume=null;return}
+  S.resume=r;if(card)card.hidden=false;
+  const d=new Date(r.ts).toLocaleDateString("fr-FR",{day:"numeric",month:"long"});
+  const lt=$("#lastText");
+  if(lt)lt.textContent=d+" Â· niveau estimÃ© "+(r.level||"?")+". "+(r.summary||"")+(r.next?" Prochain sujet suggÃ©rÃ© : "+r.next+".":"");
+}
+function seg(id,attr,fn){
+  const elSeg=$(id);
+  if(!elSeg)return;
+  elSeg.addEventListener("click",e=>{
+    const b=e.target.closest("button");if(!b)return;
+    elSeg.querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x===b?"true":"false"));
+    fn(b.dataset[attr]);
+  });
+}
+seg("#langSeg","lang",v=>{S.lang=v;syncUI()});
+seg("#modeSeg","mode",v=>{S.mode=v;modeNote()});
+seg("#immSeg","imm",v=>{S.imm=+v});
+if($("#micro"))$("#micro").onchange=e=>{S.micro=e.target.checked};
+if($("#goal"))$("#goal").addEventListener("change",e=>{S.goals[S.lang]=e.target.value.trim();save()});
+if($("#level"))$("#level").addEventListener("change",e=>{S.level=e.target.value;save()});
+if($("#vow"))$("#vow").addEventListener("change",e=>{S.ar.vow=e.target.checked;save()});
+if($("#trl"))$("#trl").addEventListener("change",e=>{S.ar.tr=e.target.checked;save()});
+if($("#studied"))$("#studied").addEventListener("change",e=>{S.studied=e.target.value.trim()});
+
+/* rÃ©glages du fournisseur */
+(function(){
+  const sel=$("#provider");
+  if(!sel)return;
+  Object.keys(PROVIDERS).forEach(k=>sel.append(new Option(PROVIDERS[k].name,k)));
+})();
+function fillCfg(){
+  const p=S.cfg.provider||"gemini",d=PROVIDERS[p]||PROVIDERS.gemini,m=mods();
+  if($("#provider"))$("#provider").value=p;
+  if($("#provNote"))$("#provNote").textContent=d.note+" ClÃ© Ã  crÃ©er sur "+d.keyUrl+". En cas de doute, utilisez Â« Voir les modÃ¨les disponibles Â».";
+  if($("#apikey"))$("#apikey").value=curKey();
+  if($("#mChat"))$("#mChat").value=m.chat;
+  if($("#mHeavy"))$("#mHeavy").value=m.heavy;
+  updateKeyDetectNote();
+}
+function updateKeyDetectNote(){
+  const val=$("#apikey")?$("#apikey").value.trim():"";
+  const det=detectProvider(val);
+  const note=$("#keyDetectNote");
+  if(!note)return;
+  if(det&&PROVIDERS[det]){
+    note.style.display="block";
+    note.textContent="âœ“ ClÃ© reconnue : "+PROVIDERS[det].name;
+    if($("#provider")&&$("#provider").value!==det){
+      $("#provider").value=det;
+      S.cfg.provider=det;
+      if($("#mChat"))$("#mChat").value="";
+      if($("#mHeavy"))$("#mHeavy").value="";
+      const m=mods();
+      if($("#mChat"))$("#mChat").value=m.chat;
+      if($("#mHeavy"))$("#mHeavy").value=m.heavy;
+    }
+  }else{
     note.style.display="none";
   }
 }
@@ -1905,16 +1979,16 @@ function openSettings(msg){
 function closeSettings(){
   switchMainTab("lessons");
 }
-$("#apikey").addEventListener("input",()=>{
+if($("#apikey")) $("#apikey").addEventListener("input",()=>{
   updateKeyDetectNote();
   readCfg();
 });
-$("#provider").addEventListener("change",e=>{
+if($("#provider")) $("#provider").addEventListener("change",e=>{
   S.cfg.provider=e.target.value;
   $("#mChat").value="";$("#mHeavy").value="";
   save();fillCfg();$("#testRes").textContent="";$("#modelList").textContent="";
 });
-$("#saveKey").onclick=()=>{readCfg();flash("Réglages enregistrés.")};
+if($("#saveKey")) $("#saveKey").onclick = () => {readCfg();flash("RÃ©glages enregistrÃ©s."); };
 $("#resetCfgBtn").onclick=async()=>{
   const p=S.cfg.provider||"gemini",d=PROVIDERS[p]||PROVIDERS.gemini;
   let best=d.chat;
@@ -1945,7 +2019,7 @@ async function testerConnexionIA(){
   }finally{btn.disabled=false}
 }
 $("#testKey").onclick=testerConnexionIA;
-$("#testMicBtn").onclick=async()=>{
+if($("#testMicBtn")) $("#testMicBtn").onclick = async () => {
   const out=$("#testMicRes");out.style.display="block";out.style.color="";out.textContent="🔴 Micro ouvert… Dites quelques mots à voix haute (test en direct)…";
   try{
     const r=await listenOnce(t=>{out.textContent="Écoute en cours : « "+t+" »"});
@@ -1963,7 +2037,7 @@ $("#testMicBtn").onclick=async()=>{
       :"❌ Erreur micro ("+(e&&e.code||"inconnu")+"). Vérifiez que Chrome a l'autorisation Micro dans les paramètres de votre téléphone.";
   }
 };
-$("#listModels").onclick=async()=>{
+if($("#listModels")) $("#listModels").onclick = async () => {
   readCfg();
   const out=$("#testRes");out.style.color="";out.textContent="Recherche des modèles chez "+(PROVIDERS[S.cfg.provider]&&PROVIDERS[S.cfg.provider].name||S.cfg.provider)+"…";
   try{
@@ -1977,18 +2051,18 @@ $("#listModels").onclick=async()=>{
     out.textContent=errText(e);
   }
 };
-$("#voiceSel").addEventListener("change",e=>{
+if($("#voiceSel")) $("#voiceSel").addEventListener("change",e=>{
   S.cfg.voice[S.lang]=e.target.value;save();
   const sample={en:"Hello, nice to meet you.",ar:"مَرْحَبًا، سَعِيدٌ بِلِقَائِكَ.",nl:"Hallo, aangenaam kennis te maken."}[S.lang];
   speak(sample);
 });
-$("#exportBtn").onclick=()=>{
+if($("#exportBtn")) $("#exportBtn").onclick = () => {
   const data={goals:S.goals,items:S.items,alpha:S.alpha,ar:S.ar,level:S.level,prog:S.prog,history:S.history};
   const b=new Blob([JSON.stringify(data,null,1)],{type:"application/json"});
   const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="parlons-donnees.json";
   document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1500);
 };
-$("#importFile").addEventListener("change",async e=>{
+if($("#importFile")) $("#importFile").addEventListener("change",async e=>{
   const f=e.target.files[0];if(!f)return;
   try{
     const d=JSON.parse(await f.text());
@@ -2366,9 +2440,9 @@ function send(){
   submitUser(v,false);
 }
 $("#sendBtn").onclick=send;
-$("#input").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send()}});
+safeOn("#input","keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send()}});
 $("#input").addEventListener("input",e=>{const t=e.target;t.style.height="auto";t.style.height=Math.min(140,t.scrollHeight)+"px"});
-$("#backBtn").onclick=()=>{leaveSession();show("home");renderDue();renderPath()};
+safeClick("#backBtn",()=>{leaveSession();show("home");renderDue();renderPath()});
 
 /* micro : un tour de parole */
 async function micTap(){
@@ -2460,8 +2534,8 @@ function alignWords(target,heard){
 }
 const tutorBtn=$("#tutorBtn");if(tutorBtn)tutorBtn.onclick=()=>startTutor();
 const tutorSttBtn=$("#tutorSttBtn");if(tutorSttBtn)tutorSttBtn.onclick=()=>{S.tutorStt=(S.tutorStt==="fr"?S.lang:"fr");updateTutorSttUI();};
-$("#repeatBtn").onclick=()=>openRepeat();
-$("#repeatBack").onclick=()=>{leaveSession();show("home")};
+if($("#repeatBtn")) $("#repeatBtn").onclick = () => openRepeat();
+if($("#repeatBack")) $("#repeatBack").onclick = () => {leaveSession();show("home")};
 async function openRepeat(){
   if(!curKey()){openSettings("Collez d'abord votre clé API pour démarrer.");return}
   const body=$("#repeatBody");body.textContent="";
@@ -2532,8 +2606,8 @@ function renderRepeat(phrases){
 }
 
 /* ---------- écoute ---------- */
-$("#listenBtn").onclick=()=>openListen();
-$("#listenBack").onclick=()=>{stopSpeak();show("home")};
+if($("#listenBtn")) $("#listenBtn").onclick = () => openListen();
+if($("#listenBack")) $("#listenBack").onclick = () => {stopSpeak();show("home")};
 async function openListen(){
   if(!curKey()){openSettings("Collez d'abord votre clé API pour démarrer.");return}
   const body=$("#listenBody");body.textContent="";
@@ -3125,16 +3199,16 @@ function startWords(){
 }
 
 /* ---------- démarrage ---------- */
-$("#resumeBtn").onclick=()=>{
+if($("#resumeBtn")) $("#resumeBtn").onclick = ()=>{
   const sc=SCENARIOS.find(s=>s.id==="free");
   start(Object.assign({},sc,{id:"resume",t:"Reprise de la conversation",p:"Reprise : continue la conversation de la dernière séance et travaille les points faibles notés, sans les annoncer comme une leçon."}));
 };
-$("#reviewBtn").onclick=()=>{
+if($("#reviewBtn")) $("#reviewBtn").onclick = ()=>{
   const due=dueItems();if(!due.length)return;
   S.reviewItems=due.slice(0,6);
   start({id:"review",t:"Révision du jour",p:"Séance de révision courte : fais retravailler à l'apprenant les éléments listés, en situation."});
 };
-$("#courseBtn").onclick=()=>{
+if($("#courseBtn")) $("#courseBtn").onclick = ()=>{
   const v=$("#studied").value.trim();
   if(!v){$("#studied").focus();return}
   S.studied=v;
@@ -3154,8 +3228,10 @@ if(location.hash==="#alpha"){
 }
 syncUI();
 // Initialisation du theme visuel
-const savedTheme=localStorage.getItem("parlons.theme")||"studio";
-applyTheme(savedTheme);
+try{
+  const savedTheme=localStorage.getItem("parlons.theme")||"studio";
+  applyTheme(savedTheme);
+}catch(e){}
 
 const tsm=$("#themeSelModal");if(tsm)tsm.addEventListener("change",e=>applyTheme(e.target.value));
 const ob=$("#cfgOpenBtn");if(ob)ob.addEventListener("click",()=>openSettings());
@@ -3187,10 +3263,10 @@ if(hintBtn){
     if(isTutor){
       const suggestions=S.lang==="ar"
         ?[
-          "Comment dit-on Â« enchante de faire votre connaissance Â» en arabe ?",
-          "Peux-tu m'expliquer la difference entre la fat-ha et la kasra ?",
-          "Comment exprimer Â« ou se trouve la gare ? Â» avec le Tashkeel complet ?",
-          "Donne-moi 3 expressions utiles du quotidien avec leur phonetique et traduction."
+          "Comment dit-on Â« enchantÃ© de faire votre connaissance Â» en arabe ?",
+          "Peux-tu m'expliquer la diffÃ©rence entre la fat-ha et la kasra ?",
+          "Comment exprimer Â« oÃ¹ se trouve la gare ? Â» avec le Tashkeel complet ?",
+          "Donne-moi 3 expressions utiles du quotidien avec leur phonÃ©tique et traduction."
         ]
         :(S.lang==="en"
           ?["How do I politely order food?","What is the difference between 'make' and 'do'?","Can you teach me 3 common idioms?"]
@@ -3201,31 +3277,20 @@ if(hintBtn){
         if(drawer)drawer.hidden=false;
         inp.focus();
       }
-      flash("\uD83D\uDCA1 Suggestion prete : Â« "+chosen.slice(0,35)+"â€¦ Â»");
+      flash("ðŸ’¡ Suggestion prÃªte : Â« "+chosen.slice(0,35)+"â€¦ Â»");
     }else{
       if(S.targets&&S.targets.length){
         const remaining=S.targets.filter(t=>!(S.used||[]).includes(t));
         const hintText=remaining.length?remaining[0]:S.targets[0];
-        flash("\uD83D\uDCA1 Expression recommandee : Â« "+hintText+" Â»");
+        flash("ðŸ’¡ Expression recommandÃ©e : Â« "+hintText+" Â»");
         if(inp){
           inp.value=hintText;
           if(drawer)drawer.hidden=false;
         }
       }else{
-        flash("\uD83D\uDCA1 Repondez spontanement au professeur ou posez une question.");
+        flash("ðŸ’¡ RÃ©pondez spontanÃ©ment au professeur ou posez une question.");
       }
     }
-  });
-}
-
-// Bouton Conversation Informelle dans l'onglet LeÃ§ons avec e.preventDefault()
-const infBtn = $("#informalBtn");
-if(infBtn){
-  infBtn.addEventListener("click", (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const scn = SCENARIOS.find(s => s.id === "free") || {id:"free",t:"Conversation libre",d:"Parler de ce que vous voulez",p:"Conversation libre : suis les sujets de l'apprenant, relance avec curiositÃ©."};
-    start(scn);
   });
 }
 
@@ -3237,7 +3302,7 @@ function switchMainTab(tabName){
   }
   show("home");
 
-  document.querySelectorAll(".bnav-btn, .nav-tab").forEach(tab => {
+  document.querySelectorAll(".bnav-btn, .nav-tab, .nav-item").forEach(tab => {
     const active = (tab.dataset.tab === tabName);
     tab.classList.toggle("active", active);
     tab.setAttribute("aria-selected", active ? "true" : "false");
@@ -3266,20 +3331,46 @@ function switchMainTab(tabName){
   }
 }
 
-// Attacher formellement les ecouteurs de clics sur les 4 onglets avec e.preventDefault()
-document.querySelectorAll(".bnav-btn, .nav-tab").forEach(tab => {
-  tab.addEventListener("click", (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const target = tab.dataset.tab;
-    switchMainTab(target);
-  });
-});
+// Bloc d'initialisation securise
+function initApp(){
+  console.log('App initialisÃ©e');
 
-if(!curKey()){
-  switchMainTab("profile");
+  // Bouton conversation informelle / start
+  const startBtn = document.querySelector('.btn-primary') || document.getElementById('startConversationBtn') || document.getElementById('informalBtn');
+  if (startBtn) {
+    startBtn.onclick = (e) => {
+      e.preventDefault();
+      const scn = SCENARIOS.find(s => s.id === "free") || {id:"free",t:"Conversation libre",d:"Parler de ce que vous voulez",p:"Conversation libre : suis les sujets de l'apprenant, relance avec curiositÃ©."};
+      start(scn);
+    };
+  }
+
+  // 4 onglets de navigation
+  document.querySelectorAll('.nav-item, .nav-tab, .bnav-btn').forEach(btn => {
+    btn.onclick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const targetId = btn.getAttribute('data-tab');
+      switchMainTab(targetId);
+    };
+  });
+
+  // Premier affichage selon cle API
+  try{
+    if(!curKey()){
+      switchMainTab("profile");
+    } else {
+      switchMainTab("lessons");
+    }
+  }catch(err){
+    switchMainTab("lessons");
+  }
+}
+
+if(document.readyState === 'loading'){
+  window.addEventListener('DOMContentLoaded', initApp);
 } else {
-  switchMainTab("lessons");
+  initApp();
 }/* ---------- gestion PWA & hors-ligne ---------- */
 let deferredInstallPrompt=null;
 window.addEventListener("beforeinstallprompt",e=>{
