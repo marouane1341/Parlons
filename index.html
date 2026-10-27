@@ -754,8 +754,8 @@ div[hidden],
         Installer
       </button>
       <div class="seg" role="group" aria-label="Langue" id="langSeg">
-        <button data-lang="en" aria-pressed="true">&#127468;&#127463; Anglais</button>
-        <button data-lang="ar" aria-pressed="false">&#127480;&#127462; Arabe</button>
+        <button data-lang="ar" aria-pressed="true">&#127480;&#127462; Arabe</button>
+        <button data-lang="en" aria-pressed="false">&#127468;&#127463; Anglais</button>
         <button data-lang="nl" aria-pressed="false">&#127475;&#127473; N&eacute;erlandais</button>
       </div>
       <button id="cfgOpenBtn" class="icon-btn" title="Param&egrave;tres (IA, voix, th&egrave;me)" aria-label="Param&egrave;tres">&#9881;&#65039;</button>
@@ -816,7 +816,14 @@ div[hidden],
           <!-- Carte Yasmine -->
           <div class="tutor-card active" data-tutor="yasmine" id="tutorCardYasmine" onclick="selectTutor('yasmine')">
             <div class="row spread" style="align-items:center">
-              <span style="font-size:28px">&#129525;</span>
+              <div class="tutor-avatar-icon" style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg, #FEF3C7 0%, #FDE68A 50%, #F59E0B 100%);display:flex;align-items:center;justify-content:center;box-shadow:0 3px 10px rgba(245,158,11,0.25);border:2px solid #FFFBEB;flex-shrink:0;">
+                <svg viewBox="0 0 36 36" width="30" height="30" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                  <circle cx="18" cy="12" r="5" fill="#92400E"/>
+                  <path d="M11 15C11 9 14.5 7 18 7C21.5 7 25 9 25 15C25 17.5 23.5 19 21.5 19.5C20 17.5 16 17.5 14.5 19.5C12.5 19 11 17.5 11 15Z" fill="#B45309"/>
+                  <path d="M9 30C9 23.5 13.5 21 18 21C22.5 21 27 23.5 27 30H9Z" fill="#D97706"/>
+                  <circle cx="18" cy="8" r="1.5" fill="#FEF3C7"/>
+                </svg>
+              </div>
               <span class="badge" style="font-size:10px;background:#fef3c7;color:#b45309">Douce</span>
             </div>
             <div>
@@ -833,7 +840,14 @@ div[hidden],
           <!-- Carte Tariq -->
           <div class="tutor-card" data-tutor="tariq" id="tutorCardTariq" onclick="selectTutor('tariq')">
             <div class="row spread" style="align-items:center">
-              <span style="font-size:28px">&#129491;</span>
+              <div class="tutor-avatar-icon" style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg, #DBEAFE 0%, #93C5FD 50%, #2563EB 100%);display:flex;align-items:center;justify-content:center;box-shadow:0 3px 10px rgba(37,99,235,0.25);border:2px solid #EFF6FF;flex-shrink:0;">
+                <svg viewBox="0 0 36 36" width="30" height="30" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                  <circle cx="18" cy="12.5" r="5" fill="#1E3A8A"/>
+                  <path d="M13 11C13 8 15 6.5 18 6.5C21 6.5 23 8 23 11C23 11.8 22.5 12 21.5 11.5C20.5 9 15.5 9 14.5 11.5C13.5 12 13 11.8 13 11Z" fill="#0F172A"/>
+                  <path d="M9 30C9 24 13 21.5 18 21.5C23 21.5 27 24 27 30H9Z" fill="#1D4ED8"/>
+                  <path d="M16 21.5L18 24.5L20 21.5" stroke="#93C5FD" stroke-width="1.2" fill="none"/>
+                </svg>
+              </div>
               <span class="badge" style="font-size:10px;background:#dbeafe;color:#1e40af">Dynamique</span>
             </div>
             <div>
@@ -1185,7 +1199,7 @@ const SCENARIOS=[
 const BOX_DAYS=[1,3,7,14,30];
 const KEY="parlons.app.v1";
 
-const S={lang:"en",mode:"voice",imm:0,micro:false,scn:null,turns:[],busy:false,ctl:null,view:"home",
+const S={lang:"ar",mode:"voice",imm:0,micro:false,scn:null,turns:[],busy:false,ctl:null,view:"home",
   goals:{},items:{},alpha:{},level:"auto",ar:{vow:true,tr:false},history:[],resume:null,prog:{},
   cfg:{provider:"gemini",keys:{},models:{},voice:{}},
   targets:[],reviewItems:[],studied:"",
@@ -1194,7 +1208,7 @@ const S={lang:"en",mode:"voice",imm:0,micro:false,scn:null,turns:[],busy:false,c
 
 /* ---------- stockage ---------- */
 function save(){
-  try{localStorage.setItem(KEY,JSON.stringify({goals:S.goals,items:S.items,alpha:S.alpha,ar:S.ar,level:S.level,cfg:S.cfg,prog:S.prog,history:S.history.slice(0,40)}))}catch(e){}
+  try{localStorage.setItem(KEY,JSON.stringify({lang:S.lang,goals:S.goals,items:S.items,alpha:S.alpha,ar:S.ar,level:S.level,cfg:S.cfg,prog:S.prog,history:S.history.slice(0,40)}))}catch(e){}
 }
 function detectProvider(k){
   if(!k||typeof k!=="string")return null;
@@ -1207,6 +1221,7 @@ function detectProvider(k){
 function load(){
   try{
     const d=JSON.parse(localStorage.getItem(KEY)||"null");if(!d)return;
+    if(d.lang&&LANGS[d.lang])S.lang=d.lang;
     if(d.goals)S.goals=d.goals;if(d.items)S.items=d.items;if(d.ar)S.ar=d.ar;if(d.level)S.level=d.level;
     if(d.prog)S.prog=d.prog;
     if(d.alpha)S.alpha=d.alpha;
@@ -1709,41 +1724,41 @@ function speakBilingualText(rawText) {
 
     // 3. Recuperer les voix Google installees selon le tuteur actif (Yasmine=femme, Tariq=homme)
     const activeTutor = getActiveTutor();
-    const voices = (window.speechSynthesis && window.speechSynthesis.getVoices()) || VOICES || [];
-    let arabicVoice = null;
+    const isFemale = (activeTutor.gender === 'female' || activeTutor.id === 'yasmine');
+    const tutorPitch = isFemale ? 1.12 : 0.88;
 
-    if (activeTutor.gender === 'female') {
-      arabicVoice = voices.find(v => v.lang && v.lang.startsWith('ar') && (
-        v.name.toLowerCase().includes('female') ||
-        v.name.includes('Wavenet-A') ||
-        v.name.includes('Neural2-A') ||
-        v.name.includes('ar-XA-Wavenet-A') ||
-        v.name.includes('ar-SA-Standard-A') ||
-        v.name.includes('Salma') ||
-        v.name.includes('Zariyah') ||
-        v.name.includes('Laila')
-      ));
+    const voices = (window.speechSynthesis && window.speechSynthesis.getVoices()) || VOICES || [];
+
+    // Voix arabe selon le tuteur
+    let arabicVoice = null;
+    const arVoices = voices.filter(v => v.lang && (v.lang.toLowerCase().startsWith('ar') || v.lang.includes('ar-SA') || v.lang.includes('ar-XA')));
+
+    if (isFemale) {
+      arabicVoice = arVoices.find(v => {
+        const n = (v.name + " " + (v.voiceURI || "")).toLowerCase();
+        return n.includes("female") || n.includes("femme") || n.includes("wavenet-a") || n.includes("neural2-a") || n.includes("standard-a") || n.includes("salma") || n.includes("zariyah") || n.includes("laila");
+      }) || arVoices[0] || null;
     } else {
-      arabicVoice = voices.find(v => v.lang && v.lang.startsWith('ar') && (
-        v.name.toLowerCase().includes('male') ||
-        v.name.includes('Wavenet-B') ||
-        v.name.includes('Neural2-B') ||
-        v.name.includes('Standard-B') ||
-        v.name.includes('Tariq') ||
-        v.name.includes('Shakir') ||
-        v.name.includes('Hamed')
-      ));
+      arabicVoice = arVoices.find(v => {
+        const n = (v.name + " " + (v.voiceURI || "")).toLowerCase();
+        return n.includes("male") || n.includes("homme") || n.includes("wavenet-b") || n.includes("neural2-b") || n.includes("standard-b") || n.includes("tariq") || n.includes("shakir") || n.includes("hamed");
+      }) || (arVoices.length > 1 ? arVoices[1] : arVoices[0]) || null;
     }
-    // Repli intelligent si la voix spécifique n'est pas trouvée
-    if (!arabicVoice) {
-      const arVoices = voices.filter(v => v.lang && (v.lang.startsWith('ar') || v.lang.includes('ar-SA') || v.lang.includes('ar-XA')));
-      if (activeTutor.gender === 'male' && arVoices.length > 1) {
-        arabicVoice = arVoices[1];
-      } else {
-        arabicVoice = arVoices[0] || null;
-      }
+
+    // Voix francaise selon le genre du tuteur
+    let frenchVoice = null;
+    const frVoices = voices.filter(v => v.lang && v.lang.toLowerCase().startsWith('fr'));
+    if (isFemale) {
+      frenchVoice = frVoices.find(v => {
+        const n = (v.name + " " + (v.voiceURI || "")).toLowerCase();
+        return n.includes("female") || n.includes("femme") || n.includes("wavenet-a") || n.includes("neural2-a") || n.includes("hortense") || n.includes("julie") || n.includes("celine");
+      }) || frVoices[0] || null;
+    } else {
+      frenchVoice = frVoices.find(v => {
+        const n = (v.name + " " + (v.voiceURI || "")).toLowerCase();
+        return n.includes("male") || n.includes("homme") || n.includes("wavenet-b") || n.includes("neural2-b") || n.includes("paul") || n.includes("mathieu");
+      }) || (frVoices.length > 1 ? frVoices[1] : frVoices[0]) || null;
     }
-    const frenchVoice = voices.find(v => v.lang && v.lang.startsWith('fr'));
 
     // 4. Chainage sequentiel des morceaux
     let index = 0;
@@ -1767,10 +1782,12 @@ function speakBilingualText(rawText) {
         utterance.voice = arabicVoice || null;
         utterance.lang = arabicVoice ? arabicVoice.lang : 'ar-SA';
         utterance.rate = 0.88;
+        utterance.pitch = tutorPitch;
       } else {
         utterance.voice = frenchVoice || null;
         utterance.lang = frenchVoice ? frenchVoice.lang : 'fr-FR';
         utterance.rate = 1.0;
+        utterance.pitch = tutorPitch;
       }
 
       utterance.onend = () => {
@@ -1807,10 +1824,15 @@ function speak(text, rate, forceLang){
       const targetVoice = voiceFor(langKey);
       const targetLang = (targetVoice && targetVoice.lang) || SPEECH[langKey].tts;
 
+      const activeTutor = getActiveTutor();
+      const isFemale = (activeTutor.gender === 'female' || activeTutor.id === 'yasmine');
+      const tutorPitch = isFemale ? 1.12 : 0.88;
+
       const u = new SpeechSynthesisUtterance(cleaned);
       if (targetVoice) u.voice = targetVoice;
       u.lang = targetLang;
       u.rate = rate || 0.95;
+      u.pitch = tutorPitch;
 
       let done = false;
       const fin = () => { if (done) return; done = true; S.speaking = false; setStatus(); res(); };
@@ -1942,14 +1964,20 @@ function updateAvatar(){
   // Adapter le symbole selon la langue active
   const arGlyph = $("#sealGlyphAr");
   const otherGlyph = $("#sealGlyphOther");
+  const glyphText = $("#sealGlyphText");
+  const activeTutor = getActiveTutor();
   if(arGlyph && otherGlyph){
     if(S.lang === "ar"){
       arGlyph.style.display = "inline";
       otherGlyph.style.display = "none";
+      if(glyphText) glyphText.textContent = (activeTutor.id === "tariq") ? "\u0637" : "\u0636";
     } else {
       arGlyph.style.display = "none";
       otherGlyph.style.display = "inline";
     }
+  }
+  if(label && !S.speaking && !S.listening && !S.busy){
+    label.textContent = (activeTutor.name || "Professeur") + " pr\u00EAt";
   }
 }function setStatus(){
   const s=$("#status");if(!s)return;
@@ -2169,6 +2197,9 @@ function renderDue(){
 
 /* ---------- accueil ---------- */
 function syncUI(){
+  document.querySelectorAll("#langSeg button").forEach(x=>{
+    x.setAttribute("aria-pressed", x.dataset.lang === S.lang ? "true" : "false");
+  });
   const g=$("#goal");if(g)g.value=S.goals[S.lang]||"";
   const l=$("#level");if(l)l.value=S.level;
   const v=$("#vow");if(v)v.checked=!!S.ar.vow;
@@ -2266,7 +2297,7 @@ function seg(id,attr,fn){
     fn(b.dataset[attr]);
   });
 }
-seg("#langSeg","lang",v=>{S.lang=v;syncUI()});
+seg("#langSeg","lang",v=>{S.lang=v;save();syncUI()});
 seg("#modeSeg","mode",v=>{S.mode=v;modeNote()});
 seg("#immSeg","imm",v=>{S.imm=+v});
 if($("#micro"))$("#micro").onchange=e=>{S.micro=e.target.checked};
@@ -2589,6 +2620,8 @@ function updateTutorSttUI(){
 
 function startTutor(){
   if(!curKey()){openSettings("Collez d'abord votre clé API pour démarrer.");return}
+  const t = getActiveTutor();
+  const isAr = (S.lang === "ar");
   S.scn={
     id:"tutor",
     t:"Tuteur · "+LANGS[S.lang].name,
@@ -2603,10 +2636,10 @@ function startTutor(){
   renderTargets();
   renderGoals();
   $("#log").textContent="";
-  $("#chatTitle").textContent="💬 Tuteur libre · " + getActiveTutor().name;
+  $("#chatTitle").textContent="💬 Tuteur libre · " + t.name + (isAr ? " (Arabe)" : " (" + LANGS[S.lang].label + ")");
   $("#live").textContent="";
   const inp=$("#input");
-  inp.dir="auto";
+  inp.dir=isAr ? "rtl" : "auto";
   inp.value="";
   inp.placeholder="Posez votre question (ex: grammaire, vocabulaire, traduction…)";
   stopTimer();
@@ -2617,7 +2650,10 @@ function startTutor(){
   show("chat");
   /* AUCUN appel automatique au chargement : message d'accueil fixe invitant à poser une question */
   const welcome=el("div","msg t");
-  const wText=el("div",null,"Bonjour ! Je suis votre tuteur en "+LANGS[S.lang].name+". Posez-moi n'importe quelle question linguistique (en français ou en "+LANGS[S.lang].label+"). Écrivez ou touchez le micro ci-dessous pour parler.");
+  const welcomeText = isAr
+    ? "Marhaban ! Je suis " + t.name + ", votre " + (t.id === "yasmine" ? "professeure" : "tuteur") + " d'arabe. Posez-moi n'importe quelle question linguistique (en arabe ou en français). Écrivez ou touchez le micro ci-dessous pour parler."
+    : "Bonjour ! Je suis " + t.name + ", votre tuteur en " + LANGS[S.lang].name + ". Posez-moi n'importe quelle question linguistique (en français ou en " + LANGS[S.lang].label + "). Écrivez ou touchez le micro ci-dessous pour parler.";
+  const wText=el("div",null,welcomeText);
   welcome.append(wText);
   $("#log").append(welcome);
   inp.focus();
