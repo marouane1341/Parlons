@@ -239,63 +239,107 @@ ul.clean{margin:0;padding-inline-start:18px;display:flex;flex-direction:column;g
   100%{transform:scale(1.14);filter:drop-shadow(0 0 12px rgba(245,166,35,0.95))}
 }
 /* --- NOUVEAU STYLE APPLICATION MODERNE (Bottom Nav & Ecran Immersif) --- */
-.wrap{padding-bottom:88px!important}
 
-/* Barre de navigation inferieure fixe */
-.bottom-nav{
-  position:fixed;
-  bottom:0;
-  left:0;
-  right:0;
-  height:64px;
-  background:var(--card);
-  border-top:1px solid var(--line);
-  box-shadow:0 -4px 18px rgba(0,0,0,0.06);
-  display:flex;
-  justify-content:space-around;
-  align-items:center;
-  z-index:99;
-  padding-bottom:env(safe-area-inset-bottom, 0px);
-  backdrop-filter:blur(8px);
+/* REGLE ABSOLUE ANTI-BLOCAGE DES CLICS & GESTION STRICTE DU MASQUAGE */
+[hidden],
+#chat[hidden],
+#chat.chat-immersive[hidden],
+section[hidden],
+main[hidden],
+div[hidden],
+.tab-view[hidden],
+.tab-content[hidden],
+.modal-backdrop[hidden] {
+  display: none !important;
+  pointer-events: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  z-index: -9999 !important;
 }
-.bnav-btn{
-  background:none;
-  border:none;
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  justify-content:center;
-  gap:2px;
-  color:var(--muted);
-  cursor:pointer;
-  padding:6px 14px;
-  transition:all .18s ease;
-  font-family:var(--body);
-  border-radius:12px;
-}
-.bnav-btn .bnav-icon{font-size:21px;line-height:1;transition:transform .18s ease}
-.bnav-btn .bnav-label{font-size:11px;font-weight:600;letter-spacing:-0.2px}
-.bnav-btn.active{color:var(--accent)}
-.bnav-btn.active .bnav-icon{transform:scale(1.15)}
 
 /* Onglets de la vue principale */
-.tab-view{display:flex;flex-direction:column;gap:18px;min-width:0}
-
-/* Ecran de conversation immersif plein ecran (35% / 45% / 20%) */
-#chat.chat-immersive{
-  position:fixed;
-  inset:0;
-  width:100%;
-  height:100dvh;
-  max-height:100dvh;
-  display:flex;
-  flex-direction:column;
-  overflow:hidden;
-  z-index:95;
-  background:var(--paper);
+.tab-view, .tab-content {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+  pointer-events: auto;
+}
+.tab-view[hidden], .tab-content[hidden] {
+  display: none !important;
+  pointer-events: none !important;
 }
 
-/* Zone 1 : En-tete superieur (35% de la hauteur) */
+/* Ecran de conversation immersif */
+#chat.chat-immersive {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100dvh;
+  max-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 95;
+  background: var(--paper);
+  pointer-events: auto;
+}
+#chat.chat-immersive[hidden] {
+  display: none !important;
+  pointer-events: none !important;
+  visibility: hidden !important;
+}
+
+/* Barre de navigation inferieure */
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 64px;
+  background: var(--card);
+  border-top: 1px solid var(--line);
+  box-shadow: 0 -4px 18px rgba(0,0,0,0.06);
+  display: flex !important;
+  justify-content: space-around;
+  align-items: center;
+  z-index: 1000 !important;
+  pointer-events: auto !important;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  backdrop-filter: blur(8px);
+}
+.bottom-nav[hidden] {
+  display: none !important;
+  pointer-events: none !important;
+}
+.bnav-btn, .nav-tab {
+  background: none;
+  border: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  color: var(--muted);
+  cursor: pointer !important;
+  padding: 6px 14px;
+  transition: all .18s ease;
+  font-family: var(--body);
+  border-radius: 12px;
+  pointer-events: auto !important;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.bnav-btn *, .nav-tab * {
+  pointer-events: none !important;
+}
+.bnav-btn.active, .nav-tab.active {
+  color: var(--accent);
+}
+.bnav-btn.active .bnav-icon, .nav-tab.active .bnav-icon {
+  transform: scale(1.15);
+}
+
 .chat-header-zone{
   flex:0 0 35%;
   height:35%;
@@ -579,7 +623,7 @@ ul.clean{margin:0;padding-inline-start:18px;display:flex;flex-direction:column;g
 
     <section id="home" class="col">
     <!-- Onglet 1 : Lecons & Parcours -->
-    <div id="tabLessonsView" class="tab-view">
+    <div id="tabLessonsView" class="tab-view tab-content">
             <div class="panel informal-hero-card" id="informalCard">
         <div class="row spread" style="align-items:center;margin-bottom:6px">
           <span class="label" style="color:var(--accent);margin:0;font-weight:700">&#9889; Pratique directe</span>
@@ -587,11 +631,11 @@ ul.clean{margin:0;padding-inline-start:18px;display:flex;flex-direction:column;g
         </div>
         <h3 style="margin:0 0 4px 0;font-size:17px;font-weight:700">Conversation informelle</h3>
         <p style="margin:0 0 12px 0;color:var(--muted);font-size:14px">&Eacute;changez librement avec le professeur, parlez de ce que vous voulez sans contrainte.</p>
-        <button class="btn" id="informalBtn" style="width:100%;font-size:16px;padding:12px;font-weight:600">&#128483;&#65039; D&eacute;marrer la conversation informelle</button>
+        <button class="btn" id="informalBtn" type="button" style="width:100%;font-size:16px;padding:12px;font-weight:600;background:var(--accent);color:#fff;pointer-events:auto!important;cursor:pointer!important" style="width:100%;font-size:16px;padding:12px;font-weight:600">&#128483;&#65039; D&eacute;marrer la conversation informelle</button>
       </div>
 
     <!-- Onglet 2 : Jeux de role & Situations -->
-    <div id="tabRoleplayView" class="tab-view" hidden>
+    <div id="tabRoleplayView" class="tab-view tab-content" hidden>
       <div class="panel">
         <div class="row spread" style="align-items:center">
           <h2 style="font-size:18px;display:flex;align-items:center;gap:8px">&#127917; Situations &amp; Jeux de r&ocirc;le</h2>
@@ -609,7 +653,7 @@ ul.clean{margin:0;padding-inline-start:18px;display:flex;flex-direction:column;g
     </div>
 
     <!-- Onglet 4 : Profil & Reglages (Rangement du panneau technique) -->
-    <div id="tabProfileView" class="tab-view" hidden>
+    <div id="tabProfileView" class="tab-view tab-content" hidden>
       <div class="panel">
         <h2 style="font-size:18px;display:flex;align-items:center;gap:8px">&#128100; Profil &amp; Pr&eacute;f&eacute;rences</h2>
         
@@ -839,19 +883,19 @@ ul.clean{margin:0;padding-inline-start:18px;display:flex;flex-direction:column;g
 
   <!-- Barre de navigation inferieure fixe (4 onglets natifs) -->
   <nav id="bottomNav" class="bottom-nav" aria-label="Navigation principale">
-    <button class="bnav-btn active" data-tab="lessons" id="navLessonsBtn" aria-label="LeÃ§ons" aria-selected="true">
+    <button class="bnav-btn nav-tab active" data-tab="lessons" id="navLessonsBtn" aria-label="LeÃ§ons" aria-selected="true">
       <span class="bnav-icon">&#128506;&#65039;</span>
       <span class="bnav-label">Le&ccedil;ons</span>
     </button>
-    <button class="bnav-btn" data-tab="roleplay" id="navRoleplayBtn" aria-label="Jeux de rÃ´le" aria-selected="false">
+    <button class="bnav-btn nav-tab" data-tab="roleplay" id="navRoleplayBtn" aria-label="Jeux de rÃ´le" aria-selected="false">
       <span class="bnav-icon">&#127917;</span>
       <span class="bnav-label">Jeux de r&ocirc;le</span>
     </button>
-    <button class="bnav-btn" data-tab="tutor" id="navTutorBtn" aria-label="Tuteur Libre" aria-selected="false">
+    <button class="bnav-btn nav-tab" data-tab="tutor" id="navTutorBtn" aria-label="Tuteur Libre" aria-selected="false">
       <span class="bnav-icon">&#128172;</span>
       <span class="bnav-label">Tuteur Libre</span>
     </button>
-    <button class="bnav-btn" data-tab="profile" id="navProfileBtn" aria-label="Profil &amp; RÃ©glages" aria-selected="false">
+    <button class="bnav-btn nav-tab" data-tab="profile" id="navProfileBtn" aria-label="Profil &amp; RÃ©glages" aria-selected="false">
       <span class="bnav-icon">&#9881;&#65039;</span>
       <span class="bnav-label">Profil</span>
     </button>
@@ -2024,10 +2068,23 @@ function rules(){
 
 /* ---------- navigation ---------- */
 function show(id){
-  ["home","chat","listen","repeat","alpha","recap"].forEach(x=>{$("#"+x).hidden=x!==id});
-  S.view=id;
-  const bNav=$("#bottomNav");
-  if(bNav)bNav.hidden=(id==="chat");
+  ["home","chat","listen","repeat","alpha","recap"].forEach(x=>{
+    const elem = $("#"+x);
+    if(elem){
+      const isTarget = (x === id);
+      elem.hidden = !isTarget;
+      elem.style.display = isTarget ? (x === "chat" ? "flex" : (x === "home" ? "flex" : "block")) : "none";
+      elem.style.pointerEvents = isTarget ? "auto" : "none";
+    }
+  });
+  S.view = id;
+  const bNav = $("#bottomNav");
+  if(bNav){
+    const showNav = (id !== "chat");
+    bNav.hidden = !showNav;
+    bNav.style.display = showNav ? "flex" : "none";
+    bNav.style.pointerEvents = showNav ? "auto" : "none";
+  }
   window.scrollTo(0,0);
   setStatus();
 }function leaveSession(){
@@ -3161,48 +3218,69 @@ if(hintBtn){
   });
 }
 
-// Bouton Conversation Informelle dans l'onglet LeÃ§ons
-const infBtn=$("#informalBtn");
+// Bouton Conversation Informelle dans l'onglet LeÃ§ons avec e.preventDefault()
+const infBtn = $("#informalBtn");
 if(infBtn){
-  infBtn.onclick=()=>{
-    const scn=SCENARIOS.find(s=>s.id==="free")||{id:"free",t:"Conversation libre",d:"Parler de ce que vous voulez",p:"Conversation libre : suis les sujets de l'apprenant, relance avec curiositÃ©."};
+  infBtn.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const scn = SCENARIOS.find(s => s.id === "free") || {id:"free",t:"Conversation libre",d:"Parler de ce que vous voulez",p:"Conversation libre : suis les sujets de l'apprenant, relance avec curiositÃ©."};
     start(scn);
-  };
+  });
 }
 
-// Barre de navigation inferieure (4 onglets)
+// Navigation entre onglets avec gestion stricte d'affichage et prevention des conflits d'evenements
 function switchMainTab(tabName){
-  if(tabName==="tutor"){
+  if(tabName === "tutor"){
     startTutor();
     return;
   }
-  document.querySelectorAll(".bnav-btn").forEach(b=>{
-    const active=b.dataset.tab===tabName;
-    b.classList.toggle("active",active);
-    b.setAttribute("aria-selected",active?"true":"false");
-  });
-  const tLessons=$("#tabLessonsView");
-  const tRoleplay=$("#tabRoleplayView");
-  const tProfile=$("#tabProfileView");
-  if(tLessons)tLessons.hidden=tabName!=="lessons";
-  if(tRoleplay)tRoleplay.hidden=tabName!=="roleplay";
-  if(tProfile)tProfile.hidden=tabName!=="profile";
   show("home");
+
+  document.querySelectorAll(".bnav-btn, .nav-tab").forEach(tab => {
+    const active = (tab.dataset.tab === tabName);
+    tab.classList.toggle("active", active);
+    tab.setAttribute("aria-selected", active ? "true" : "false");
+  });
+
+  const tabMap = {
+    lessons: $("#tabLessonsView"),
+    roleplay: $("#tabRoleplayView"),
+    profile: $("#tabProfileView")
+  };
+
+  Object.keys(tabMap).forEach(key => {
+    const elem = tabMap[key];
+    if(!elem) return;
+    const isTarget = (key === tabName);
+    elem.hidden = !isTarget;
+    elem.style.display = isTarget ? "flex" : "none";
+    elem.style.pointerEvents = isTarget ? "auto" : "none";
+  });
+
+  const bNav = $("#bottomNav");
+  if(bNav){
+    bNav.hidden = false;
+    bNav.style.display = "flex";
+    bNav.style.pointerEvents = "auto";
+  }
 }
-document.querySelectorAll(".bnav-btn").forEach(b=>{
-  b.addEventListener("click",()=>switchMainTab(b.dataset.tab));
+
+// Attacher formellement les ecouteurs de clics sur les 4 onglets avec e.preventDefault()
+document.querySelectorAll(".bnav-btn, .nav-tab").forEach(tab => {
+  tab.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const target = tab.dataset.tab;
+    switchMainTab(target);
+  });
 });
 
-const tvb=$("#testVoiceBtn");
-if(tvb){
-  tvb.onclick=()=>{
-    const sample=S.lang==="ar"
-      ?"\u0627\u0644\u0633\u0651\u064E\u0644\u064E\u0627\u0645\u064F \u0639\u064E\u0644\u064E\u064A\u0652\u064F\u0643\u064F\u0645\u0652 \u0648\u064E\u0631\u064E\u062D\u0652\u0645\u064E\u0629\u064F \u0627\u0644\u0644\u0647\u0650"
-      :(S.lang==="en"?"Hello! How are you doing today?":"Hallo, hoe gaat het met je vandaag?");
-    speak(sample);
-  };
-}
-if(!curKey())openSettings();/* ---------- gestion PWA & hors-ligne ---------- */
+if(!curKey()){
+  switchMainTab("profile");
+} else {
+  switchMainTab("lessons");
+}/* ---------- gestion PWA & hors-ligne ---------- */
 let deferredInstallPrompt=null;
 window.addEventListener("beforeinstallprompt",e=>{
   e.preventDefault();
