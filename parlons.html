@@ -936,6 +936,13 @@ function extractArabicOnly(text){
   return arabicMatches.map(s=>s.trim()).filter(Boolean).join(" ");
 }
 
+function extractFrenchExplanation(text){
+  if(!text)return "";
+  const clean=String(text).replace(/[*_`#]/g," ");
+  const withoutArabic=clean.replace(/[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]+/g," ");
+  return withoutArabic.replace(/\(\s*\)/g," ").replace(/«\s*»/g," ").replace(/\s{2,}/g," ").trim();
+}
+
 function voicesFor(lang){
   const p = SPEECH[lang].tts.slice(0,2).toLowerCase();
   const list = VOICES.length ? VOICES : ((window.speechSynthesis && window.speechSynthesis.getVoices()) || []);
@@ -968,53 +975,106 @@ function speak(text,rate,forceLang){
       const cleaned=cleanTTS(text);
       const isArabic=(forceLang==="ar")||(S.lang==="ar")||/[\u0600-\u06FF]/.test(cleaned);
       
-      let u;
+      const voices=(window.speechSynthesis&&window.speechSynthesis.getVoices())||VOICES||[];
 
+      let done=false;
+      const fin=()=>{
+        if(done)return;
+        done=true;
+        S.speaking=false;
+        setStatus();
+        res();
+      };
 
       if(isArabic){
-        // Seul le texte en caracteres arabes doit etre lu
-        const speakText=extractArabicOnly(cleaned);
-        if(!speakText){res();return}
+        const arText=extractArabicOnly(cleaned);
+        const isTutorMode=(S.scn&&S.scn.id==="tutor");
+        const frText=(isTutorMode||cleaned.length>(arText.length+15))?extractFrenchExplanation(cleaned):"";
 
-        const voices=(window.speechSynthesis&&window.speechSynthesis.getVoices())||VOICES||[];
+        if(!arText&&!frText){res();return}
+
         const arabicVoice=voices.find(v=>v.lang&&(v.lang.startsWith('ar')||v.lang.includes('ar-XA')||v.lang.includes('ar-SA')));
+        const frenchVoice=voices.find(v=>v.lang&&(v.lang==='fr-FR'||v.lang.startsWith('fr-FR')))
+          ||voices.find(v=>v.lang&&v.lang.startsWith('fr')&&!v.lang.includes('CA'))
+          ||voices.find(v=>v.lang&&v.lang.startsWith('fr'))
+          ||null;
 
-        u=new SpeechSynthesisUtterance(speakText);
-        if(arabicVoice){
-          u.voice=arabicVoice;
-          u.lang=arabicVoice.lang;
-        }else{
-          u.lang='ar-SA';
+        let arUtterance=null;
+        if(arText){
+          arUtterance=new SpeechSynthesisUtterance(arText);
+          if(arabicVoice){
+            arUtterance.voice=arabicVoice;
+            arUtterance.lang=arabicVoice.lang;
+          }else{
+            arUtterance.lang='ar-SA';
+          }
+          arUtterance.rate=rate||0.88;
         }
-        u.rate=rate||0.88;
+
+        let frUtterance=null;
+        if(frText){
+          frUtterance=new SpeechSynthesisUtterance(frText);
+          if(frenchVoice)frUtterance.voice=frenchVoice;
+          frUtterance.lang=(frenchVoice&&frenchVoice.lang)||'fr-FR';
+          frUtterance.rate=rate||0.95;
+        }
+
+        S.speaking=true;
+        setStatus();
+
+        if(arUtterance&&frUtterance){
+          // Lecture bilingue enchainee : l'arabe en premier, puis le francais des la fin du segment arabe
+          arUtterance.onend=()=>{
+            if(done)return;
+            speechSynthesis.speak(frUtterance);
+          };
+          arUtterance.onerror=()=>{
+            if(done)return;
+            speechSynthesis.speak(frUtterance);
+          };
+
+          frUtterance.onend=fin;
+          frUtterance.onerror=fin;
+
+          speechSynthesis.speak(arUtterance);
+          setTimeout(fin,8000+(arText.length+frText.length)*130);
+        }else if(arUtterance){
+          arUtterance.onend=fin;
+          arUtterance.onerror=fin;
+          speechSynthesis.speak(arUtterance);
+          setTimeout(fin,6000+arText.length*130);
+        }else if(frUtterance){
+          frUtterance.onend=fin;
+          frUtterance.onerror=fin;
+          speechSynthesis.speak(frUtterance);
+          setTimeout(fin,6000+frText.length*130);
+        }
       }else{
         const langKey=forceLang||S.lang;
         const targetVoice=voiceFor(langKey);
         const targetLang=(targetVoice&&targetVoice.lang)||SPEECH[langKey].tts;
-        u=new SpeechSynthesisUtterance(cleaned);
+
+        const u=new SpeechSynthesisUtterance(cleaned);
         if(targetVoice)u.voice=targetVoice;
         u.lang=targetLang;
         u.rate=rate||0.95;
+
+        u.onend=fin;
+        u.onerror=fin;
+
+        S.speaking=true;
+        setStatus();
+        speechSynthesis.speak(u);
+        setTimeout(fin,6000+(u.text?u.text.length:20)*130);
       }
-
-
-
-      let done=false;
-      const fin=()=>{if(done)return;done=true;S.speaking=false;setStatus();res()};
-      u.onend=fin;
-      u.onerror=fin;
-
-      S.speaking=true;
-      setStatus();
-      speechSynthesis.speak(u);
-      setTimeout(fin,6000+(u.text?u.text.length:20)*130);
     }catch(e){
       S.speaking=false;
+      setStatus();
       res();
     }
   });
 }
-function stopSpeak(){try{speechSynthesis.cancel()}catch(e){}S.speaking=false}
+function stopSpeak(){try{speechSynthesis.cancel()}catch(e){}S.speaking=false;setStatus()}
 
 /* ---------- micro (entrée) ---------- */
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
