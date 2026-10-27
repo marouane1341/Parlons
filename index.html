@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -301,7 +301,8 @@ ul.clean{margin:0;padding-inline-start:18px;display:flex;flex-direction:column;g
   height:35%;
   min-height:35%;
   max-height:35%;
-  background:linear-gradient(180deg, var(--card) 0%, var(--tint) 100%);
+  background:linear-gradient(180deg, #091024 0%, #111d38 60%, #172445 100%)!important;
+  border-bottom:1px solid rgba(255,255,255,0.08);
   border-bottom:1px solid var(--line);
   display:flex;
   flex-direction:column;
@@ -518,6 +519,40 @@ ul.clean{margin:0;padding-inline-start:18px;display:flex;flex-direction:column;g
   resize:none;
 }
 .chat-footer-aux{display:flex;align-items:center;gap:12px;margin-top:4px}
+.chat-header-zone .icon-circle-btn{background:rgba(255,255,255,0.12)!important;color:#f8fafc!important;border:1px solid rgba(255,255,255,0.22)!important}
+.chat-header-zone .icon-circle-btn:hover{background:rgba(255,255,255,0.22)!important;border-color:#fbbf24!important}
+.chat-header-zone .chat-title-text{color:#f8fafc!important}
+.chat-header-zone .avatar-status-pill{background:rgba(255,255,255,0.12)!important;color:#e2e8f0!important;border:1px solid rgba(255,255,255,0.18)!important}
+
+.scn-card{
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:14px;
+  padding:14px;
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+  gap:8px;
+  cursor:pointer;
+  transition:all .2s ease;
+  text-align:left;
+  box-shadow:0 2px 8px rgba(0,0,0,0.03);
+}
+.scn-card:hover{
+  border-color:var(--accent);
+  transform:translateY(-2px);
+  box-shadow:0 6px 18px rgba(0,0,0,0.08);
+}
+.scn-badges-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.scn-badge{font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;background:var(--tint);color:var(--accent)}
+.scn-badge.duration{background:rgba(0,0,0,0.05);color:var(--muted)}
+.informal-hero-card{
+  border:2px solid var(--accent);
+  background:linear-gradient(135deg,var(--tint),var(--card));
+  box-shadow:0 4px 16px rgba(0,0,0,0.06);
+  border-radius:16px;
+  padding:16px;
+}
 </style>
 </head>
 <body>
@@ -542,92 +577,18 @@ ul.clean{margin:0;padding-inline-start:18px;display:flex;flex-direction:column;g
   <div id="srNote" class="notice" hidden>Ce navigateur ne propose pas la reconnaissance vocale. Utilisez Chrome ou Edge sur ordinateur, ou Chrome sur Android. Le mode écrit reste disponible.</div>
   <div id="flash" class="okmsg" hidden role="status"></div>
 
-    <!-- Modal des ParamÃ¨tres (âš™ï¸) -->
-  <div id="cfgModal" class="modal-backdrop" hidden>
-    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="cfgModalTitle">
-      <div class="modal-header">
-        <h2 id="cfgModalTitle" style="font-size:17px;font-weight:700;display:flex;align-items:center;gap:8px">&#9881;&#65039; <span>Param&egrave;tres &amp; Configuration</span></h2>
-        <button id="cfgCloseBtn" class="icon-btn" aria-label="Fermer les param&egrave;tres" style="font-size:18px;line-height:1;padding:4px 10px">&#10005;</button>
-      </div>
-      <div class="modal-body" id="cfgBox">
-        <label class="label" for="themeSelModal">Th&egrave;me visuel</label>
-        <select class="field" id="themeSelModal">
-          <option value="studio">&#127912; Studio Minimaliste</option>
-          <option value="orient">&#127769; Nuit d'Orient</option>
-          <option value="sapphire">&#128142; Saphir &amp; Menthe</option>
-          <option value="parchment">&#128220; Parchemin &amp; Encre</option>
-        </select>
-
-        <label class="label" for="provider">Fournisseur d'IA</label>
-        <select class="field" id="provider"></select>
-        <p class="small muted" id="provNote"></p>
-
-        <label class="label" for="apikey">Cl&eacute; API</label>
-        <input class="field" id="apikey" type="password" autocomplete="off" placeholder="Collez votre cl&eacute; API ici (ex. Google Gemini)">
-        <p class="small" id="keyDetectNote" style="color:var(--good);font-weight:600;display:none;margin-top:4px"></p>
-
-        <label class="label" for="mChat">Mod&egrave;le de conversation (rapide)</label>
-        <input class="field" id="mChat" type="text" autocomplete="off" list="modelList" value="gemini-3.5-flash-lite">
-        <label class="label" for="mHeavy">Mod&egrave;le pour le bilan &amp; l'arabe</label>
-        <input class="field" id="mHeavy" type="text" autocomplete="off" list="modelList" value="gemini-3.5-flash-lite">
-        <datalist id="modelList">
-          <option value="gemini-3.5-flash-lite">
-          <option value="gemini-3.8-flash">
-          <option value="gemini-2.5-flash">
-          <option value="gemini-2.0-flash">
-          <option value="llama-3.3-70b-versatile">
-          <option value="claude-haiku-5-5">
-          <option value="mistral-small-latest">
-        </datalist>
-
-        <div class="row">
-          <button class="btn sm" id="saveKey">Enregistrer</button>
-          <button class="btn sm ghost" id="testKey">Tester connexion IA</button>
-          <button class="btn sm ghost" id="testMicBtn">&#127908; Tester mon micro</button>
-          <button class="btn sm ghost" id="listModels">Voir mod&egrave;les</button>
-          <button class="btn sm ghost" id="resetCfgBtn" style="color:var(--bad)">R&eacute;initialiser</button>
-        </div>
-        <p class="small" id="testRes" role="status"></p>
-        <p class="small" id="testMicRes" role="status" style="display:none;margin-top:4px"></p>
-
-        <label class="label" for="voiceSel">Voix du professeur (synth&egrave;se locale)</label>
-        <select class="field" id="voiceSel"></select>
-        <div class="row">
-          <button class="btn sm ghost" id="testVoiceBtn">&#128266; Tester la voix en direct</button>
-        </div>
-
-        <div class="row" style="margin-top:8px">
-          <button class="btn sm ghost" id="exportBtn">Exporter mes donn&eacute;es</button>
-          <label class="btn sm ghost" for="importFile" style="cursor:pointer">Importer</label>
-          <input type="file" id="importFile" accept="application/json" hidden>
-        </div>
-        <p class="small muted">La cl&eacute; reste uniquement stock&eacute;e dans ce navigateur et n'est jamais export&eacute;e.</p>
-      </div>
-    </div>
-  </div>
-
     <section id="home" class="col">
     <!-- Onglet 1 : Lecons & Parcours -->
     <div id="tabLessonsView" class="tab-view">
-      <div class="panel" id="tutorCard" style="border:2px solid var(--accent);background:linear-gradient(135deg,var(--tint),var(--card));box-shadow:0 4px 16px rgba(0,0,0,0.06)">
+            <div class="panel informal-hero-card" id="informalCard">
         <div class="row spread" style="align-items:center;margin-bottom:6px">
-          <span class="label" style="color:var(--accent);margin:0;font-weight:700">&#128172; Tuteur Libre</span>
-          <span class="chip" style="font-size:11px;padding:2px 8px">Conversation spontanee</span>
+          <span class="label" style="color:var(--accent);margin:0;font-weight:700">&#9889; Pratique directe</span>
+          <span class="chip" style="font-size:11px;padding:2px 8px">Sans sc&eacute;nario</span>
         </div>
-        <p style="margin:0 0 12px 0;color:var(--ink);font-size:14px">Une question de grammaire, de vocabulaire ou de prononciation ? Echangez directement avec le professeur en francais ou en arabe.</p>
-        <button class="btn" id="tutorBtn" style="width:100%;font-size:16px;padding:12px">&#128172; Poser une question au professeur</button>
+        <h3 style="margin:0 0 4px 0;font-size:17px;font-weight:700">Conversation informelle</h3>
+        <p style="margin:0 0 12px 0;color:var(--muted);font-size:14px">&Eacute;changez librement avec le professeur, parlez de ce que vous voulez sans contrainte.</p>
+        <button class="btn" id="informalBtn" style="width:100%;font-size:16px;padding:12px;font-weight:600">&#128483;&#65039; D&eacute;marrer la conversation informelle</button>
       </div>
-
-      <div class="panel" id="alphaBox" hidden></div>
-      <div class="panel" id="nlBox" hidden></div>
-      <div class="panel" id="pathBox"></div>
-
-      <div class="row spread" style="gap:10px">
-        <button class="btn" id="reviewBtn" hidden>Revision du jour</button>
-        <button class="btn ghost" id="repeatBtn">&#127908; Repeter a voix haute</button>
-        <button class="btn ghost" id="listenBtn">&#128266; Ecouter un texte</button>
-      </div>
-    </div>
 
     <!-- Onglet 2 : Jeux de role & Situations -->
     <div id="tabRoleplayView" class="tab-view" hidden>
@@ -875,6 +836,26 @@ ul.clean{margin:0;padding-inline-start:18px;display:flex;flex-direction:column;g
   </section>
 
   <section id="recap" class="col" style="gap:16px" hidden></section>
+
+  <!-- Barre de navigation inferieure fixe (4 onglets natifs) -->
+  <nav id="bottomNav" class="bottom-nav" aria-label="Navigation principale">
+    <button class="bnav-btn active" data-tab="lessons" id="navLessonsBtn" aria-label="LeÃ§ons" aria-selected="true">
+      <span class="bnav-icon">&#128506;&#65039;</span>
+      <span class="bnav-label">Le&ccedil;ons</span>
+    </button>
+    <button class="bnav-btn" data-tab="roleplay" id="navRoleplayBtn" aria-label="Jeux de rÃ´le" aria-selected="false">
+      <span class="bnav-icon">&#127917;</span>
+      <span class="bnav-label">Jeux de r&ocirc;le</span>
+    </button>
+    <button class="bnav-btn" data-tab="tutor" id="navTutorBtn" aria-label="Tuteur Libre" aria-selected="false">
+      <span class="bnav-icon">&#128172;</span>
+      <span class="bnav-label">Tuteur Libre</span>
+    </button>
+    <button class="bnav-btn" data-tab="profile" id="navProfileBtn" aria-label="Profil &amp; RÃ©glages" aria-selected="false">
+      <span class="bnav-icon">&#9881;&#65039;</span>
+      <span class="bnav-label">Profil</span>
+    </button>
+  </nav>
 </div>
 
 <script>
@@ -1359,16 +1340,39 @@ function voiceFor(lang){
   return list.find(v => v.lang && v.lang.toLowerCase() === SPEECH[lang].tts.toLowerCase()) || list[0] || null;
 }
 
-function cleanTTS(t){ return String(t||"").replace(/[*_`#]/g," "); }
+function cleanTextForSpeech(text) {
+  if (!text) return '';
+  return text
+    // 1. Supprimer le contenu entre parenthèses (translittération latine, traductions annexes)
+    .replace(/\([^)]*\)/g, '')
+    // 2. Supprimer les astérisques Markdown (**mot** ou *mot*)
+    .replace(/\*/g, '')
+    // 3. Supprimer les tirets, dièses, crochets, puces et symboles spéciaux
+    .replace(/^[\s\-\u2013\u2014\u2022]+/gm, '')
+    .replace(/[#_~`\[\]]/g, '')
+    // 4. Nettoyer les espaces multiples
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function cleanTTS(t){ return cleanTextForSpeech(t); }
+
+function renderMarkdownVisual(text) {
+  if (!text) return '';
+  const esc = String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return esc
+    .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
+    .replace(/\*(.*?)\*/g, '<i>$1</i>')
+    .replace(/\n/g, '<br>');
+}
 
 function speakBilingualText(rawText) {
   return new Promise(resolve => {
     try { window.speechSynthesis.cancel(); } catch(e) {}
     if (!rawText) { resolve(); return; }
 
-    // 1. Nettoyer les parentheses de phonetique (ex: "(Salamu Allahi - Que la paix...)")
-    // pour eviter que la voix ne bute sur la translitteration
-    const textToRead = rawText.replace(/\([^\)]+\)/g, ' ');
+    const textToRead = cleanTextForSpeech(rawText);
+    if (!textToRead) { resolve(); return; }
 
     // 2. Decouper le texte en segments selon l'alphabet (Arabe vs Francais/Latin)
     // Regex detectant les blocs de caracteres arabes
@@ -1377,7 +1381,7 @@ function speakBilingualText(rawText) {
     let match;
 
     while ((match = regex.exec(textToRead)) !== null) {
-      const part = match[0].trim();
+      const part = cleanTextForSpeech(match[0]);
       if (!part) continue;
       const isArabic = /[\u0600-\u06FF]/.test(part);
       segments.push({ text: part, lang: isArabic ? 'ar' : 'fr' });
@@ -1653,48 +1657,55 @@ function canRow(u,j,text){
 function renderPath(){
   const box=$("#pathBox");box.textContent="";
   const us=PATH[S.lang],p=P(),t=totals();
-  const head=el("div","row spread");
-  head.append(el("h2",null,"Mon parcours · "+LANGS[S.lang].label),el("span","small muted",t.n+" étape"+(t.n>1?"s":"")+" sur "+t.total));
-  box.append(head);
-  const tr=el("div","track"),f=el("div","fill");f.style.width=Math.round(100*t.n/t.total)+"%";tr.append(f);box.append(tr);
   const cur=currentUnit();
+  const lvlTag = cur ? (cur.u.lvl + " - " + (cur.u.lvl.startsWith("A1") ? "DÃ©butant" : (cur.u.lvl.startsWith("A2") ? "Ã‰lÃ©mentaire" : "IntermÃ©diaire"))) : "AvancÃ©";
+  const head=el("div","row spread");
+  head.style.alignItems="center";
+  head.append(el("h2",null,"Mon parcours Â· "+LANGS[S.lang].label), el("span","chip",lvlTag));
+  box.append(head);
+  const progRow = el("div","row spread");
+  progRow.style.margin = "4px 0 6px 0";
+  progRow.append(el("span","small muted","Progression globale"), el("span","small muted",t.n+" / "+t.total+" Ã©tapes validÃ©es"));
+  box.append(progRow);
+  const tr=el("div","track"),f=el("div","fill");f.style.width=Math.round(100*t.n/t.total)+"%";tr.append(f);box.append(tr);
   if(cur){
     const card=el("div","next");
-    card.append(el("span","label","Prochaine étape"));
-    const h=el("div","row");h.append(el("b",null,"Étape "+(cur.i+1)+" · "+cur.u.t),el("span","badge",cur.u.lvl));
+    card.append(el("span","label","Prochaine Ã©tape en cours"));
+    const h=el("div","row");h.append(el("b",null,"Ã‰tape "+(cur.i+1)+" Â· "+cur.u.t),el("span","badge",cur.u.lvl));
     card.append(h);
     cur.u.can.forEach((c,j)=>card.append(canRow(cur.u,j,c)));
-    const go=el("button","btn","Continuer");go.id="goUnit";go.onclick=()=>startUnit(cur.u,cur.i);
+    const go=el("button","btn","Continuer cette Ã©tape");go.id="goUnit";go.onclick=()=>startUnit(cur.u,cur.i);
     card.append(go);
     box.append(card);
   }else{
-    box.append(el("p",null,"Parcours terminé. Faites la conversation de contrôle pour mesurer où vous en êtes."));
+    box.append(el("p",null,"Parcours terminÃ©. Faites la conversation de contrÃ´le pour mesurer oÃ¹ vous en Ãªtes."));
   }
   if(!p.levels.length){
     const row=el("div","row");
-    row.append(el("span","small muted","Pas encore de diagnostic : il place votre point de départ dans le parcours."));
+    row.append(el("span","small muted","Pas encore de diagnostic : il place votre point de dÃ©part dans le parcours."));
     const d=el("button","btn sm ghost","Faire le diagnostic");d.id="diagBtn";d.onclick=()=>start(SCENARIOS[0]);row.append(d);
     box.append(row);
   }
   if(checkDue()){
     const row=el("div","row");
-    row.append(el("span","small","Conversation de contrôle de la semaine : mesurez votre progression."));
-    const c=el("button","btn sm","Lancer le contrôle");c.id="checkBtn";c.onclick=startCheck;row.append(c);
+    row.append(el("span","small","Conversation de contrÃ´le de la semaine : mesurez votre progression."));
+    const c=el("button","btn sm","Lancer le contrÃ´le");c.id="checkBtn";c.onclick=startCheck;row.append(c);
     box.append(row);
   }
   if(p.levels.length){
-    const last=p.levels.slice(-5).map(x=>x.level).join(" → ");
-    box.append(el("p","small muted","Niveaux estimés : "+last));
+    const last=p.levels.slice(-5).map(x=>x.level).join(" â†’ ");
+    box.append(el("p","small muted","Niveaux estimÃ©s : "+last));
   }
   const det=document.createElement("details");
-  det.append(el("summary","small","Toutes les étapes"));
+  det.open=true;
+  det.append(el("summary","small","Toutes les Ã©tapes du parcours"));
   const list=el("div","units");list.style.marginTop="10px";
   us.forEach((u,i)=>{
     const s=unitState(u,i);
     const row=el("div","unit"+(s.done?" done":""));
-    const lab=el("span","ut",(s.done?"✓ ":"")+"Étape "+(i+1)+" · "+u.t+(s.acquired?" (acquise au diagnostic)":""));
+    const lab=el("span","ut",(s.done?"âœ“ ":"")+"Ã‰tape "+(i+1)+" Â· "+u.t+(s.acquired?" (acquise au diagnostic)":""));
     const b=el("span","badge",u.lvl);
-    const go=el("button","btn sm ghost","Travailler");go.onclick=()=>startUnit(u,i);
+    const go=el("button","btn sm ghost",s.done?"Revoir":"Travailler");go.onclick=()=>startUnit(u,i);
     row.append(lab,b,go);list.append(row);
   });
   det.append(list);box.append(det);
@@ -1783,67 +1794,34 @@ function levelNow(){
   return m?m[0].toUpperCase():"A1";
 }
 function renderScn(){
-  const g=$("#scnGrid");g.textContent="";
+  const g=$("#scnGrid");if(!g)return;
+  g.textContent="";
   g.style.marginTop="8px";
+  const icons={
+    taaruf:"ðŸ¤",house_ar:"ðŸ ",cafe:"â˜•",job:"ðŸ’¼",
+    doc:"ðŸ©º",trip:"âœˆï¸",work:"ðŸ¢",free:"ðŸ—£ï¸",diag:"ðŸ§­"
+  };
+  const durations={
+    diag:"5 min",taaruf:"3 min",house_ar:"4 min",cafe:"3 min",
+    job:"5 min",doc:"4 min",trip:"4 min",work:"5 min",free:"Libre"
+  };
+  const levels={
+    diag:"Ã‰valuation",taaruf:"A1 DÃ©butant",house_ar:"A1+",cafe:"A1-A2",
+    job:"B1",doc:"A2",trip:"A2",work:"B1",free:"Tous niveaux"
+  };
   SCENARIOS.filter(s=>!s.lang||s.lang===S.lang).forEach(s=>{
-    const b=el("button","scn"+(s.first?" first":""));
-    b.append(el("b",null,s.t),el("span","small muted",s.d));
-    b.onclick=()=>start(s);g.append(b);
+    const card=el("div","scn-card"+(s.first?" first":""));
+    const topRow=el("div","scn-badges-row");
+    topRow.append(el("span","scn-badge duration","â±ï¸ "+(durations[s.id]||"3-5 min")));
+    topRow.append(el("span","scn-badge",levels[s.id]||"A1-B1"));
+    card.append(topRow);
+    const icon=icons[s.id]||"ðŸŽ­";
+    card.append(el("b",null,icon+" "+s.t));
+    card.append(el("span","small muted",s.d));
+    card.onclick=()=>start(s);
+    g.append(card);
   });
-}
-function renderLast(){
-  const r=S.history.find(x=>x.lang===S.lang);
-  const card=$("#lastCard");
-  if(!r){card.hidden=true;S.resume=null;return}
-  S.resume=r;card.hidden=false;
-  const d=new Date(r.ts).toLocaleDateString("fr-FR",{day:"numeric",month:"long"});
-  $("#lastText").textContent=d+" · niveau estimé "+(r.level||"?")+". "+(r.summary||"")+(r.next?" Prochain sujet suggéré : "+r.next+".":"");
-}
-function seg(id,attr,fn){
-  $(id).addEventListener("click",e=>{
-    const b=e.target.closest("button");if(!b)return;
-    $(id).querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x===b?"true":"false"));
-    fn(b.dataset[attr]);
-  });
-}
-seg("#langSeg","lang",v=>{S.lang=v;syncUI()});
-seg("#modeSeg","mode",v=>{S.mode=v;modeNote()});
-seg("#immSeg","imm",v=>{S.imm=+v});
-$("#micro").onchange=e=>{S.micro=e.target.checked};
-$("#goal").addEventListener("change",e=>{S.goals[S.lang]=e.target.value.trim();save()});
-$("#level").addEventListener("change",e=>{S.level=e.target.value;save()});
-$("#vow").addEventListener("change",e=>{S.ar.vow=e.target.checked;save()});
-$("#trl").addEventListener("change",e=>{S.ar.tr=e.target.checked;save()});
-$("#studied").addEventListener("change",e=>{S.studied=e.target.value.trim()});
-
-/* réglages du fournisseur */
-(function(){
-  const sel=$("#provider");
-  Object.keys(PROVIDERS).forEach(k=>sel.append(new Option(PROVIDERS[k].name,k)));
-})();
-function fillCfg(){
-  const p=S.cfg.provider||"gemini",d=PROVIDERS[p]||PROVIDERS.gemini,m=mods();
-  $("#provider").value=p;
-  $("#provNote").textContent=d.note+" Clé à créer sur "+d.keyUrl+". En cas de doute, utilisez « Voir les modèles disponibles ».";
-  $("#apikey").value=curKey();$("#mChat").value=m.chat;$("#mHeavy").value=m.heavy;
-  updateKeyDetectNote();
-}
-function updateKeyDetectNote(){
-  const val=$("#apikey").value.trim();
-  const det=detectProvider(val);
-  const note=$("#keyDetectNote");
-  if(!note)return;
-  if(det&&PROVIDERS[det]){
-    note.style.display="block";
-    note.textContent="✓ Clé reconnue : "+PROVIDERS[det].name;
-    if($("#provider").value!==det){
-      $("#provider").value=det;
-      S.cfg.provider=det;
-      $("#mChat").value="";$("#mHeavy").value="";
-      const m=mods();
-      $("#mChat").value=m.chat;$("#mHeavy").value=m.heavy;
-    }
-  }else{
+}else{
     note.style.display="none";
   }
 }
@@ -1872,14 +1850,16 @@ function applyTheme(name){
   const sel=$("#themeSelModal");if(sel&&sel.value!==t)sel.value=t;
 }
 function openSettings(msg){
-  const m=$("#cfgModal");if(m)m.hidden=false;
+  switchMainTab("profile");
   const savedTheme=localStorage.getItem("parlons.theme")||"studio";
   const sel=$("#themeSelModal");if(sel)sel.value=savedTheme;
   fillVoiceSelect();
   if(msg)flash(msg);
+  const apik=$("#apikey");
+  if(apik&&!apik.value)apik.focus();
 }
 function closeSettings(){
-  const m=$("#cfgModal");if(m)m.hidden=true;
+  switchMainTab("lessons");
 }
 $("#apikey").addEventListener("input",()=>{
   updateKeyDetectNote();
@@ -2177,7 +2157,7 @@ function markUsed(list){
 function bubbleT(d){
   const b=el("div","msg t");
   const isTutor=S.scn&&S.scn.id==="tutor";
-  const main=el("div",LANGS[S.lang].rtl&&!isTutor?"ar":"ar-msg",d.reply);main.dir="auto";
+  const main=el("div",LANGS[S.lang].rtl&&!isTutor?"ar":"ar-msg");main.innerHTML=renderMarkdownVisual(d.reply);main.dir="auto";
   b.append(main);
 
   let trEl=null, glossEl=null;
@@ -3179,6 +3159,15 @@ if(hintBtn){
       }
     }
   });
+}
+
+// Bouton Conversation Informelle dans l'onglet LeÃ§ons
+const infBtn=$("#informalBtn");
+if(infBtn){
+  infBtn.onclick=()=>{
+    const scn=SCENARIOS.find(s=>s.id==="free")||{id:"free",t:"Conversation libre",d:"Parler de ce que vous voulez",p:"Conversation libre : suis les sujets de l'apprenant, relance avec curiositÃ©."};
+    start(scn);
+  };
 }
 
 // Barre de navigation inferieure (4 onglets)

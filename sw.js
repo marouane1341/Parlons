@@ -1,4 +1,4 @@
-const CACHE_NAME = 'parlons-pwa-v33';
+const CACHE_NAME = 'parlons-pwa-v34';
 const STATIC_ASSETS = [
   './',
   './index.html',
