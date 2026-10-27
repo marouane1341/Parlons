@@ -238,6 +238,286 @@ ul.clean{margin:0;padding-inline-start:18px;display:flex;flex-direction:column;g
   0%{transform:scale(0.96);filter:drop-shadow(0 0 3px rgba(245,166,35,0.4))}
   100%{transform:scale(1.14);filter:drop-shadow(0 0 12px rgba(245,166,35,0.95))}
 }
+/* --- NOUVEAU STYLE APPLICATION MODERNE (Bottom Nav & Ecran Immersif) --- */
+.wrap{padding-bottom:88px!important}
+
+/* Barre de navigation inferieure fixe */
+.bottom-nav{
+  position:fixed;
+  bottom:0;
+  left:0;
+  right:0;
+  height:64px;
+  background:var(--card);
+  border-top:1px solid var(--line);
+  box-shadow:0 -4px 18px rgba(0,0,0,0.06);
+  display:flex;
+  justify-content:space-around;
+  align-items:center;
+  z-index:99;
+  padding-bottom:env(safe-area-inset-bottom, 0px);
+  backdrop-filter:blur(8px);
+}
+.bnav-btn{
+  background:none;
+  border:none;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:2px;
+  color:var(--muted);
+  cursor:pointer;
+  padding:6px 14px;
+  transition:all .18s ease;
+  font-family:var(--body);
+  border-radius:12px;
+}
+.bnav-btn .bnav-icon{font-size:21px;line-height:1;transition:transform .18s ease}
+.bnav-btn .bnav-label{font-size:11px;font-weight:600;letter-spacing:-0.2px}
+.bnav-btn.active{color:var(--accent)}
+.bnav-btn.active .bnav-icon{transform:scale(1.15)}
+
+/* Onglets de la vue principale */
+.tab-view{display:flex;flex-direction:column;gap:18px;min-width:0}
+
+/* Ecran de conversation immersif plein ecran (35% / 45% / 20%) */
+#chat.chat-immersive{
+  position:fixed;
+  inset:0;
+  width:100%;
+  height:100dvh;
+  max-height:100dvh;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+  z-index:95;
+  background:var(--paper);
+}
+
+/* Zone 1 : En-tete superieur (35% de la hauteur) */
+.chat-header-zone{
+  flex:0 0 35%;
+  height:35%;
+  min-height:35%;
+  max-height:35%;
+  background:linear-gradient(180deg, var(--card) 0%, var(--tint) 100%);
+  border-bottom:1px solid var(--line);
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+  align-items:center;
+  padding:12px 16px 8px 16px;
+  position:relative;
+  box-shadow:0 4px 18px rgba(0,0,0,0.04);
+}
+.chat-top-bar{
+  width:100%;
+  max-width:680px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  z-index:3;
+}
+.icon-circle-btn{
+  width:38px;
+  height:38px;
+  border-radius:50%;
+  border:1px solid var(--line);
+  background:var(--card);
+  color:var(--ink);
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+  transition:all .15s ease;
+  box-shadow:0 2px 6px rgba(0,0,0,0.04);
+}
+.icon-circle-btn:hover{background:var(--tint);border-color:var(--accent)}
+.chat-title-wrap{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:2px;
+}
+.chat-title-text{font-size:14px;font-weight:700;color:var(--ink)}
+.timer-pill{font-size:12px;font-weight:600;color:var(--good);background:var(--good-tint);padding:1px 8px;border-radius:999px}
+.timer-pill.low{color:var(--bad);background:var(--bad-tint)}
+
+/* Medaillon agrandi et centre dans l'en-tete */
+.seal-medallion.large-seal{
+  width:104px;
+  height:104px;
+}
+.chat-header-zone .avatar-container{
+  background:transparent!important;
+  border:none!important;
+  box-shadow:none!important;
+  padding:2px 0 6px 0!important;
+  margin:0!important;
+}
+
+/* Zone 2 : Dialogue central (45% de la hauteur) */
+.chat-dialogue-zone{
+  flex:0 0 45%;
+  height:45%;
+  min-height:45%;
+  max-height:45%;
+  overflow-y:auto;
+  padding:14px 16px;
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+  background:var(--paper);
+  scroll-behavior:smooth;
+}
+.chat-dialogue-zone .msg{
+  max-width:92%;
+  border-radius:16px;
+  box-shadow:0 2px 8px rgba(0,0,0,0.03);
+}
+
+/* Typographie arabe 24px+ Tashkeel impeccable */
+.ar, .ar-msg, [dir="rtl"]{
+  font-family:var(--arabic);
+  font-size:26px!important;
+  line-height:2.2!important;
+  letter-spacing:0.02em;
+  text-rendering:optimizeLegibility;
+}
+
+/* Boutons discrets sous la bulle : Reecouter et Traduire */
+.bubble-actions-row{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin-top:8px;
+}
+.bubble-round-btn{
+  width:34px;
+  height:34px;
+  border-radius:50%;
+  border:1px solid var(--line);
+  background:var(--card);
+  color:var(--ink);
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+  font-size:14px;
+  box-shadow:0 2px 6px rgba(0,0,0,0.04);
+  transition:all .15s ease;
+}
+.bubble-round-btn:hover{
+  background:var(--tint);
+  border-color:var(--accent);
+  transform:scale(1.08);
+}
+
+/* Zone 3 : Barre d'action inferieure (20% de la hauteur) */
+.chat-action-zone{
+  flex:0 0 20%;
+  height:20%;
+  min-height:20%;
+  max-height:20%;
+  background:var(--card);
+  border-top:1px solid var(--line);
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  align-items:center;
+  padding:6px 16px 10px 16px;
+  position:relative;
+  box-shadow:0 -4px 16px rgba(0,0,0,0.04);
+}
+.chat-action-bar{
+  width:100%;
+  max-width:380px;
+  display:flex;
+  align-items:center;
+  justify-content:space-around;
+  position:relative;
+}
+
+/* Grand bouton micro central flottant avec halo lumineux */
+.mic-glow-wrap{
+  position:relative;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+.mic-hero-btn{
+  width:70px;
+  height:70px;
+  border-radius:50%;
+  border:none;
+  background:var(--accent);
+  color:var(--accent-ink);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+  transition:all .22s ease;
+  box-shadow:0 8px 24px rgba(37,99,235,0.35);
+}
+.mic-hero-btn:active{transform:scale(0.94)}
+.mic-hero-btn.on{
+  background:var(--good);
+  color:#fff;
+  animation:heroMicPulse 1.3s infinite alternate;
+}
+@keyframes heroMicPulse{
+  0%{box-shadow:0 0 0 6px rgba(16,185,129,0.35), 0 0 16px var(--good)}
+  100%{box-shadow:0 0 0 14px rgba(16,185,129,0.1), 0 0 32px var(--good)}
+}
+
+/* Boutons lateraux clavier & ampoule */
+.action-side-btn{
+  width:50px;
+  height:50px;
+  border-radius:50%;
+  border:1px solid var(--line);
+  background:var(--tint);
+  color:var(--ink);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+  transition:all .15s ease;
+  box-shadow:0 2px 6px rgba(0,0,0,0.03);
+}
+.action-side-btn:hover{background:var(--card);border-color:var(--accent);transform:scale(1.05)}
+.action-btn-icon{font-size:18px;line-height:1}
+.action-btn-sub{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-top:2px}
+
+/* Tiroir clavier escamotable */
+.composer-drawer{
+  position:absolute;
+  bottom:100%;
+  left:0;
+  right:0;
+  background:var(--card);
+  border-top:1px solid var(--line);
+  padding:10px 16px;
+  display:flex;
+  gap:10px;
+  align-items:center;
+  box-shadow:0 -6px 20px rgba(0,0,0,0.08);
+  z-index:20;
+}
+.composer-drawer textarea{
+  flex:1;
+  border:1px solid var(--line);
+  border-radius:12px;
+  padding:10px 14px;
+  font-family:var(--body);
+  font-size:15px;
+  background:var(--paper);
+  color:var(--ink);
+  resize:none;
+}
+.chat-footer-aux{display:flex;align-items:center;gap:12px;margin-top:4px}
 </style>
 </head>
 <body>
@@ -326,143 +606,257 @@ ul.clean{margin:0;padding-inline-start:18px;display:flex;flex-direction:column;g
     </div>
   </div>
 
-  <section id="home" class="col">
-    <div class="panel" id="tutorCard" style="border:2px solid var(--accent);background:linear-gradient(135deg,var(--tint),var(--card));box-shadow:0 4px 16px rgba(0,0,0,0.06)">
-      <div class="row" style="align-items:center;justify-content:space-between;margin-bottom:6px">
-        <span class="label" style="color:var(--accent);margin:0;font-weight:700">&#128172; Tuteur Libre</span>
-        <span class="chip" style="font-size:11px;padding:2px 8px">Hors parcours</span>
+    <section id="home" class="col">
+    <!-- Onglet 1 : Lecons & Parcours -->
+    <div id="tabLessonsView" class="tab-view">
+      <div class="panel" id="tutorCard" style="border:2px solid var(--accent);background:linear-gradient(135deg,var(--tint),var(--card));box-shadow:0 4px 16px rgba(0,0,0,0.06)">
+        <div class="row spread" style="align-items:center;margin-bottom:6px">
+          <span class="label" style="color:var(--accent);margin:0;font-weight:700">&#128172; Tuteur Libre</span>
+          <span class="chip" style="font-size:11px;padding:2px 8px">Conversation spontanee</span>
+        </div>
+        <p style="margin:0 0 12px 0;color:var(--ink);font-size:14px">Une question de grammaire, de vocabulaire ou de prononciation ? Echangez directement avec le professeur en francais ou en arabe.</p>
+        <button class="btn" id="tutorBtn" style="width:100%;font-size:16px;padding:12px">&#128172; Poser une question au professeur</button>
       </div>
-      <p style="margin:0 0 12px 0;color:var(--ink);font-size:14px">Une question de grammaire, de vocabulaire ou de prononciation ? Posez-la directement au professeur en fran&ccedil;ais ou en arabe.</p>
-      <button class="btn" id="tutorBtn" style="width:100%;font-size:16px;padding:12px">&#128172; Poser une question au professeur</button>
-    </div>
-    
 
-    <div class="panel" id="alphaBox" hidden></div>
-    <div class="panel" id="nlBox" hidden></div>
-    <div class="panel" id="pathBox"></div>
+      <div class="panel" id="alphaBox" hidden></div>
+      <div class="panel" id="nlBox" hidden></div>
+      <div class="panel" id="pathBox"></div>
 
-    <div class="panel">
-      <label class="label" for="goal">Mon objectif pour cette langue</label>
-      <input class="field" id="goal" type="text" maxlength="160" placeholder="Par exemple : tenir 10 minutes de conversation sur mon travail">
-      <p class="small muted">Le professeur en tient compte dans chaque séance.</p>
-    </div>
-
-    <div id="lastCard" class="panel" hidden>
-      <span class="label">Dernier bilan</span>
-      <p id="lastText"></p>
-      <div class="row"><button class="btn ghost" id="resumeBtn">Reprendre la conversation</button></div>
-    </div>
-
-    <div class="row">
-      <button class="btn" id="reviewBtn" hidden>Révision du jour</button>
-      <button class="btn ghost" id="repeatBtn">Répéter à voix haute</button>
-      <button class="btn ghost" id="listenBtn">Écouter un court texte</button>
-    </div>
-
-    <div class="panel">
-      <span class="label">Réglages de séance</span>
-      <div class="row"><span class="small muted lab">Mode</span>
-        <div class="seg" id="modeSeg" role="group" aria-label="Mode">
-          <button data-mode="write" aria-pressed="false">Écrit</button>
-          <button data-mode="voice" aria-pressed="true">Voix</button>
-          <button data-mode="hf" aria-pressed="false">Mains libres</button>
-        </div></div>
-      <div class="row"><span class="small muted lab">Immersion</span>
-        <div class="seg" id="immSeg" role="group" aria-label="Immersion">
-          <button data-imm="0" aria-pressed="true">Avec aide</button>
-          <button data-imm="1" aria-pressed="false">Mélangé</button>
-          <button data-imm="2" aria-pressed="false">Totale</button>
-        </div></div>
-      <div class="row"><label class="small muted lab" for="level">Niveau</label>
-        <select class="field" id="level">
-          <option value="auto">Automatique</option><option>A1</option><option>A2</option><option>B1</option><option>B2</option>
-        </select></div>
-      <div id="arOpts" class="col" style="gap:8px" hidden>
-        <label class="chk" for="vow"><input type="checkbox" id="vow" checked> Afficher les voyelles courtes (tashkeel)</label>
-        <label class="chk" for="trl"><input type="checkbox" id="trl"> Ajouter la translittération</label>
+      <div class="row spread" style="gap:10px">
+        <button class="btn" id="reviewBtn" hidden>Revision du jour</button>
+        <button class="btn ghost" id="repeatBtn">&#127908; Repeter a voix haute</button>
+        <button class="btn ghost" id="listenBtn">&#128266; Ecouter un texte</button>
       </div>
-      <label class="chk" for="micro"><input type="checkbox" id="micro"> Micro-session de 2 minutes</label>
-      <p class="small muted" id="modeNote"></p>
     </div>
 
-    <div class="panel">
-      <label class="label" for="studied">Je viens d'étudier un cours ailleurs</label>
-      <textarea class="field" id="studied" rows="2" placeholder="Thème ou vocabulaire du cours, par exemple : la famille, ou une liste de mots"></textarea>
-      <div class="row"><button class="btn ghost" id="courseBtn">Pratiquer ce cours à l'oral</button></div>
+    <!-- Onglet 2 : Jeux de role & Situations -->
+    <div id="tabRoleplayView" class="tab-view" hidden>
+      <div class="panel">
+        <div class="row spread" style="align-items:center">
+          <h2 style="font-size:18px;display:flex;align-items:center;gap:8px">&#127917; Situations &amp; Jeux de r&ocirc;le</h2>
+          <span class="small muted">Mises en situation</span>
+        </div>
+        <p class="small muted">Choisissez une situation de la vie courante pour pratiquer votre expression orale en immersion.</p>
+        <div class="grid" id="scnGrid" style="margin-top:8px"></div>
+      </div>
+
+      <div class="panel">
+        <label class="label" for="studied">&#128218; Je viens d'&eacute;tudier un cours ailleurs</label>
+        <textarea class="field" id="studied" rows="2" placeholder="Theme ou vocabulaire du cours, par exemple : commander un repas, faire des achats, les vetements..."></textarea>
+        <div class="row" style="margin-top:6px"><button class="btn ghost" id="courseBtn">&#128172; Pratiquer ce cours a l'oral</button></div>
+      </div>
     </div>
 
-    <details class="panel">
-      <summary>Autres situations libres</summary>
-      <div class="grid" id="scnGrid"></div>
-    </details>
+    <!-- Onglet 4 : Profil & Reglages (Rangement du panneau technique) -->
+    <div id="tabProfileView" class="tab-view" hidden>
+      <div class="panel">
+        <h2 style="font-size:18px;display:flex;align-items:center;gap:8px">&#128100; Profil &amp; Pr&eacute;f&eacute;rences</h2>
+        
+        <label class="label" for="themeSelModal">&#127912; Th&egrave;me visuel (interchangeable)</label>
+        <select class="field" id="themeSelModal">
+          <option value="studio">&#127912; Studio Minimaliste</option>
+          <option value="orient">&#127769; Nuit d'Orient</option>
+          <option value="sapphire">&#128142; Saphir &amp; Menthe</option>
+          <option value="parchment">&#128220; Parchemin &amp; Encre</option>
+        </select>
+
+        <label class="label" for="goal">&#127919; Mon objectif personnel pour cette langue</label>
+        <input class="field" id="goal" type="text" maxlength="160" placeholder="Exemple : pouvoir voyager et me debrouiller seul">
+        <p class="small muted">Le professeur adapte ses reponses et ses encouragements selon cet objectif.</p>
+      </div>
+
+      <div class="panel" id="cfgBox">
+        <h3 style="font-size:16px;display:flex;align-items:center;gap:6px">&#9881;&#65039; Fournisseur d'IA &amp; Cl&eacute; API</h3>
+        <label class="label" for="provider">Fournisseur d'IA</label>
+        <select class="field" id="provider"></select>
+        <p class="small muted" id="provNote"></p>
+
+        <label class="label" for="apikey">Cl&eacute; API</label>
+        <input class="field" id="apikey" type="password" autocomplete="off" placeholder="Collez votre cle API Google Gemini ici">
+        <p class="small" id="keyDetectNote" style="color:var(--good);font-weight:600;display:none;margin-top:4px"></p>
+
+        <label class="label" for="mChat">Mod&egrave;le de conversation (rapide)</label>
+        <input class="field" id="mChat" type="text" autocomplete="off" list="modelList" value="gemini-3.5-flash-lite">
+        <label class="label" for="mHeavy">Mod&egrave;le pour le bilan &amp; l'arabe</label>
+        <input class="field" id="mHeavy" type="text" autocomplete="off" list="modelList" value="gemini-3.5-flash-lite">
+        <datalist id="modelList">
+          <option value="gemini-3.5-flash-lite">
+          <option value="gemini-3.8-flash">
+          <option value="gemini-2.5-flash">
+          <option value="gemini-2.0-flash">
+          <option value="llama-3.3-70b-versatile">
+          <option value="claude-haiku-5-5">
+          <option value="mistral-small-latest">
+        </datalist>
+
+        <div class="row" style="margin-top:6px">
+          <button class="btn sm" id="saveKey">Enregistrer</button>
+          <button class="btn sm ghost" id="testKey">Tester connexion IA</button>
+          <button class="btn sm ghost" id="testMicBtn">&#127908; Tester mon micro</button>
+          <button class="btn sm ghost" id="listModels">Voir mod&egrave;les</button>
+          <button class="btn sm ghost" id="resetCfgBtn" style="color:var(--bad)">R&eacute;initialiser</button>
+        </div>
+        <p class="small" id="testRes" role="status"></p>
+        <p class="small" id="testMicRes" role="status" style="display:none;margin-top:4px"></p>
+
+        <label class="label" for="voiceSel" style="margin-top:10px">&#128266; Voix du professeur (synth&egrave;se locale)</label>
+        <select class="field" id="voiceSel"></select>
+        <div class="row">
+          <button class="btn sm ghost" id="testVoiceBtn">&#128266; Tester la voix en direct</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3 style="font-size:16px">&#127937; R&eacute;glages p&eacute;dagogiques de s&eacute;ance</h3>
+        <div class="row"><span class="small muted lab">Mode</span>
+          <div class="seg" id="modeSeg" role="group" aria-label="Mode">
+            <button data-mode="write" aria-pressed="false">&Eacute;crit</button>
+            <button data-mode="voice" aria-pressed="true">Voix</button>
+            <button data-mode="hf" aria-pressed="false">Mains libres</button>
+          </div></div>
+        <div class="row"><span class="small muted lab">Immersion</span>
+          <div class="seg" id="immSeg" role="group" aria-label="Immersion">
+            <button data-imm="0" aria-pressed="true">Avec aide</button>
+            <button data-imm="1" aria-pressed="false">M&eacute;lang&eacute;</button>
+            <button data-imm="2" aria-pressed="false">Totale</button>
+          </div></div>
+        <div class="row"><label class="small muted lab" for="level">Niveau</label>
+          <select class="field" id="level">
+            <option value="auto">Automatique</option><option>A1</option><option>A2</option><option>B1</option><option>B2</option>
+          </select></div>
+        <div id="arOpts" class="col" style="gap:8px" hidden>
+          <label class="chk" for="vow"><input type="checkbox" id="vow" checked> Afficher les voyelles courtes (tashkeel complet)</label>
+          <label class="chk" for="trl"><input type="checkbox" id="trl"> Ajouter la translitt&eacute;ration phon&eacute;tique</label>
+        </div>
+        <label class="chk" for="micro"><input type="checkbox" id="micro"> Micro-session chrono de 2 minutes</label>
+        <p class="small muted" id="modeNote"></p>
+      </div>
+
+      <div id="lastCard" class="panel" hidden>
+        <span class="label">Dernier bilan</span>
+        <p id="lastText"></p>
+        <div class="row"><button class="btn ghost" id="resumeBtn">Reprendre la conversation</button></div>
+      </div>
+
+      <div class="panel">
+        <h3 style="font-size:16px">&#128190; Sauvegarde &amp; Donn&eacute;es</h3>
+        <p class="small muted">Exportez votre progression ou restaurez-la sur un autre appareil.</p>
+        <div class="row" style="margin-top:6px">
+          <button class="btn sm ghost" id="exportBtn">Exporter mes donn&eacute;es</button>
+          <label class="btn sm ghost" for="importFile" style="cursor:pointer">Importer</label>
+          <input type="file" id="importFile" accept="application/json" hidden>
+        </div>
+      </div>
+    </div>
   </section>
 
-  <section id="chat" class="col" style="gap:12px" hidden>
-    <div class="bar">
-      <button class="mini" id="backBtn">Quitter</button>
-      <div class="grow"><b id="chatTitle"></b></div>
-      <span class="timer" id="timer" hidden></span>
-      <button class="mini" id="hfBtn" hidden></button>
-      <button class="btn sm" id="endBtn">Bilan</button>
-    </div>
-
-        <!-- MÃ©daillon calligraphique animÃ© (Sceau du professeur) -->
-    <div id="avatarWrap" class="avatar-container prof-avatar state-neutral" aria-label="Sceau d'apprentissage">
-      <div class="avatar-ripple"></div>
-      <div class="seal-medallion">
-        <svg viewBox="0 0 100 100" width="88" height="88" aria-hidden="true" style="overflow:visible">
-          <defs>
-            <linearGradient id="sealBgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stop-color="var(--card)" stop-opacity="0.95"/>
-              <stop offset="100%" stop-color="var(--tint)" stop-opacity="0.9"/>
-            </linearGradient>
-            <linearGradient id="sealGoldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stop-color="#FCD34D"/>
-              <stop offset="50%" stop-color="#F5A623"/>
-              <stop offset="100%" stop-color="#D97706"/>
-            </linearGradient>
-          </defs>
-
-          <!-- Cercles concentriques dorÃ©s du mÃ©daillon -->
-          <circle class="seal-base" cx="50" cy="50" r="44" fill="url(#sealBgGrad)" stroke="url(#sealGoldGrad)" stroke-width="2.5"/>
-          <circle class="seal-inner-ring" cx="50" cy="50" r="38" fill="none" stroke="url(#sealGoldGrad)" stroke-width="1" stroke-dasharray="2 3" opacity="0.75"/>
-          <circle cx="50" cy="50" r="35" fill="none" stroke="var(--line)" stroke-width="0.8" opacity="0.6"/>
-
-          <!-- Symbole calligraphique arabe Â« Ø¶ Â» (DÄd - emblÃ¨me de la langue arabe) -->
-          <g class="seal-glyph-wrap" id="sealGlyphAr">
-            <text x="50" y="62" text-anchor="middle" font-family="'Amiri', 'Noto Naskh Arabic', serif" font-size="44" font-weight="700" fill="url(#sealGoldGrad)" class="seal-glyph">&#x0636;</text>
-          </g>
-
-          <!-- Symbole alternatif Ã©purÃ© livre ouvert / savoir (pour autres langues) -->
-          <g class="seal-glyph-wrap" id="sealGlyphOther" style="display:none">
-            <path d="M 32 38 Q 42 34 50 38 Q 58 34 68 38 L 68 62 Q 58 58 50 62 Q 42 58 32 62 Z" fill="none" stroke="url(#sealGoldGrad)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-            <line x1="50" y1="38" x2="50" y2="62" stroke="url(#sealGoldGrad)" stroke-width="2"/>
-            <path d="M 36 44 Q 43 41 47 44" stroke="var(--muted)" stroke-width="1.2" stroke-linecap="round" fill="none"/>
-            <path d="M 36 50 Q 43 47 47 50" stroke="var(--muted)" stroke-width="1.2" stroke-linecap="round" fill="none"/>
-            <path d="M 53 44 Q 57 41 64 44" stroke="var(--muted)" stroke-width="1.2" stroke-linecap="round" fill="none"/>
-            <path d="M 53 50 Q 57 47 64 50" stroke="var(--muted)" stroke-width="1.2" stroke-linecap="round" fill="none"/>
-          </g>
-        </svg>
+    <section id="chat" class="chat-immersive" hidden>
+    <!-- 1. En-tete superieur (35% de la hauteur) -->
+    <header class="chat-header-zone">
+      <div class="chat-top-bar">
+        <button class="icon-circle-btn" id="backBtn" aria-label="Quitter la conversation" title="Quitter">&#10005;</button>
+        <div class="chat-title-wrap">
+          <span id="chatTitle" class="chat-title-text">Conversation</span>
+          <span class="timer-pill" id="timer" hidden></span>
+        </div>
+        <button class="icon-circle-btn" id="chatCfgBtn" aria-label="Parametres" title="Parametres">&#9881;&#65039;</button>
       </div>
-      <div class="avatar-status-pill">
-        <span class="avatar-dot"></span>
-        <span id="avatarStateText">Professeur pr&ecirc;t</span>
+
+      <!-- Medaillon calligraphique dore Â« Ø¶ Â» agrandi et centre avec onde reactive -->
+      <div id="avatarWrap" class="avatar-container prof-avatar state-neutral" aria-label="Sceau d'apprentissage">
+        <div class="avatar-ripple"></div>
+        <div class="seal-medallion large-seal">
+          <svg viewBox="0 0 100 100" width="104" height="104" aria-hidden="true" style="overflow:visible">
+            <defs>
+              <linearGradient id="sealBgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="var(--card)" stop-opacity="0.95"/>
+                <stop offset="100%" stop-color="var(--tint)" stop-opacity="0.9"/>
+              </linearGradient>
+              <linearGradient id="sealGoldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#FCD34D"/>
+                <stop offset="50%" stop-color="#F5A623"/>
+                <stop offset="100%" stop-color="#D97706"/>
+              </linearGradient>
+            </defs>
+
+            <!-- Cercles concentriques dores du medaillon -->
+            <circle class="seal-base" cx="50" cy="50" r="44" fill="url(#sealBgGrad)" stroke="url(#sealGoldGrad)" stroke-width="2.6"/>
+            <circle class="seal-inner-ring" cx="50" cy="50" r="38" fill="none" stroke="url(#sealGoldGrad)" stroke-width="1.2" stroke-dasharray="2 3" opacity="0.8"/>
+            <circle cx="50" cy="50" r="35" fill="none" stroke="var(--line)" stroke-width="0.8" opacity="0.6"/>
+
+            <!-- Symbole calligraphique arabe Â« Ø¶ Â» -->
+            <g class="seal-glyph-wrap" id="sealGlyphAr">
+              <text x="50" y="63" text-anchor="middle" font-family="'Amiri', 'Noto Naskh Arabic', serif" font-size="50" font-weight="700" fill="url(#sealGoldGrad)" class="seal-glyph">&#x0636;</text>
+            </g>
+
+            <!-- Symbole alternatif epure livre ouvert / savoir -->
+            <g class="seal-glyph-wrap" id="sealGlyphOther" style="display:none">
+              <path d="M 32 38 Q 42 34 50 38 Q 58 34 68 38 L 68 62 Q 58 58 50 62 Q 42 58 32 62 Z" fill="none" stroke="url(#sealGoldGrad)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+              <line x1="50" y1="38" x2="50" y2="62" stroke="url(#sealGoldGrad)" stroke-width="2"/>
+              <path d="M 36 44 Q 43 41 47 44" stroke="var(--muted)" stroke-width="1.2" stroke-linecap="round" fill="none"/>
+              <path d="M 36 50 Q 43 47 47 50" stroke="var(--muted)" stroke-width="1.2" stroke-linecap="round" fill="none"/>
+              <path d="M 53 44 Q 57 41 64 44" stroke="var(--muted)" stroke-width="1.2" stroke-linecap="round" fill="none"/>
+              <path d="M 53 50 Q 57 47 64 50" stroke="var(--muted)" stroke-width="1.2" stroke-linecap="round" fill="none"/>
+            </g>
+          </svg>
+        </div>
+        <div class="avatar-status-pill">
+          <span class="avatar-dot"></span>
+          <span id="avatarStateText">Professeur pr&ecirc;t</span>
+        </div>
       </div>
-    </div><div id="goalsBox" class="targets" hidden></div>
-    <div id="targets" class="targets" hidden></div>
-    <div class="log" id="log" aria-live="polite"></div>
-    <div class="status" id="status" role="status"></div>
-    <div class="live small muted" id="live"></div>
-    <div id="tutorSttBar" class="row" style="justify-content:center;margin-bottom:2px" hidden>
-      <button class="mini" id="tutorSttBtn" type="button" style="border-radius:12px;padding:4px 12px;font-weight:600">🎤 Micro : Français (toucher pour changer)</button>
-    </div>
-    <div class="composer">
-      <button class="mic" id="micBtn" aria-label="Parler">
-        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-2.08A7 7 0 0 0 19 12h-2z"/></svg>
-      </button>
-      <textarea id="input" rows="1" placeholder="Écrivez ou dictez votre message…" aria-label="Votre message"></textarea>
-      <button class="btn" id="sendBtn">Envoyer</button>
-    </div>
+    </header>
+
+    <!-- 2. Zone centrale de dialogue (45% de la hauteur) -->
+    <main class="chat-dialogue-zone" id="chatDialogueZone">
+      <div id="goalsBox" class="targets" hidden></div>
+      <div id="targets" class="targets" hidden></div>
+      <div class="log" id="log" aria-live="polite"></div>
+      <div class="status" id="status" role="status"></div>
+      <div class="live small muted" id="live"></div>
+      <div id="tutorSttBar" class="row" style="justify-content:center;margin-bottom:2px" hidden>
+        <button class="mini" id="tutorSttBtn" type="button" style="border-radius:12px;padding:4px 12px;font-weight:600">&#127908; Micro : Fran&ccedil;ais (toucher pour changer)</button>
+      </div>
+    </main>
+
+    <!-- 3. Barre d'action inferieure (20% de la hauteur) -->
+    <footer class="chat-action-zone">
+      <!-- Tiroir de saisie clavier escamotable -->
+      <div id="composerDrawer" class="composer-drawer" hidden>
+        <textarea id="input" rows="1" placeholder="Ecrivez ou dictez votre message..." aria-label="Votre message"></textarea>
+        <button class="btn sm" id="sendBtn">Envoyer</button>
+      </div>
+
+      <!-- Barre des 3 boutons principaux -->
+      <div class="chat-action-bar">
+        <!-- Bouton Clavier a gauche -->
+        <button class="action-side-btn" id="keyboardToggleBtn" aria-label="Saisir au clavier" title="Clavier">
+          <span class="action-btn-icon">&#9000;</span>
+          <span class="action-btn-sub">Ecrire</span>
+        </button>
+
+        <!-- Grand bouton Micro flottant au centre avec halo lumineux -->
+        <div class="mic-glow-wrap">
+          <button class="mic-hero-btn" id="micBtn" aria-label="Parler au micro" title="Parler">
+            <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor" aria-hidden="true">
+              <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+              <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+            </svg>
+          </button>
+        </div>
+
+        <!-- Bouton Ampoule a droite (Suggestion) -->
+        <button class="action-side-btn" id="hintBtn" aria-label="Suggestion de reponse" title="Aide / Suggestion">
+          <span class="action-btn-icon">&#128161;</span>
+          <span class="action-btn-sub">Aide</span>
+        </button>
+      </div>
+
+      <div class="chat-footer-aux">
+        <button class="mini ghost" id="endBtn" style="font-size:12px;opacity:0.8">Terminer &amp; Bilan</button>
+        <button class="mini ghost" id="hfBtn" hidden style="font-size:12px;opacity:0.8"></button>
+      </div>
+    </footer>
   </section>
 
   <section id="listen" class="col" style="gap:12px" hidden>
@@ -1651,9 +2045,12 @@ function rules(){
 /* ---------- navigation ---------- */
 function show(id){
   ["home","chat","listen","repeat","alpha","recap"].forEach(x=>{$("#"+x).hidden=x!==id});
-  S.view=id;window.scrollTo(0,0);setStatus();
-}
-function leaveSession(){
+  S.view=id;
+  const bNav=$("#bottomNav");
+  if(bNav)bNav.hidden=(id==="chat");
+  window.scrollTo(0,0);
+  setStatus();
+}function leaveSession(){
   $("#endBtn").hidden=false;
   $("#input").placeholder="Écrivez ou dictez votre message…";
   const tBar=$("#tutorSttBar");if(tBar)tBar.hidden=true;
@@ -1780,17 +2177,41 @@ function markUsed(list){
 function bubbleT(d){
   const b=el("div","msg t");
   const isTutor=S.scn&&S.scn.id==="tutor";
-  const main=el("div",LANGS[S.lang].rtl&&!isTutor?"ar":null,d.reply);main.dir="auto";
+  const main=el("div",LANGS[S.lang].rtl&&!isTutor?"ar":"ar-msg",d.reply);main.dir="auto";
   b.append(main);
-  if(d.tr&&typeof d.tr==="string"&&d.tr.trim()){const t=el("div","tr",d.tr);t.dir="ltr";b.append(t)}
-  if(d.fr&&typeof d.fr==="string"&&d.fr.trim()&&S.imm<2&&S.scn.id!=="check"&&!isTutor)b.append(el("div","gloss",d.fr));
-  const tools=el("div","tools");
-  const say=el("button","mini","Écouter");say.onclick=()=>speak(d.reply,null);
-  const slow=el("button","mini","Plus lentement");slow.onclick=()=>speak(d.reply,.65);
-  tools.append(say,slow);b.append(tools);
+
+  let trEl=null, glossEl=null;
+  if(d.tr&&typeof d.tr==="string"&&d.tr.trim()){trEl=el("div","tr",d.tr);trEl.dir="ltr";b.append(trEl)}
+  if(d.fr&&typeof d.fr==="string"&&d.fr.trim()&&S.imm<2&&S.scn.id!=="check"){glossEl=el("div","gloss",d.fr);b.append(glossEl)}
+
+  // Sous la bulle, deux boutons ronds discrets : ðŸ”Š Reecouter et ðŸŒ Traduire
+  const tools=el("div","bubble-actions-row");
+  const say=el("button","bubble-round-btn","\uD83D\uDD0A");
+  say.setAttribute("title","Reecouter la phrase");
+  say.setAttribute("aria-label","Reecouter");
+  say.onclick=()=>speak(d.reply,null);
+
+  const trad=el("button","bubble-round-btn","\uD83C\uDF10");
+  trad.setAttribute("title","Traduire / Afficher l'aide");
+  trad.setAttribute("aria-label","Traduire");
+  trad.onclick=()=>{
+    let toggled=false;
+    if(glossEl){glossEl.hidden=!glossEl.hidden;toggled=true}
+    if(trEl){trEl.hidden=!trEl.hidden;toggled=true}
+    if(!toggled&&d.reply){
+      let extra=b.querySelector(".extra-gloss");
+      if(!extra){
+        extra=el("div","gloss extra-gloss",extractFrenchExplanation(d.reply)||"Explication ci-dessus.");
+        b.append(extra);
+      }else{
+        extra.hidden=!extra.hidden;
+      }
+    }
+  };
+  tools.append(say,trad);
+  b.append(tools);
   return b;
-}
-function fixCard(list){
+}function fixCard(list){
   const voice=S.mode!=="write";
   const c=el("div","fix"+(voice?" light":""));
   list.slice(0,voice?2:4).forEach(f=>{
@@ -2703,6 +3124,86 @@ const tsm=$("#themeSelModal");if(tsm)tsm.addEventListener("change",e=>applyTheme
 const ob=$("#cfgOpenBtn");if(ob)ob.addEventListener("click",()=>openSettings());
 const cb=$("#cfgCloseBtn");if(cb)cb.addEventListener("click",()=>closeSettings());
 const cm=$("#cfgModal");if(cm)cm.addEventListener("click",e=>{if(e.target===cm)closeSettings()});
+const chatCfgBtn=$("#chatCfgBtn");if(chatCfgBtn)chatCfgBtn.addEventListener("click",()=>openSettings());
+
+// Bouton Clavier escamotable dans le chat
+const kBtn=$("#keyboardToggleBtn");
+if(kBtn){
+  kBtn.addEventListener("click",()=>{
+    const d=$("#composerDrawer");
+    if(!d)return;
+    d.hidden=!d.hidden;
+    if(!d.hidden){
+      const inp=$("#input");
+      if(inp)inp.focus();
+    }
+  });
+}
+
+// Bouton Ampoule (Suggestion / Aide)
+const hintBtn=$("#hintBtn");
+if(hintBtn){
+  hintBtn.addEventListener("click",()=>{
+    const isTutor=(S.scn&&S.scn.id==="tutor");
+    const inp=$("#input");
+    const drawer=$("#composerDrawer");
+    if(isTutor){
+      const suggestions=S.lang==="ar"
+        ?[
+          "Comment dit-on Â« enchante de faire votre connaissance Â» en arabe ?",
+          "Peux-tu m'expliquer la difference entre la fat-ha et la kasra ?",
+          "Comment exprimer Â« ou se trouve la gare ? Â» avec le Tashkeel complet ?",
+          "Donne-moi 3 expressions utiles du quotidien avec leur phonetique et traduction."
+        ]
+        :(S.lang==="en"
+          ?["How do I politely order food?","What is the difference between 'make' and 'do'?","Can you teach me 3 common idioms?"]
+          :["Hoe vraag ik de weg in het Nederlands?","Wat betekent deze uitdrukking?","Kun je me 3 handige zinnen leren?"]);
+      const chosen=suggestions[Math.floor(Math.random()*suggestions.length)];
+      if(inp){
+        inp.value=chosen;
+        if(drawer)drawer.hidden=false;
+        inp.focus();
+      }
+      flash("\uD83D\uDCA1 Suggestion prete : Â« "+chosen.slice(0,35)+"â€¦ Â»");
+    }else{
+      if(S.targets&&S.targets.length){
+        const remaining=S.targets.filter(t=>!(S.used||[]).includes(t));
+        const hintText=remaining.length?remaining[0]:S.targets[0];
+        flash("\uD83D\uDCA1 Expression recommandee : Â« "+hintText+" Â»");
+        if(inp){
+          inp.value=hintText;
+          if(drawer)drawer.hidden=false;
+        }
+      }else{
+        flash("\uD83D\uDCA1 Repondez spontanement au professeur ou posez une question.");
+      }
+    }
+  });
+}
+
+// Barre de navigation inferieure (4 onglets)
+function switchMainTab(tabName){
+  if(tabName==="tutor"){
+    startTutor();
+    return;
+  }
+  document.querySelectorAll(".bnav-btn").forEach(b=>{
+    const active=b.dataset.tab===tabName;
+    b.classList.toggle("active",active);
+    b.setAttribute("aria-selected",active?"true":"false");
+  });
+  const tLessons=$("#tabLessonsView");
+  const tRoleplay=$("#tabRoleplayView");
+  const tProfile=$("#tabProfileView");
+  if(tLessons)tLessons.hidden=tabName!=="lessons";
+  if(tRoleplay)tRoleplay.hidden=tabName!=="roleplay";
+  if(tProfile)tProfile.hidden=tabName!=="profile";
+  show("home");
+}
+document.querySelectorAll(".bnav-btn").forEach(b=>{
+  b.addEventListener("click",()=>switchMainTab(b.dataset.tab));
+});
+
 const tvb=$("#testVoiceBtn");
 if(tvb){
   tvb.onclick=()=>{
@@ -2712,8 +3213,7 @@ if(tvb){
     speak(sample);
   };
 }
-if(!curKey())openSettings();
-/* ---------- gestion PWA & hors-ligne ---------- */
+if(!curKey())openSettings();/* ---------- gestion PWA & hors-ligne ---------- */
 let deferredInstallPrompt=null;
 window.addEventListener("beforeinstallprompt",e=>{
   e.preventDefault();
