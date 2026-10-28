@@ -842,9 +842,9 @@ audio,
         Installer
       </button>
       <div class="seg" role="group" aria-label="Langue" id="langSeg">
-        <button data-lang="ar" aria-pressed="true">&#127480;&#127462; Arabe</button>
-        <button data-lang="en" aria-pressed="false">&#127468;&#127463; Anglais</button>
-        <button data-lang="nl" aria-pressed="false">&#127475;&#127473; N&eacute;erlandais</button>
+        <button data-lang="ar" onclick="window.selectLanguage('ar')" aria-pressed="true">&#127480;&#127462; Arabe</button>
+        <button data-lang="en" onclick="window.selectLanguage('en')" aria-pressed="false">&#127468;&#127463; Anglais</button>
+        <button data-lang="nl" onclick="window.selectLanguage('nl')" aria-pressed="false">&#127475;&#127473; N&eacute;erlandais</button>
       </div>
       <button id="cfgOpenBtn" class="icon-btn" title="Param&egrave;tres (IA, voix, th&egrave;me)" aria-label="Param&egrave;tres">&#9881;&#65039;</button>
     </div>
@@ -1226,6 +1226,51 @@ audio,
 <script>
 (function(){
 "use strict";
+
+// DÉFINITION GLOBALE EN TÊTE DE SCRIPT (OBLIGATOIRE)
+window.TUTORS = {
+  yasmine: {
+    id: "yasmine",
+    name: "Yasmine",
+    gender: "female",
+    lang: "ar-SA",
+    voiceCloud: "ar-XA-Wavenet-B", // ou ar-EG-SalmaNeural
+    title: "Pédagogue & Bienveillante",
+    glyph: "\u0636",
+    badge: "Douce & Pédagogue",
+    prompt: "Tu es Yasmine, professeure d'arabe bienveillante et encourageante. Réponds de façon concise et pédagogique en arabe avec transcription si utile.",
+    promptText: "Tu es Yasmine, professeure d'arabe bienveillante et encourageante. Réponds de façon concise et pédagogique en arabe avec transcription si utile."
+  },
+  tariq: {
+    id: "tariq",
+    name: "Tariq",
+    gender: "male",
+    lang: "ar-SA",
+    voiceCloud: "ar-XA-Standard-A", // ou ar-EG-ShakirNeural
+    title: "Pragmatique & Situations réelles",
+    glyph: "\u0637",
+    badge: "Direct & Pratique",
+    prompt: "Tu es Tariq, professeur d'arabe dynamique et direct. Réponds de façon vivante et concrète en arabe.",
+    promptText: "Tu es Tariq, professeur d'arabe dynamique et direct. Réponds de façon vivante et concrète en arabe."
+  }
+};
+var TUTORS = window.TUTORS;
+
+// Sélecteur de langue global
+window.selectLanguage = function(lang) {
+  try {
+    if (typeof S !== "undefined") {
+      S.lang = lang;
+      if (typeof save === "function") save();
+      if (typeof syncUI === "function") syncUI();
+    }
+    document.querySelectorAll("#langSeg button").forEach(btn => {
+      btn.setAttribute("aria-pressed", btn.getAttribute("data-lang") === lang ? "true" : "false");
+    });
+  } catch(e) {
+    console.error("selectLanguage error:", e);
+  }
+};
 
 // Interception globale d'erreurs pour éviter tout arrêt de l'application
 window.addEventListener("error", function(evt){
@@ -1678,25 +1723,39 @@ function appendMessage(role, text) {
 }
 window.appendMessage = appendMessage;
 
-window.playTutorAudio = function(text, tutorKey) {
-  if (typeof speak === 'function') {
-    speak(text, null);
-  } else if (typeof window.speakText === 'function') {
-    window.speakText(text);
+function fallbackLocalVoice(text, isFemale) {
+  if (!('speechSynthesis' in window)) return;
+  window.speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = 'ar-SA';
+  // Forcer un pitch aigu pour une voix féminine même si le moteur local est un homme
+  utterance.pitch = isFemale ? 1.4 : 0.85;
+  utterance.rate = 0.95;
+  window.speechSynthesis.speak(utterance);
+}
+window.fallbackLocalVoice = fallbackLocalVoice;
+
+window.playVoice = function(text, tutorKey) {
+  const isYasmine = tutorKey ? tutorKey.includes('yasmine') : true;
+  
+  // 1. Tentative par flux audio externe garanti (Femme / Homme)
+  try {
+    // Passerelle TTS directe
+    const voiceName = isYasmine ? 'ar-XA-Wavenet-B' : 'ar-XA-Standard-A';
+    const audioUrl = `https://api.streamelements.com/kappa/v2/speech?voice=${voiceName}&text=${encodeURIComponent(text)}`;
+    const audio = new Audio(audioUrl);
+    audio.play().catch(e => {
+      console.warn("Audio cloud non dispo, fallback pitch", e);
+      fallbackLocalVoice(text, isYasmine);
+    });
+  } catch (err) {
+    fallbackLocalVoice(text, isYasmine);
   }
 };
-
+window.playTutorAudio = window.playVoice;
 window.speakText = function(text) {
-  if (typeof speak === 'function') {
-    speak(text, null);
-  } else if ('speechSynthesis' in window) {
-    try {
-      window.speechSynthesis.cancel();
-      const u = new SpeechSynthesisUtterance(text);
-      u.lang = 'ar-SA';
-      window.speechSynthesis.speak(u);
-    } catch(e) {}
-  }
+  const tutorId = localStorage.getItem('selected_tutor') || 'yasmine';
+  window.playVoice(text, tutorId);
 };
 
 async function sendToGemini(userMessage) {
@@ -1706,13 +1765,18 @@ async function sendToGemini(userMessage) {
     return;
   }
 
-  // 1. Récupération robuste du tuteur (sans crash sur .id)
-  const tutorKey = localStorage.getItem('selected_tutor') || 'yasmine';
-  const isYasmine = tutorKey.toLowerCase().includes('yasmine');
-  
-  const systemInstruction = isYasmine
-    ? "Tu es Yasmine, professeure d'arabe bienveillante et encourageante. Réponds de façon concise et pédagogique, principalement en arabe avec transcription et traduction française si nécessaire."
-    : "Tu es Tariq, professeur d'arabe pragmatique et dynamique. Réponds de façon vivante et concrète, principalement en arabe parlé.";
+  // 1. Récupération robuste du tuteur (Sécurisation totale)
+  const tutorId = localStorage.getItem('selected_tutor') || 'yasmine';
+  const currentTutor = (window.TUTORS && window.TUTORS[tutorId]) ? window.TUTORS[tutorId] : {
+    name: "Yasmine",
+    prompt: "Tu es Yasmine, professeure d'arabe bienveillante."
+  };
+
+  const systemInstruction = currentTutor.prompt || currentTutor.promptText || (
+    tutorId.toLowerCase().includes('yasmine')
+      ? "Tu es Yasmine, professeure d'arabe bienveillante et encourageante. Réponds de façon concise et pédagogique, principalement en arabe avec transcription et traduction française si nécessaire."
+      : "Tu es Tariq, professeur d'arabe pragmatique et dynamique. Réponds de façon vivante et concrète, principalement en arabe parlé."
+  );
 
   // 2. Appel direct et universel à Gemini 1.5 Flash
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
@@ -1751,9 +1815,11 @@ async function sendToGemini(userMessage) {
     // 3. Afficher la réponse dans le chat
     appendMessage('assistant', botReply);
 
-    // 4. Lecture vocale
-    if (typeof window.playTutorAudio === 'function') {
-      window.playTutorAudio(botReply, tutorKey);
+    // 4. Lecture vocale garantie (Flux Audio Cloud)
+    if (typeof window.playVoice === 'function') {
+      window.playVoice(botReply, tutorId);
+    } else if (typeof window.playTutorAudio === 'function') {
+      window.playTutorAudio(botReply, tutorId);
     } else if (typeof window.speakText === 'function') {
       window.speakText(botReply);
     }
@@ -2865,31 +2931,41 @@ function voiceFor(lang){
 }
 
 /* ---------- GESTION MULTI-TUTEURS (Yasmine & Tariq) ---------- */
-const TUTORS = {
-  yasmine: {
-    id: "yasmine",
-    name: "Yasmine",
-    gender: "female",
-    title: "Pédagogue & Bienveillante",
-    glyph: "\u0636", // ض
-    badge: "Douce & Pédagogue",
-    promptText: "Tu es Yasmine, professeure d'arabe patiente, douce et encourageante. Tu corriges avec bienveillance et donnes des exemples simples du quotidien."
-  },
-  tariq: {
-    id: "tariq",
-    name: "Tariq",
-    gender: "male",
-    title: "Pragmatique & Situations réelles",
-    glyph: "\u0637", // ط
-    badge: "Direct & Pratique",
-    promptText: "Tu es Tariq, tuteur d'arabe dynamique et direct. Tu privilégies les mises en situation concrètes (voyages, travail, marchés) et le parler naturel."
-  }
-};
+// TUTORS est défini de façon globale en tête de script sur window.TUTORS
+if (!window.TUTORS) {
+  window.TUTORS = {
+    yasmine: {
+      id: "yasmine",
+      name: "Yasmine",
+      gender: "female",
+      lang: "ar-SA",
+      voiceCloud: "ar-XA-Wavenet-B",
+      title: "Pédagogue & Bienveillante",
+      glyph: "\u0636",
+      badge: "Douce & Pédagogue",
+      prompt: "Tu es Yasmine, professeure d'arabe bienveillante et encourageante. Réponds de façon concise et pédagogique en arabe avec transcription si utile.",
+      promptText: "Tu es Yasmine, professeure d'arabe bienveillante et encourageante. Réponds de façon concise et pédagogique en arabe avec transcription si utile."
+    },
+    tariq: {
+      id: "tariq",
+      name: "Tariq",
+      gender: "male",
+      lang: "ar-SA",
+      voiceCloud: "ar-XA-Standard-A",
+      title: "Pragmatique & Situations réelles",
+      glyph: "\u0637",
+      badge: "Direct & Pratique",
+      prompt: "Tu es Tariq, professeur d'arabe dynamique et direct. Réponds de façon vivante et concrète en arabe.",
+      promptText: "Tu es Tariq, professeur d'arabe dynamique et direct. Réponds de façon vivante et concrète en arabe."
+    }
+  };
+}
 
 function getActiveTutor(){
   let tid = "yasmine";
   try { tid = localStorage.getItem("selected_tutor") || localStorage.getItem("parlons.tutor") || "yasmine"; } catch(e){}
-  return (typeof TUTORS !== "undefined" && TUTORS[tid]) ? TUTORS[tid] : ((typeof TUTORS !== "undefined" && TUTORS.yasmine) ? TUTORS.yasmine : {id: tid, name: tid === "tariq" ? "Tariq" : "Yasmine", title: ""});
+  const tutors = window.TUTORS || TUTORS;
+  return (tutors && tutors[tid]) ? tutors[tid] : ((tutors && tutors.yasmine) ? tutors.yasmine : {id: tid, name: tid === "tariq" ? "Tariq" : "Yasmine", title: ""});
 }
 
 window.selectTutor = function(tutorKey) {
@@ -3117,19 +3193,15 @@ function getRemoteAudioUrl(text, tutorNameOrLang){
     if(!clean) return "";
 
     const encoded = encodeURIComponent(clean);
-    let tl = "ar";
-    if(tutorNameOrLang === "fr" || tutorNameOrLang === "en" || tutorNameOrLang === "nl"){
-      tl = tutorNameOrLang;
-    } else {
-      const isArabic = /[\u0600-\u06FF]/.test(clean);
-      if(isArabic){
-        tl = "ar";
-      } else if(typeof S !== "undefined" && S.lang && (S.lang === "en" || S.lang === "nl")){
-        tl = S.lang;
-      } else {
-        tl = "fr";
-      }
+    const isYasmine = tutorNameOrLang ? tutorNameOrLang.toLowerCase().includes('yasmine') : true;
+    const isArabic = /[\u0600-\u06FF]/.test(clean);
+    if(isArabic){
+      const voiceName = isYasmine ? 'ar-XA-Wavenet-B' : 'ar-XA-Standard-A';
+      return `https://api.streamelements.com/kappa/v2/speech?voice=${voiceName}&text=${encoded}`;
     }
+    let tl = "fr";
+    if(tutorNameOrLang === "en" || tutorNameOrLang === "nl") tl = tutorNameOrLang;
+    else if(typeof S !== "undefined" && S.lang && (S.lang === "en" || S.lang === "nl")) tl = S.lang;
     return `https://translate.google.com/translate_tts?ie=UTF-8&q=${encoded}&tl=${tl}&client=tw-ob`;
   } catch(e){
     console.error("getRemoteAudioUrl error:", e);
@@ -3157,7 +3229,7 @@ function speakLocalFallback(text, tutorName){
 
       const activeTutor = (typeof getActiveTutor === "function") ? getActiveTutor() : { id: tutorName || 'yasmine', gender: 'female' };
       const isFemale = (activeTutor.gender === 'female' || activeTutor.id === 'yasmine');
-      const tutorPitch = isFemale ? 1.2 : 0.85;
+      const tutorPitch = isFemale ? 1.4 : 0.85;
 
       const isArabic = /[\u0600-\u06FF]/.test(clean);
       const targetLang = isArabic ? 'ar-SA' : ((typeof S !== 'undefined' && S.lang === 'en') ? 'en-GB' : ((typeof S !== 'undefined' && S.lang === 'nl') ? 'nl-NL' : 'fr-FR'));
