@@ -2,6 +2,18 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations().then(function(registrations) {
+    for (let registration of registrations) {
+      registration.unregister();
+    }
+  });
+}
+if ('caches' in window) {
+  caches.keys().then(keys => keys.forEach(key => caches.delete(key)));
+}
+</script>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Parlons</title>
 <link rel="manifest" href="./manifest.json">
@@ -841,7 +853,7 @@ audio,
 
     <section id="home" class="col active">
     <!-- Onglet 1 : Lecons & Parcours -->
-    <div id="tabLessonsView" class="tab-view tab-content view active">
+    <div id="tabLessonsView" data-view="lessons" class="tab-view tab-content view active">
       <div class="panel informal-hero-card" id="informalCard">
         <div class="row spread" style="align-items:center;margin-bottom:6px">
           <span class="label" style="color:var(--accent);margin:0;font-weight:700">&#9889; Pratique directe</span>
@@ -858,7 +870,7 @@ audio,
     </div>
 
     <!-- Onglet 2 : Jeux de role & Situations -->
-    <div id="tabRoleplayView" class="tab-view tab-content view" hidden>
+    <div id="tabRoleplayView" data-view="roles" class="tab-view tab-content view" hidden>
       <div class="panel">
         <div class="row spread" style="align-items:center">
           <h2 style="font-size:18px;display:flex;align-items:center;gap:8px">&#127917; Situations &amp; Jeux de r&ocirc;le</h2>
@@ -876,7 +888,7 @@ audio,
     </div>
 
     <!-- Onglet 4 : Profil & Reglages (Rangement du panneau technique) -->
-    <div id="tabProfileView" class="tab-view tab-content view" hidden>
+    <div id="tabProfileView" data-view="profile" class="tab-view tab-content view" hidden>
       <!-- Section Choix du Tuteur -->
       <div class="panel" id="tutorProfileBox">
         <div class="row spread" style="align-items:center;margin-bottom:6px">
@@ -1135,19 +1147,19 @@ audio,
 
   <!-- Barre de navigation inferieure fixe (4 onglets natifs) -->
   <nav id="bottomNav" class="bottom-nav" aria-label="Navigation principale">
-    <button class="bnav-btn nav-tab nav-item active" data-tab="lessons" id="navLessonsBtn" onclick="switchTab('lessons')" aria-label="Leçons" aria-selected="true">
+    <button class="bnav-btn nav-tab nav-item active" data-tab="lessons" id="navLessonsBtn" onclick="window.switchTab('lessons')" aria-label="Leçons" aria-selected="true">
       <span class="bnav-icon">&#128506;&#65039;</span>
       <span class="bnav-label">Le&ccedil;ons</span>
     </button>
-    <button class="bnav-btn nav-tab nav-item" data-tab="roles" id="navRoleplayBtn" onclick="switchTab('roles')" aria-label="Jeux de rôle" aria-selected="false">
+    <button class="bnav-btn nav-tab nav-item" data-tab="roles" id="navRoleplayBtn" onclick="window.switchTab('roles')" aria-label="Jeux de rôle" aria-selected="false">
       <span class="bnav-icon">&#127917;</span>
       <span class="bnav-label">Jeux de r&ocirc;le</span>
     </button>
-    <button class="bnav-btn nav-tab nav-item" data-tab="tutor" id="navTutorBtn" onclick="switchTab('tutor')" aria-label="Tuteur Libre" aria-selected="false">
+    <button class="bnav-btn nav-tab nav-item" data-tab="tutor" id="navTutorBtn" onclick="window.switchTab('tutor')" aria-label="Tuteur Libre" aria-selected="false">
       <span class="bnav-icon">&#128172;</span>
       <span class="bnav-label">Tuteur Libre</span>
     </button>
-    <button class="bnav-btn nav-tab nav-item" data-tab="profile" id="navProfileBtn" onclick="switchTab('profile')" aria-label="Profil &amp; Réglages" aria-selected="false">
+    <button class="bnav-btn nav-tab nav-item" data-tab="profile" id="navProfileBtn" onclick="window.switchTab('profile')" aria-label="Profil &amp; Réglages" aria-selected="false">
       <span class="bnav-icon">&#9881;&#65039;</span>
       <span class="bnav-label">Profil</span>
     </button>
@@ -1165,6 +1177,83 @@ window.addEventListener("error", function(evt){
 window.addEventListener("unhandledrejection", function(evt){
   console.error("Parlons Unhandled Promise Rejection:", evt && evt.reason ? evt.reason : evt);
 });
+
+// Navigation de secours ultra-simple & infaillible (disponible immédiatement)
+window.switchTab = function(tabName) {
+  try {
+    console.log('Changement vers onglet :', tabName);
+    if(tabName === "roles") tabName = "roleplay";
+
+    if(tabName === "tutor"){
+      if(typeof startTutor === "function") {
+        startTutor();
+        return;
+      }
+    }
+
+    // Désactivation stricte de l'écran immersif de chat
+    const ch = document.getElementById("chat");
+    if(ch){
+      ch.hidden = true;
+      ch.classList.remove("active");
+      ch.style.display = "none";
+      ch.style.pointerEvents = "none";
+    }
+
+    // Activation de l'accueil
+    const hm = document.getElementById("home");
+    if(hm){
+      hm.hidden = false;
+      hm.classList.add("active");
+      hm.style.display = "flex";
+      hm.style.pointerEvents = "auto";
+    }
+
+    // Mappage précis des vues
+    const tabMap = {
+      lessons: document.getElementById("tabLessonsView") || document.querySelector('[data-view="lessons"]'),
+      roleplay: document.getElementById("tabRoleplayView") || document.querySelector('[data-view="roles"]'),
+      roles: document.getElementById("tabRoleplayView") || document.querySelector('[data-view="roles"]'),
+      profile: document.getElementById("tabProfileView") || document.querySelector('[data-view="profile"]')
+    };
+
+    // Masquer toutes les vues inactives
+    document.querySelectorAll(".tab-view, .tab-content, .view").forEach(el => {
+      if(el.id !== "home" && el.id !== "app" && el.id !== "body"){
+        el.classList.remove("active");
+        el.hidden = true;
+        el.style.display = "none";
+        el.style.pointerEvents = "none";
+      }
+    });
+
+    const activeView = tabMap[tabName] || document.getElementById(tabName) || document.querySelector(`[data-view="${tabName}"]`);
+    if(activeView){
+      activeView.classList.add("active");
+      activeView.hidden = false;
+      activeView.style.display = "block";
+      activeView.style.pointerEvents = "auto";
+    }
+
+    // Mise à jour visuelle des onglets de navigation
+    document.querySelectorAll(".bnav-btn, .nav-tab, .nav-item").forEach(btn => {
+      const target = btn.dataset.tab || btn.getAttribute("data-tab");
+      const active = (target === tabName || (tabName === "roleplay" && target === "roles") || (tabName === "roles" && target === "roleplay"));
+      btn.classList.toggle("active", active);
+      btn.setAttribute("aria-selected", active ? "true" : "false");
+    });
+
+    const bNav = document.getElementById("bottomNav");
+    if(bNav){
+      bNav.hidden = false;
+      bNav.style.display = "flex";
+      bNav.style.pointerEvents = "auto";
+    }
+  } catch(e) {
+    console.error("switchTab error:", e);
+  }
+};
+window.switchMainTab = window.switchTab;
 
 const $=s=>document.querySelector(s);
 const el=(t,c,x)=>{const e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e};
@@ -1194,83 +1283,6 @@ window.safeAddListener = safeAddListener;
 const safeClick=(sel,fn)=>safeAddListener(sel,"click",fn);
 const safeOn=(sel,evt,fn)=>safeAddListener(sel,evt,fn);
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
-
-// =========================================================================
-// 1. DÉGAGEMENT DE LA BOUCLE PRINCIPALE (LES CLICS D'ABORD)
-// Attachement prioritaire universel et protégé de chaque écouteur
-// =========================================================================
-
-function switchMainTab(tabName){
-  try {
-    if(tabName === "roles") tabName = "roleplay";
-
-    if(tabName === "tutor"){
-      if(typeof startTutor === "function") startTutor();
-      return;
-    }
-
-    // Désactivation stricte de l'écran immersif de chat
-    const ch = document.getElementById("chat");
-    if(ch){
-      ch.hidden = true;
-      ch.classList.remove("active");
-      ch.style.display = "none";
-      ch.style.pointerEvents = "none";
-    }
-
-    // Activation de l'accueil
-    const hm = document.getElementById("home");
-    if(hm){
-      hm.hidden = false;
-      hm.classList.add("active");
-      hm.style.display = "flex";
-      hm.style.pointerEvents = "auto";
-    }
-
-    // Mise à jour visuelle des onglets de navigation
-    document.querySelectorAll(".bnav-btn, .nav-tab, .nav-item").forEach(tab => {
-      const target = tab.dataset.tab || tab.getAttribute("data-tab");
-      const active = (target === tabName || (tabName === "roleplay" && target === "roles") || (tabName === "roles" && target === "roleplay"));
-      tab.classList.toggle("active", active);
-      tab.setAttribute("aria-selected", active ? "true" : "false");
-    });
-
-    // Mappage précis des vues
-    const tabMap = {
-      lessons: document.getElementById("tabLessonsView"),
-      roleplay: document.getElementById("tabRoleplayView"),
-      roles: document.getElementById("tabRoleplayView"),
-      profile: document.getElementById("tabProfileView")
-    };
-
-    // Toutes les vues .tab-view / .tab-content
-    document.querySelectorAll(".tab-view, .tab-content").forEach(el => {
-      el.classList.remove("active");
-      el.hidden = true;
-      el.style.display = "none";
-      el.style.pointerEvents = "none";
-    });
-
-    const activeView = tabMap[tabName];
-    if(activeView){
-      activeView.classList.add("active");
-      activeView.hidden = false;
-      activeView.style.display = "block";
-      activeView.style.pointerEvents = "auto";
-    }
-
-    const bNav = document.getElementById("bottomNav");
-    if(bNav){
-      bNav.hidden = false;
-      bNav.style.display = "flex";
-      bNav.style.pointerEvents = "auto";
-    }
-  } catch(e) {
-    console.error("switchTab error:", e);
-  }
-}
-window.switchMainTab = switchMainTab;
-window.switchTab = switchMainTab;
 window.openTutorView = function(){ if(typeof startTutor === "function") startTutor(); };
 
 function setActiveTutor(tid){
@@ -4738,8 +4750,14 @@ window.addEventListener("online",()=>{updateNetStatus();flash("Connexion rétabl
 window.addEventListener("offline",()=>{updateNetStatus()});
 updateNetStatus();
 
-if('serviceWorker' in navigator && (location.protocol==='https:'||location.protocol==='http:')){
-  try{navigator.serviceWorker.register('./sw.js').catch(()=>{})}catch(e){}
+if ('serviceWorker' in navigator) {
+  try {
+    navigator.serviceWorker.getRegistrations().then(function(registrations) {
+      for (let registration of registrations) {
+        registration.unregister();
+      }
+    });
+  } catch(e){}
 }
 })();
 </script>
