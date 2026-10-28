@@ -283,6 +283,7 @@ ul.clean{margin:0;padding-inline-start:18px;display:flex;flex-direction:column;g
 .overlay:not(.active),
 .modal-backdrop:not(.active),
 .loader:not(.active),
+#chatScreen:not(.active),
 #chat:not(.active),
 .composer-drawer[hidden],
 #composerDrawer[hidden],
@@ -356,6 +357,7 @@ audio,
 }
 
 /* Ecran de conversation immersif */
+#chatScreen.chat-immersive,
 #chat.chat-immersive {
   position: fixed;
   inset: 0;
@@ -369,6 +371,7 @@ audio,
   background: var(--paper);
   pointer-events: auto;
 }
+#chatScreen.chat-immersive[hidden],
 #chat.chat-immersive[hidden] {
   display: none !important;
   pointer-events: none !important;
@@ -861,7 +864,7 @@ audio,
         </div>
         <h3 style="margin:0 0 4px 0;font-size:17px;font-weight:700">Conversation informelle</h3>
         <p style="margin:0 0 12px 0;color:var(--muted);font-size:14px">&Eacute;changez librement avec le professeur, parlez de ce que vous voulez sans contrainte.</p>
-        <button class="btn btn-primary" id="informalBtn" type="button" style="width:100%;font-size:16px;padding:12px;font-weight:600;background:var(--accent);color:#fff;pointer-events:auto!important;cursor:pointer!important">&#128483;&#65039; D&eacute;marrer la conversation informelle</button>
+        <button class="btn btn-primary" id="informalBtn" onclick="window.openFreeTutor()" type="button" style="width:100%;font-size:16px;padding:12px;font-weight:600;background:var(--accent);color:#fff;pointer-events:auto!important;cursor:pointer!important">&#128483;&#65039; D&eacute;marrer la conversation informelle</button>
       </div>
 
       <div class="panel" id="alphaBox" hidden></div>
@@ -1051,11 +1054,11 @@ audio,
     </div>
   </section>
 
-    <section id="chat" class="chat-immersive" hidden>
+    <section id="chatScreen" class="chat-immersive conversation-view" data-view="tutor" hidden>
     <!-- 1. En-tete superieur (35% de la hauteur) -->
     <header class="chat-header-zone">
       <div class="chat-top-bar">
-        <button class="icon-circle-btn" id="backBtn" aria-label="Quitter la conversation" title="Quitter">&#10005;</button>
+        <button class="icon-circle-btn" id="backBtn" onclick="if(typeof leaveSession==='function')leaveSession();if(typeof window.switchTab==='function')window.switchTab('lessons');" aria-label="Quitter la conversation" title="Quitter">&#10005;</button>
         <div class="chat-title-wrap">
           <span id="chatTitle" class="chat-title-text">Conversation</span>
           <span class="timer-pill" id="timer" hidden></span>
@@ -1155,7 +1158,7 @@ audio,
       <span class="bnav-icon">&#127917;</span>
       <span class="bnav-label">Jeux de r&ocirc;le</span>
     </button>
-    <button class="bnav-btn nav-tab nav-item" data-tab="tutor" id="navTutorBtn" onclick="window.switchTab('tutor')" aria-label="Tuteur Libre" aria-selected="false">
+    <button class="bnav-btn nav-tab nav-item" data-tab="tutor" id="navTutorBtn" onclick="window.openFreeTutor()" aria-label="Tuteur Libre" aria-selected="false">
       <span class="bnav-icon">&#128172;</span>
       <span class="bnav-label">Tuteur Libre</span>
     </button>
@@ -1255,7 +1258,171 @@ window.switchTab = function(tabName) {
 };
 window.switchMainTab = window.switchTab;
 
-const $=s=>document.querySelector(s);
+// 1. Initialisation de la salutation du tuteur actif
+window.initTutorGreeting = function() {
+  try {
+    const t = (typeof getActiveTutor === "function") ? getActiveTutor() : { id: "yasmine", name: "Yasmine" };
+    const isAr = (typeof S !== "undefined" && S.lang === "ar");
+    if (typeof S !== "undefined") {
+      S.scn = {
+        id: "tutor",
+        t: "Tuteur · " + (typeof LANGS !== "undefined" && LANGS[S.lang] ? LANGS[S.lang].name : "arabe"),
+        p: "Mode tuteur linguistique libre hors parcours."
+      };
+      S.turns = [];
+      S.targets = [];
+      S.lastUserEl = null;
+      S.busy = false;
+      S.hf = false;
+      S.tutorStt = "fr";
+    }
+    if (typeof renderTargets === "function") renderTargets();
+    if (typeof renderGoals === "function") renderGoals();
+    const logEl = document.getElementById("log");
+    if (logEl) logEl.textContent = "";
+    const titleEl = document.getElementById("chatTitle");
+    if (titleEl) titleEl.textContent = "💬 Tuteur libre · " + t.name + (isAr ? " (Arabe)" : " (" + (typeof LANGS !== "undefined" && LANGS[S.lang] ? LANGS[S.lang].label : "") + ")");
+    const liveEl = document.getElementById("live");
+    if (liveEl) liveEl.textContent = "";
+    const inp = document.getElementById("input");
+    if (inp) {
+      inp.dir = isAr ? "rtl" : "auto";
+      inp.value = "";
+      inp.placeholder = "Posez votre question (ex: grammaire, vocabulaire, traduction…)";
+    }
+    if (typeof stopTimer === "function") stopTimer();
+    const timerEl = document.getElementById("timer");
+    if (timerEl) timerEl.hidden = true;
+    const endBtn = document.getElementById("endBtn");
+    if (endBtn) endBtn.hidden = true;
+    if (typeof updateHF === "function") updateHF();
+    if (typeof updateTutorSttUI === "function") updateTutorSttUI();
+    if (typeof updateAvatar === "function") updateAvatar();
+
+    const welcome = document.createElement("div");
+    welcome.className = "msg t";
+    const welcomeText = isAr
+      ? (t.id === "yasmine"
+          ? "مَرْحَبًا ! Je suis Yasmine, votre professeure d'arabe. Posez-moi n'importe quelle question en arabe ou en français."
+          : "مَرْحَبًا ! Je suis Tariq, votre professeur d'arabe. Parlons ensemble de situations du quotidien !")
+      : ("Bonjour ! Je suis " + t.name + ", votre tuteur. Posez-moi vos questions !");
+    const wText = document.createElement("div");
+    wText.textContent = welcomeText;
+    welcome.appendChild(wText);
+    if (logEl) logEl.appendChild(welcome);
+    if (inp) inp.focus();
+    if (typeof S !== "undefined" && S.mode !== "write" && typeof speakBilingualText === "function") {
+      speakBilingualText(welcomeText);
+    }
+  } catch(e) {
+    console.error("initTutorGreeting error:", e);
+  }
+};
+
+// 2. Ouverture inconditionnelle de l'écran Tuteur Libre
+window.openFreeTutor = function() {
+  console.log("Clic Tuteur Libre détecté");
+
+  // Récupération de la clé API
+  const key = localStorage.getItem('gemini_api_key') || localStorage.getItem('apiKey');
+  if (!key) {
+    alert("Veuillez d'abord enregistrer votre clé API dans l'onglet Profil / Réglages.");
+    if (typeof window.switchTab === 'function') window.switchTab('profile');
+    return;
+  }
+
+  // Masquer toutes les vues principales (Leçons, Profil, Rôles)
+  document.querySelectorAll('.view, .tab-content, section').forEach(el => {
+    el.style.display = 'none';
+    el.classList.remove('active');
+  });
+
+  // Afficher l'écran de conversation (cherche tous les identifiants possibles)
+  const chatScreen = document.getElementById('chatScreen') || 
+                     document.getElementById('conversationScreen') || 
+                     document.getElementById('tutorScreen') || 
+                     document.getElementById('chat') || 
+                     document.querySelector('.conversation-view');
+
+  if (chatScreen) {
+    chatScreen.hidden = false;
+    chatScreen.style.display = 'flex';
+    chatScreen.classList.add('active');
+    chatScreen.style.pointerEvents = 'auto';
+    console.log("Écran de conversation ouvert avec succès.");
+  } else {
+    alert("Erreur DOM : le conteneur de l'écran de conversation est introuvable.");
+  }
+
+  // Initialiser la salutation du tuteur actif
+  if (typeof initTutorGreeting === 'function') {
+    initTutorGreeting();
+  }
+};
+window.startTutor = window.openFreeTutor;
+
+// 3. Déblocage du lancement des leçons
+window.loadLessonData = function(lessonId) {
+  try {
+    const us = (typeof PATH !== "undefined" && typeof S !== "undefined" && PATH[S.lang]) ? PATH[S.lang] : [];
+    let idx = -1;
+    let unit = null;
+    if (typeof lessonId === "number") {
+      idx = lessonId;
+      unit = us[idx];
+    } else {
+      idx = us.findIndex(u => u.id === lessonId);
+      if (idx >= 0) unit = us[idx];
+      else {
+        const num = parseInt(lessonId, 10);
+        if (!isNaN(num) && us[num]) { idx = num; unit = us[num]; }
+      }
+    }
+    if (!unit && us.length > 0) { idx = 0; unit = us[0]; }
+    if (unit && typeof startUnit === "function") {
+      startUnit(unit, idx >= 0 ? idx : 0);
+    } else if (unit && typeof start === "function") {
+      const t = (typeof getActiveTutor === "function") ? getActiveTutor() : { id: "yasmine", name: "Yasmine", title: "" };
+      start({
+        id: "unit",
+        t: "Étape " + (idx + 1) + " · " + unit.t,
+        unit: unit,
+        p: "Unité du parcours « " + unit.t + " » (niveau " + unit.lvl + "). Tu es " + t.name + ", " + t.title + "."
+      });
+    }
+  } catch(e) {
+    console.error("loadLessonData error:", e);
+  }
+};
+
+window.startLesson = function(lessonId) {
+  console.log("Lancement leçon :", lessonId);
+  const key = localStorage.getItem('gemini_api_key') || localStorage.getItem('apiKey');
+  if (!key) {
+    alert("Veuillez configurer votre clé API dans le Profil avant de lancer une leçon.");
+    return;
+  }
+  // Basculer vers l'écran de leçon/discussion
+  const chatScreen = document.getElementById('chatScreen') || 
+                     document.getElementById('conversationScreen') || 
+                     document.getElementById('chat') || 
+                     document.querySelector('.conversation-view');
+  if (chatScreen) {
+    document.querySelectorAll('.view, .tab-content, section').forEach(el => {
+      el.style.display = 'none';
+      el.classList.remove('active');
+    });
+    chatScreen.hidden = false;
+    chatScreen.style.display = 'flex';
+    chatScreen.classList.add('active');
+    chatScreen.style.pointerEvents = 'auto';
+  }
+  if (typeof loadLessonData === 'function') {
+    loadLessonData(lessonId);
+  }
+};
+
+const $=s=>document.querySelector(s==="#chat"?"#chatScreen, #chat":s);
 const el=(t,c,x)=>{const e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e};
 
 function safeAddListener(idOrSelector, event, handler) {
@@ -1329,8 +1496,22 @@ document.addEventListener('click', function(e) {
     if (tabBtn) {
       e.preventDefault();
       const tabId = tabBtn.getAttribute('data-tab') || tabBtn.dataset.tab;
-      if (tabId && typeof switchTab === 'function') {
-        switchTab(tabId);
+      if (tabId === 'tutor') {
+        if (typeof window.openFreeTutor === 'function') window.openFreeTutor();
+        else if (typeof window.switchTab === 'function') window.switchTab('tutor');
+      } else if (tabId && typeof window.switchTab === 'function') {
+        window.switchTab(tabId);
+      }
+      return;
+    }
+
+    // Clic sur nœud de leçon
+    const lessonBtn = e.target.closest('[data-lesson-id], .roadmap-node-btn');
+    if (lessonBtn) {
+      e.preventDefault();
+      const lid = lessonBtn.getAttribute('data-lesson-id');
+      if (typeof window.startLesson === 'function') {
+        window.startLesson(lid);
       }
       return;
     }
@@ -3059,13 +3240,11 @@ function renderPath(){
     }
 
     // Clic direct sur la leçon sans formulaire intermédiaire
+    nodeBtn.setAttribute("onclick", "window.startLesson('" + (u.id || i) + "')");
+    nodeBtn.setAttribute("data-lesson-id", u.id || i);
     nodeBtn.onclick = (e) => {
-      e.preventDefault();
-      if (isUnlocked) {
-        startUnit(u, i);
-      } else {
-        flash("🔒 Terminez d'abord l'étape " + (activeIdx + 1) + " (« " + (cur ? cur.u.t : "") + " ») pour débloquer cette leçon.");
-      }
+      if (e && e.preventDefault) e.preventDefault();
+      window.startLesson(u.id || i);
     };
 
     const info = el("div", "roadmap-step-info");
