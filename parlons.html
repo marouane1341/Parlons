@@ -200,7 +200,22 @@ ul.clean{margin:0;padding-inline-start:18px;display:flex;flex-direction:column;g
 .theme-select:focus{border-color:var(--accent);outline:none}
 
 /* Fenêtre modale des réglages (Modal) */
-.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.6);backdrop-filter:blur(5px);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px}
+.modal-backdrop{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,0.6);
+  backdrop-filter:blur(5px);
+  z-index:9999;
+  display:none !important;
+  align-items:center;
+  justify-content:center;
+  padding:16px;
+  pointer-events:none !important;
+}
+.modal-backdrop.active{
+  display:flex !important;
+  pointer-events:auto !important;
+}
 .modal-card{background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:18px;max-width:580px;width:100%;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 24px 48px rgba(0,0,0,0.25);overflow:hidden}
 .modal-header{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--line);background:var(--paper)}
 .modal-body{padding:18px;overflow-y:auto;display:flex;flex-direction:column;gap:12px}
@@ -259,13 +274,34 @@ div[hidden],
 .tab-view[hidden],
 .tab-content[hidden],
 .modal-backdrop[hidden],
+.modal-backdrop:not(.active),
 .composer-drawer[hidden],
-#composerDrawer[hidden] {
+#composerDrawer[hidden],
+.status:empty,
+#status:empty,
+.live:empty,
+#live:empty,
+.targets:empty,
+#targets:empty,
+#goalsBox:empty {
   display: none !important;
   pointer-events: none !important;
   visibility: hidden !important;
   opacity: 0 !important;
   z-index: -9999 !important;
+}
+
+/* Audio & conteneurs masqués neutralisés */
+audio,
+.audio-container,
+#audioContainer {
+  display: none !important;
+  pointer-events: none !important;
+  position: absolute;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  z-index: -9999;
 }
 
 /* Interactivité garantie sur tous les éléments cliquables et navigation */
@@ -1118,13 +1154,36 @@ window.addEventListener("unhandledrejection", function(evt){
 
 const $=s=>document.querySelector(s);
 const el=(t,c,x)=>{const e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e};
-const safeClick=(sel,fn)=>{try{const e=$(sel);if(e)e.onclick=fn;return e;}catch(x){console.error(x);}};
-const safeOn=(sel,evt,fn)=>{try{const e=$(sel);if(e)e.addEventListener(evt,fn);return e;}catch(x){console.error(x);}};
+
+function safeAddListener(idOrSelector, event, handler) {
+  try {
+    if (!idOrSelector) return;
+    let el;
+    if (typeof idOrSelector === 'string') {
+      el = (idOrSelector.startsWith('#') || idOrSelector.startsWith('.') || idOrSelector.includes('['))
+        ? document.querySelector(idOrSelector)
+        : document.getElementById(idOrSelector);
+    } else {
+      el = idOrSelector;
+    }
+    if (el && typeof el.addEventListener === 'function') {
+      el.addEventListener(event, handler);
+    } else {
+      console.warn(`Élément introuvable pour écouteur : ${idOrSelector}`);
+    }
+  } catch (err) {
+    console.error(`Erreur attachement sur ${idOrSelector}:`, err);
+  }
+}
+window.safeAddListener = safeAddListener;
+
+const safeClick=(sel,fn)=>safeAddListener(sel,"click",fn);
+const safeOn=(sel,evt,fn)=>safeAddListener(sel,evt,fn);
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 
 // =========================================================================
 // 1. DÉGAGEMENT DE LA BOUCLE PRINCIPALE (LES CLICS D'ABORD)
-// Attachement prioritaire absolu des événements tactiles avant tout le reste
+// Attachement prioritaire universel et protégé de chaque écouteur
 // =========================================================================
 
 function switchMainTab(tabName){
@@ -1229,7 +1288,7 @@ function bindCoreNavigation(){
   try {
     // A. 4 onglets de navigation inférieure
     document.querySelectorAll(".nav-item, .nav-tab, .bnav-btn").forEach(btn => {
-      btn.onclick = (e) => {
+      safeAddListener(btn, "click", (e) => {
         try {
           e.preventDefault();
           e.stopPropagation();
@@ -1238,14 +1297,14 @@ function bindCoreNavigation(){
         } catch(err) {
           console.error("Tab click error:", err);
         }
-      };
+      });
     });
 
     // B. Bouton conversation informelle / Démarrage
     const startSelectors = ["#informalBtn", "#startConversationBtn", ".btn-primary", "#resumeBtn"];
     startSelectors.forEach(sel => {
       document.querySelectorAll(sel).forEach(btn => {
-        btn.onclick = (e) => {
+        safeAddListener(btn, "click", (e) => {
           try {
             e.preventDefault();
             if(typeof startTutor === "function") startTutor();
@@ -1253,103 +1312,143 @@ function bindCoreNavigation(){
           } catch(err) {
             console.error("Start btn error:", err);
           }
-        };
+        });
       });
     });
 
     // C. Bouton micro (hero mic dans le chat)
-    const mic = document.getElementById("micBtn");
-    if(mic){
-      mic.onclick = (e) => {
-        try {
-          e.preventDefault();
-          if(typeof micTap === "function") micTap();
-        } catch(err) {
-          console.error("micBtn click error:", err);
-        }
-      };
-    }
+    safeAddListener("#micBtn", "click", (e) => {
+      try {
+        e.preventDefault();
+        if(typeof micTap === "function") micTap();
+      } catch(err) {
+        console.error("micBtn click error:", err);
+      }
+    });
 
     // D. Fermeture ✕ (quitter la conversation ou fermer modale)
-    const backBtn = document.getElementById("backBtn");
-    if(backBtn){
-      backBtn.onclick = (e) => {
-        try {
-          e.preventDefault();
-          leaveSession();
-          switchMainTab("lessons");
-        } catch(err) {
-          console.error("backBtn click error:", err);
-        }
-      };
-    }
-    const cfgCloseBtn = document.getElementById("cfgCloseBtn");
-    if(cfgCloseBtn){
-      cfgCloseBtn.onclick = (e) => {
-        try {
-          e.preventDefault();
-          closeSettings();
-        } catch(err) {
-          console.error("cfgCloseBtn click error:", err);
-        }
-      };
-    }
+    safeAddListener("#backBtn", "click", (e) => {
+      try {
+        e.preventDefault();
+        leaveSession();
+        switchMainTab("lessons");
+      } catch(err) {
+        console.error("backBtn click error:", err);
+      }
+    });
+
+    safeAddListener("#cfgCloseBtn", "click", (e) => {
+      try {
+        e.preventDefault();
+        closeSettings();
+      } catch(err) {
+        console.error("cfgCloseBtn click error:", err);
+      }
+    });
 
     // E. Paramètres (roue crantée dans le chat et boutons profil)
-    const chatCfgBtn = document.getElementById("chatCfgBtn");
-    if(chatCfgBtn){
-      chatCfgBtn.onclick = (e) => {
-        try {
-          e.preventDefault();
-          openSettings();
-        } catch(err) {
-          console.error("chatCfgBtn click error:", err);
-        }
-      };
-    }
-    const cfgOpenBtn = document.getElementById("cfgOpenBtn");
-    if(cfgOpenBtn){
-      cfgOpenBtn.onclick = (e) => {
-        try {
-          e.preventDefault();
-          openSettings();
-        } catch(err) {
-          console.error("cfgOpenBtn click error:", err);
-        }
-      };
-    }
+    safeAddListener("#chatCfgBtn", "click", (e) => {
+      try {
+        e.preventDefault();
+        openSettings();
+      } catch(err) {
+        console.error("chatCfgBtn click error:", err);
+      }
+    });
+
+    safeAddListener("#cfgOpenBtn", "click", (e) => {
+      try {
+        e.preventDefault();
+        openSettings();
+      } catch(err) {
+        console.error("cfgOpenBtn click error:", err);
+      }
+    });
 
     // F. Bouton clavier drawer, aide hint, bouton envoi
-    const kBtn = document.getElementById("keyboardToggleBtn");
-    if(kBtn){
-      kBtn.onclick = (e) => {
-        try {
-          e.preventDefault();
-          const d = document.getElementById("composerDrawer");
-          if(d){
-            d.hidden = !d.hidden;
-            if(!d.hidden){
-              const inp = document.getElementById("input");
-              if(inp) inp.focus();
-            }
+    safeAddListener("#keyboardToggleBtn", "click", (e) => {
+      try {
+        e.preventDefault();
+        const d = document.getElementById("composerDrawer");
+        if(d){
+          d.hidden = !d.hidden;
+          if(!d.hidden){
+            const inp = document.getElementById("input");
+            if(inp) inp.focus();
           }
-        } catch(err) {
-          console.error("keyboardToggleBtn error:", err);
         }
-      };
-    }
+      } catch(err) {
+        console.error("keyboardToggleBtn error:", err);
+      }
+    });
 
-    const sendBtn = document.getElementById("sendBtn");
-    if(sendBtn){
-      sendBtn.onclick = (e) => {
-        try {
-          e.preventDefault();
-          if(typeof handleSend === "function") handleSend();
-        } catch(err) {
-          console.error("sendBtn error:", err);
+    safeAddListener("#hintBtn", "click", (e) => {
+      try {
+        e.preventDefault();
+        const isTutor=(typeof S !== "undefined" && S.scn && S.scn.id==="tutor");
+        const inp=document.getElementById("input");
+        const drawer=document.getElementById("composerDrawer");
+        if(isTutor){
+          const suggestions=(typeof S !== "undefined" && S.lang==="ar")
+            ?[
+              "Comment dit-on « enchanté de faire votre connaissance » en arabe ?",
+              "Peux-tu m'expliquer la différence entre la fat-ha et la kasra ?",
+              "Comment exprimer « où se trouve la gare ? » avec le Tashkeel complet ?",
+              "Donne-moi 3 expressions utiles du quotidien avec leur phonétique et traduction."
+            ]
+            :((typeof S !== "undefined" && S.lang==="en")
+              ?["How do I politely order food?","What is the difference between 'make' and 'do'?","Can you teach me 3 common idioms?"]
+              :["Hoe vraag ik de weg in het Nederlands?","Wat betekent deze uitdrukking?","Kun je me 3 handige zinnen leren?"]);
+          const chosen=suggestions[Math.floor(Math.random()*suggestions.length)];
+          if(inp){
+            inp.value=chosen;
+            if(drawer)drawer.hidden=false;
+            inp.focus();
+          }
+          if(typeof flash === "function") flash("💡 Suggestion prête : « "+chosen.slice(0,35)+"… »");
+        } else {
+          if(typeof S !== "undefined" && S.targets && S.targets.length){
+            const remaining=S.targets.filter(t=>!(S.used||[]).includes(t));
+            const hintText=remaining.length?remaining[0]:S.targets[0];
+            if(typeof flash === "function") flash("💡 Expression recommandée : « "+hintText+" »");
+            if(inp){
+              inp.value=hintText;
+              if(drawer)drawer.hidden=false;
+            }
+          } else {
+            if(typeof flash === "function") flash("💡 Répondez spontanément au professeur ou posez une question.");
+          }
         }
-      };
-    }
+      } catch(err) {
+        console.error("hintBtn error:", err);
+      }
+    });
+
+    safeAddListener("#sendBtn", "click", (e) => {
+      try {
+        e.preventDefault();
+        if(typeof handleSend === "function") handleSend();
+        else if(typeof send === "function") send();
+      } catch(err) {
+        console.error("sendBtn error:", err);
+      }
+    });
+
+    safeAddListener("#installBtn", "click", async () => {
+      try {
+        if(typeof deferredInstallPrompt !== "undefined" && deferredInstallPrompt){
+          deferredInstallPrompt.prompt();
+          const res=await deferredInstallPrompt.userChoice;
+          if(res && res.outcome==="accepted"){
+            const b = document.getElementById("installBtn");
+            if(b) b.hidden = true;
+          }
+          deferredInstallPrompt=null;
+        }
+      } catch(err){
+        console.error("installBtn error:", err);
+      }
+    });
   } catch(err) {
     console.error("bindCoreNavigation error:", err);
   }
@@ -2794,12 +2893,12 @@ function seg(id,attr,fn){
 seg("#langSeg","lang",v=>{S.lang=v;save();syncUI()});
 seg("#modeSeg","mode",v=>{S.mode=v;modeNote()});
 seg("#immSeg","imm",v=>{S.imm=+v});
-if($("#micro"))$("#micro").onchange=e=>{S.micro=e.target.checked};
-if($("#goal"))$("#goal").addEventListener("change",e=>{S.goals[S.lang]=e.target.value.trim();save()});
-if($("#level"))$("#level").addEventListener("change",e=>{S.level=e.target.value;save()});
-if($("#vow"))$("#vow").addEventListener("change",e=>{S.ar.vow=e.target.checked;save()});
-if($("#trl"))$("#trl").addEventListener("change",e=>{S.ar.tr=e.target.checked;save()});
-if($("#studied"))$("#studied").addEventListener("change",e=>{S.studied=e.target.value.trim()});
+safeAddListener("#micro", "change", e=>{S.micro=e.target.checked});
+safeAddListener("#goal", "change", e=>{S.goals[S.lang]=e.target.value.trim();save()});
+safeAddListener("#level", "change", e=>{S.level=e.target.value;save()});
+safeAddListener("#vow", "change", e=>{S.ar.vow=e.target.checked;save()});
+safeAddListener("#trl", "change", e=>{S.ar.tr=e.target.checked;save()});
+safeAddListener("#studied", "change", e=>{S.studied=e.target.value.trim()});
 
 /* réglages du fournisseur */
 (function(){
@@ -2838,7 +2937,8 @@ function updateKeyDetectNote(){
   }
 }
 function readCfg(){
-  const val=$("#apikey").value.trim();
+  const apik = $("#apikey");
+  const val = apik ? apik.value.trim() : "";
   const det=detectProvider(val);
   if(det&&PROVIDERS[det])S.cfg.provider=det;
   const p=S.cfg.provider||"gemini",d=PROVIDERS[p]||PROVIDERS.gemini;
@@ -2873,35 +2973,43 @@ function openSettings(msg){
 function closeSettings(){
   switchMainTab("lessons");
 }
-if($("#apikey")) $("#apikey").addEventListener("input",()=>{
+
+safeAddListener("#apikey", "input", ()=>{
   updateKeyDetectNote();
   readCfg();
 });
-if($("#provider")) $("#provider").addEventListener("change",e=>{
+safeAddListener("#provider", "change", e=>{
   S.cfg.provider=e.target.value;
-  $("#mChat").value="";$("#mHeavy").value="";
-  save();fillCfg();$("#testRes").textContent="";$("#modelList").textContent="";
+  const mc=$("#mChat"), mh=$("#mHeavy");
+  if(mc) mc.value="";
+  if(mh) mh.value="";
+  save();fillCfg();
+  const tr=$("#testRes"), ml=$("#modelList");
+  if(tr) tr.textContent="";
+  if(ml) ml.textContent="";
 });
-if($("#saveKey")) $("#saveKey").onclick = () => {readCfg();flash("Réglages enregistrés."); };
-$("#resetCfgBtn").onclick=async()=>{
+safeAddListener("#saveKey", "click", () => {readCfg();flash("Réglages enregistrés."); });
+safeAddListener("#resetCfgBtn", "click", async()=>{
   const p=S.cfg.provider||"gemini",d=PROVIDERS[p]||PROVIDERS.gemini;
   let best=d.chat;
   try{const ids=await listModels();if(!(p==="gemini"&&ids.indexOf(d.chat)>=0))best=pickBestModel(p,ids)||best}catch(x){}
   if(!S.cfg.models)S.cfg.models={};
   S.cfg.models[p]={chat:best,heavy:best};
-  $("#mChat").value=best;$("#mHeavy").value=best;
+  const mc=$("#mChat"), mh=$("#mHeavy");
+  if(mc) mc.value=best;
+  if(mh) mh.value=best;
   save();
   flash("Modèle réglé sur : "+best);
-};
+});
 /* Test de connexion : UN seul appel, très court, sur le modèle saisi. Aucun repli, aucune liste de modèles, aucun enchaînement. */
 async function testerConnexionIA(){
   readCfg();
   const prov=S.cfg.provider||"gemini",def=PROVIDERS[prov]||PROVIDERS.gemini;
   const key=curKey(),out=$("#testRes");
   const pName=def.name||prov;
-  const set=(t,c)=>{out.style.color=c||"";out.textContent=t};
+  const set=(t,c)=>{if(out){out.style.color=c||"";out.textContent=t;}};
   if(!key){set("Collez votre clé API dans les réglages ci-dessus pour tester.","var(--bad)");return}
-  const btn=$("#testKey");btn.disabled=true;
+  const btn=$("#testKey");if(btn) btn.disabled=true;
   const model=cleanModel($("#mChat")?$("#mChat").value:"",prov);
   set("Envoi de « Bonjour » à "+pName+"…");
   try{
@@ -2910,53 +3018,59 @@ async function testerConnexionIA(){
   }catch(e){
     set("Échec. "+errText(e),"var(--bad)");
     try{console.error("[Parlons] diagnostic",{provider:prov,model:model,error:e})}catch(x){}
-  }finally{btn.disabled=false}
+  }finally{if(btn) btn.disabled=false}
 }
-$("#testKey").onclick=testerConnexionIA;
-if($("#testMicBtn")) $("#testMicBtn").onclick = async () => {
-  const out=$("#testMicRes");out.style.display="block";out.style.color="";out.textContent="🔴 Micro ouvert… Dites quelques mots à voix haute (test en direct)…";
+safeAddListener("#testKey", "click", testerConnexionIA);
+safeAddListener("#testMicBtn", "click", async () => {
+  const out=$("#testMicRes");
+  if(out){out.style.display="block";out.style.color="";out.textContent="🔴 Micro ouvert… Dites quelques mots à voix haute (test en direct)…";}
   try{
-    const r=await listenOnce(t=>{out.textContent="Écoute en cours : « "+t+" »"});
+    const r=await listenOnce(t=>{if(out) out.textContent="Écoute en cours : « "+t+" »"});
     if(r.text){
-      out.style.color="var(--good)";
-      out.textContent="✓ Micro opérationnel ! Phrase captée : « "+r.text+" »";
+      if(out){out.style.color="var(--good)";out.textContent="✓ Micro opérationnel ! Phrase captée : « "+r.text+" »";}
     }else{
-      out.style.color="var(--bad)";
-      out.textContent="⚠️ Aucun son perçu. Rapprochez-vous du micro et réessayez.";
+      if(out){out.style.color="var(--bad)";out.textContent="⚠️ Aucun son perçu. Rapprochez-vous du micro et réessayez.";}
     }
   }catch(e){
-    out.style.color="var(--bad)";
-    out.textContent=e&&e.code==="not-allowed"
-      ?"❌ Accès au micro refusé dans Chrome. Touchez le cadenas ou réglages à gauche de l'adresse > Autorisations > Microphone > Autoriser."
-      :"❌ Erreur micro ("+(e&&e.code||"inconnu")+"). Vérifiez que Chrome a l'autorisation Micro dans les paramètres de votre téléphone.";
+    if(out){
+      out.style.color="var(--bad)";
+      out.textContent=e&&e.code==="not-allowed"
+        ?"❌ Accès au micro refusé dans Chrome. Touchez le cadenas ou réglages à gauche de l'adresse > Autorisations > Microphone > Autoriser."
+        :"❌ Erreur micro ("+(e&&e.code||"inconnu")+"). Vérifiez que Chrome a l'autorisation Micro dans les paramètres de votre téléphone.";
+    }
   }
-};
-if($("#listModels")) $("#listModels").onclick = async () => {
+});
+safeAddListener("#listModels", "click", async () => {
   readCfg();
-  const out=$("#testRes");out.style.color="";out.textContent="Recherche des modèles chez "+(PROVIDERS[S.cfg.provider]&&PROVIDERS[S.cfg.provider].name||S.cfg.provider)+"…";
+  const out=$("#testRes");
+  if(out){out.style.color="";out.textContent="Recherche des modèles chez "+(PROVIDERS[S.cfg.provider]&&PROVIDERS[S.cfg.provider].name||S.cfg.provider)+"…";}
   try{
     const ids=await listModels();
-    const dl=$("#modelList");dl.textContent="";
-    ids.forEach(id=>{const o=document.createElement("option");o.value=id;dl.append(o)});
-    out.style.color="var(--good)";
-    out.textContent=ids.length+" modèle"+(ids.length>1?"s":"")+" disponible"+(ids.length>1?"s":"")+" chez "+(PROVIDERS[S.cfg.provider]&&PROVIDERS[S.cfg.provider].name||S.cfg.provider)+" : touchez un champ de modèle pour choisir.";
+    const dl=$("#modelList");
+    if(dl){
+      dl.textContent="";
+      ids.forEach(id=>{const o=document.createElement("option");o.value=id;dl.append(o)});
+    }
+    if(out){
+      out.style.color="var(--good)";
+      out.textContent=ids.length+" modèle"+(ids.length>1?"s":"")+" disponible"+(ids.length>1?"s":"")+" chez "+(PROVIDERS[S.cfg.provider]&&PROVIDERS[S.cfg.provider].name||S.cfg.provider)+" : touchez un champ de modèle pour choisir.";
+    }
   }catch(e){
-    out.style.color="var(--bad)";
-    out.textContent=errText(e);
+    if(out){out.style.color="var(--bad)";out.textContent=errText(e);}
   }
-};
-if($("#voiceSel")) $("#voiceSel").addEventListener("change",e=>{
+});
+safeAddListener("#voiceSel", "change", e=>{
   S.cfg.voice[S.lang]=e.target.value;save();
   const sample={en:"Hello, nice to meet you.",ar:"مَرْحَبًا، سَعِيدٌ بِلِقَائِكَ.",nl:"Hallo, aangenaam kennis te maken."}[S.lang];
   speak(sample);
 });
-if($("#exportBtn")) $("#exportBtn").onclick = () => {
+safeAddListener("#exportBtn", "click", () => {
   const data={goals:S.goals,items:S.items,alpha:S.alpha,ar:S.ar,level:S.level,prog:S.prog,history:S.history};
   const b=new Blob([JSON.stringify(data,null,1)],{type:"application/json"});
   const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="parlons-donnees.json";
   document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1500);
-};
-if($("#importFile")) $("#importFile").addEventListener("change",async e=>{
+});
+safeAddListener("#importFile", "change", async e=>{
   const f=e.target.files[0];if(!f)return;
   try{
     const d=JSON.parse(await f.text());
@@ -3348,10 +3462,10 @@ function send(){
   inp.value="";inp.style.height="auto";
   submitUser(v,false);
 }
-$("#sendBtn").onclick=send;
-safeOn("#input","keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send()}});
-$("#input").addEventListener("input",e=>{const t=e.target;t.style.height="auto";t.style.height=Math.min(140,t.scrollHeight)+"px"});
-safeClick("#backBtn",()=>{leaveSession();switchMainTab("lessons");renderDue();renderPath()});
+safeAddListener("#sendBtn", "click", send);
+safeAddListener("#input", "keydown", e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send()}});
+safeAddListener("#input", "input", e=>{const t=e.target;t.style.height="auto";t.style.height=Math.min(140,t.scrollHeight)+"px"});
+safeAddListener("#backBtn", "click", ()=>{leaveSession();switchMainTab("lessons");renderDue();renderPath()});
 
 /* micro : un tour de parole */
 async function micTap(){
@@ -3363,37 +3477,38 @@ async function micTap(){
   // Si le professeur réfléchissait, l'interrompre pour écouter immédiatement l'utilisateur
   if(S.busy){flash("Le professeur répond encore : patientez ou touchez Annuler.");return}
   stopSpeak();
-  $("#live").textContent="🔴 Écoute en direct… Parlez maintenant !";
+  const lv=$("#live");if(lv) lv.textContent="🔴 Écoute en direct… Parlez maintenant !";
   try{
-    const r=await listenOnce(t=>{$("#live").textContent="« "+t+" »"});
+    const r=await listenOnce(t=>{const l=$("#live");if(l) l.textContent="« "+t+" »"});
     if(!r.text){
-      $("#live").textContent="🎤 Rien capté : touchez le micro pour reparler.";
+      const l=$("#live");if(l) l.textContent="🎤 Rien capté : touchez le micro pour reparler.";
       setStatus();
       return;
     }
-    $("#live").textContent="";
+    const l=$("#live");if(l) l.textContent="";
     if(S.mode==="write"){
-      const i=$("#input");i.value=r.text;i.focus();
+      const i=$("#input");if(i){i.value=r.text;i.focus();}
       return;
     }
     await submitUser(r.text,true,r.conf);
   }catch(e){
-    $("#live").textContent="";
+    const l=$("#live");if(l) l.textContent="";
     micErr(e);
   }
 }
-$("#micBtn").onclick=micTap;
+safeAddListener("#micBtn", "click", micTap);
 
 /* mains libres */
 function updateHF(){
-  const b=$("#hfBtn");b.hidden=S.mode!=="hf";
+  const b=$("#hfBtn");if(!b) return;
+  b.hidden=S.mode!=="hf";
   b.textContent=S.hf?"Mains libres : pause":"Mains libres : reprendre";
 }
 function toggleHF(){
   if(S.hf){S.hf=false;stopListen();stopSpeak();updateHF();setStatus();return}
   S.hf=true;updateHF();hfLoop();
 }
-$("#hfBtn").onclick=toggleHF;
+safeAddListener("#hfBtn", "click", toggleHF);
 async function hfLoop(){
   if(S.hfRunning)return;S.hfRunning=true;
   try{if(navigator.wakeLock&&!S.wl)S.wl=await navigator.wakeLock.request("screen")}catch(e){S.wl=null}
@@ -3401,18 +3516,18 @@ async function hfLoop(){
   while(S.hf&&S.view==="chat"){
     if(S.busy||S.speaking){await sleep(250);continue}
     try{
-      const r=await listenOnce(t=>{$("#live").textContent=t});
-      $("#live").textContent="";
+      const r=await listenOnce(t=>{const l=$("#live");if(l) l.textContent=t});
+      const l=$("#live");if(l) l.textContent="";
       if(!S.hf||S.view!=="chat")break;
       if(!r.text){
         silent++;
-        if(silent>=3){S.hf=false;updateHF();setStatus();$("#log").append(el("p","typing","Mains libres en pause : rien entendu. Touchez « reprendre » quand vous êtes prêt."));break}
+        if(silent>=3){S.hf=false;updateHF();setStatus();$("#log")?.append(el("p","typing","Mains libres en pause : rien entendu. Touchez « reprendre » quand vous êtes prêt."));break}
         continue;
       }
       silent=0;
       await submitUser(r.text,true,r.conf);
     }catch(e){
-      $("#live").textContent="";
+      const l=$("#live");if(l) l.textContent="";
       if(S.hf){S.hf=false;updateHF();setStatus();micErr(e)}
       break;
     }
@@ -3441,10 +3556,10 @@ function alignWords(target,heard){
   }
   return ok;
 }
-const tutorBtn=$("#tutorBtn");if(tutorBtn)tutorBtn.onclick=()=>startTutor();
-const tutorSttBtn=$("#tutorSttBtn");if(tutorSttBtn)tutorSttBtn.onclick=()=>{S.tutorStt=(S.tutorStt==="fr"?S.lang:"fr");updateTutorSttUI();};
-if($("#repeatBtn")) $("#repeatBtn").onclick = () => openRepeat();
-if($("#repeatBack")) $("#repeatBack").onclick = () => {leaveSession();show("home")};
+safeAddListener("#tutorBtn", "click", ()=>startTutor());
+safeAddListener("#tutorSttBtn", "click", ()=>{S.tutorStt=(S.tutorStt==="fr"?S.lang:"fr");updateTutorSttUI();});
+safeAddListener("#repeatBtn", "click", () => openRepeat());
+safeAddListener("#repeatBack", "click", () => {leaveSession();show("home")});
 async function openRepeat(){
   if(!curKey()){openSettings("Collez d'abord votre clé API pour démarrer.");return}
   const body=$("#repeatBody");body.textContent="";
@@ -3515,8 +3630,8 @@ function renderRepeat(phrases){
 }
 
 /* ---------- écoute ---------- */
-if($("#listenBtn")) $("#listenBtn").onclick = () => openListen();
-if($("#listenBack")) $("#listenBack").onclick = () => {stopSpeak();show("home")};
+safeAddListener("#listenBtn", "click", () => openListen());
+safeAddListener("#listenBack", "click", () => {stopSpeak();show("home")});
 async function openListen(){
   if(!curKey()){openSettings("Collez d'abord votre clé API pour démarrer.");return}
   const body=$("#listenBody");body.textContent="";
@@ -3571,7 +3686,7 @@ function renderListen(d){
 }
 
 /* ---------- bilan ---------- */
-$("#endBtn").onclick=recap;
+safeAddListener("#endBtn", "click", recap);
 async function recap(){
   const r=$("#recap");
   const users=S.turns.filter(t=>t.role==="user").length-1;
@@ -3871,7 +3986,7 @@ function renderAlpha(){
   det.append(rRules);
   box.append(det);
 }
-$("#alphaBack").onclick=()=>{stopSpeak();show("home");renderAlpha()};
+safeAddListener("#alphaBack", "click", ()=>{stopSpeak();show("home");renderAlpha()});
 
 function openRules(){
   stopSpeak();show("alpha");
@@ -4108,21 +4223,22 @@ function startWords(){
 }
 
 /* ---------- démarrage ---------- */
-if($("#resumeBtn")) $("#resumeBtn").onclick = ()=>{
+safeAddListener("#resumeBtn", "click", ()=>{
   const sc=SCENARIOS.find(s=>s.id==="free");
   start(Object.assign({},sc,{id:"resume",t:"Reprise de la conversation",p:"Reprise : continue la conversation de la dernière séance et travaille les points faibles notés, sans les annoncer comme une leçon."}));
-};
-if($("#reviewBtn")) $("#reviewBtn").onclick = ()=>{
+});
+safeAddListener("#reviewBtn", "click", ()=>{
   const due=dueItems();if(!due.length)return;
   S.reviewItems=due.slice(0,6);
   start({id:"review",t:"Révision du jour",p:"Séance de révision courte : fais retravailler à l'apprenant les éléments listés, en situation."});
-};
-if($("#courseBtn")) $("#courseBtn").onclick = ()=>{
-  const v=$("#studied").value.trim();
-  if(!v){$("#studied").focus();return}
+});
+safeAddListener("#courseBtn", "click", ()=>{
+  const studiedInput=$("#studied");
+  const v=studiedInput?studiedInput.value.trim():"";
+  if(!v){if(studiedInput) studiedInput.focus();return;}
   S.studied=v;
   start({id:"course",t:"Pratique du cours",p:"Pratique d'un cours : l'apprenant vient d'étudier « "+v+" ». Fais-lui employer ce vocabulaire et ces tournures dans une petite situation concrète, sans réciter de liste."});
-};
+});
 
 try {
   load();
@@ -4165,71 +4281,61 @@ try{
 }catch(e){ console.error("applyTheme error:", e); }
 
 try {
-  const tsm=$("#themeSelModal");if(tsm)tsm.addEventListener("change",e=>applyTheme(e.target.value));
-  const ob=$("#cfgOpenBtn");if(ob)ob.addEventListener("click",()=>openSettings());
-  const cb=$("#cfgCloseBtn");if(cb)cb.addEventListener("click",()=>closeSettings());
-  const cm=$("#cfgModal");if(cm)cm.addEventListener("click",e=>{if(e.target===cm)closeSettings()});
-  const chatCfgBtn=$("#chatCfgBtn");if(chatCfgBtn)chatCfgBtn.addEventListener("click",()=>openSettings());
+  safeAddListener("#themeSelModal", "change", e=>applyTheme(e.target.value));
+  safeAddListener("#cfgOpenBtn", "click", ()=>openSettings());
+  safeAddListener("#cfgCloseBtn", "click", ()=>closeSettings());
+  safeAddListener("#cfgModal", "click", e=>{if(e.target && e.target.id==="cfgModal")closeSettings();});
+  safeAddListener("#chatCfgBtn", "click", ()=>openSettings());
 } catch(e){ console.error("Settings buttons error:", e); }
 
 // Bouton Clavier escamotable dans le chat
-try {
-  const kBtn=$("#keyboardToggleBtn");
-  if(kBtn){
-    kBtn.addEventListener("click",()=>{
-      const d=$("#composerDrawer");
-      if(!d)return;
-      d.hidden=!d.hidden;
-      if(!d.hidden){
-        const inp=$("#input");
-        if(inp)inp.focus();
-      }
-    });
+safeAddListener("#keyboardToggleBtn", "click", ()=>{
+  const d=$("#composerDrawer");
+  if(!d)return;
+  d.hidden=!d.hidden;
+  if(!d.hidden){
+    const inp=$("#input");
+    if(inp)inp.focus();
   }
-} catch(e){ console.error(e); }
+});
 
 // Bouton Ampoule (Suggestion / Aide)
-try {
-  const hintBtn=$("#hintBtn");
-  if(hintBtn){
-    hintBtn.addEventListener("click",()=>{
-      const isTutor=(S.scn&&S.scn.id==="tutor");
-      const inp=$("#input");
-      const drawer=$("#composerDrawer");
-      if(isTutor){
-        const suggestions=S.lang==="ar"
-          ?[
-            "Comment dit-on « enchanté de faire votre connaissance » en arabe ?",
-            "Peux-tu m'expliquer la différence entre la fat-ha et la kasra ?",
-            "Comment exprimer « où se trouve la gare ? » avec le Tashkeel complet ?",
-            "Donne-moi 3 expressions utiles du quotidien avec leur phonétique et traduction."
-          ]
-          :(S.lang==="en"
-            ?["How do I politely order food?","What is the difference between 'make' and 'do'?","Can you teach me 3 common idioms?"]
-            :["Hoe vraag ik de weg in het Nederlands?","Wat betekent deze uitdrukking?","Kun je me 3 handige zinnen leren?"]);
-        const chosen=suggestions[Math.floor(Math.random()*suggestions.length)];
-        if(inp){
-          inp.value=chosen;
-          if(drawer)drawer.hidden=false;
-          inp.focus();
-        }
-        flash("\uD83D\uDCA1 Suggestion prête : « "+chosen.slice(0,35)+"… »");
-      }else{
-        if(S.targets&&S.targets.length){
-          const remaining=S.targets.filter(t=>!(S.used||[]).includes(t));
-          const hintText=remaining.length?remaining[0]:S.targets[0];
-          flash("\uD83D\uDCA1 Expression recommandée : « "+hintText+" »");
-          if(inp){
-            inp.value=hintText;
-            if(drawer)drawer.hidden=false;
-          }
-        }else{
-          flash("\uD83D\uDCA1 Répondez spontanément au professeur ou posez une question.");
-        }
+safeAddListener("#hintBtn", "click", ()=>{
+  const isTutor=(S.scn&&S.scn.id==="tutor");
+  const inp=$("#input");
+  const drawer=$("#composerDrawer");
+  if(isTutor){
+    const suggestions=S.lang==="ar"
+      ?[
+        "Comment dit-on « enchanté de faire votre connaissance » en arabe ?",
+        "Peux-tu m'expliquer la différence entre la fat-ha et la kasra ?",
+        "Comment exprimer « où se trouve la gare ? » avec le Tashkeel complet ?",
+        "Donne-moi 3 expressions utiles du quotidien avec leur phonétique et traduction."
+      ]
+      :(S.lang==="en"
+        ?["How do I politely order food?","What is the difference between 'make' and 'do'?","Can you teach me 3 common idioms?"]
+        :["Hoe vraag ik de weg in het Nederlands?","Wat betekent cette uitdrukking?","Kun je me 3 handige zinnen leren?"]);
+    const chosen=suggestions[Math.floor(Math.random()*suggestions.length)];
+    if(inp){
+      inp.value=chosen;
+      if(drawer)drawer.hidden=false;
+      inp.focus();
+    }
+    flash("\uD83D\uDCA1 Suggestion prête : « "+chosen.slice(0,35)+"… »");
+  }else{
+    if(S.targets&&S.targets.length){
+      const remaining=S.targets.filter(t=>!(S.used||[]).includes(t));
+      const hintText=remaining.length?remaining[0]:S.targets[0];
+      flash("\uD83D\uDCA1 Expression recommandée : « "+hintText+" »");
+      if(inp){
+        inp.value=hintText;
+        if(drawer)drawer.hidden=false;
       }
-    });
+    }else{
+      flash("\uD83D\uDCA1 Répondez spontanément au professeur ou posez une question.");
+    }
   }
-} catch(e){ console.error(e); }
+});
 
 function initApp(){
   try {
