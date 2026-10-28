@@ -1380,108 +1380,142 @@ window.closeChat = function() {
 window.closeConversationScreen = window.closeChat;
 
 // =========================================================================
-// 1. Microphone (Reconnaissance vocale universelle)
+// 1. Moteur Audio Distant Haute Définition (Salma & Shakir)
 // =========================================================================
-let recognition = null;
-let isListening = false;
-window.currentMicLang = 'fr';
-
-function initSpeechRecognition() {
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SpeechRecognition) {
-    alert("La reconnaissance vocale n'est pas supportée sur ce navigateur. Utilisez Chrome.");
-    return null;
-  }
-  const rec = new SpeechRecognition();
-  rec.continuous = false;
-  rec.interimResults = false;
+window.playTutorAudio = function(text, tutorKey) {
+  if (!text) return;
   
-  // Langue d'écoute selon le toggle de conversation
-  rec.lang = (window.currentMicLang === 'ar') ? 'ar-SA' : 'fr-FR';
+  // Nettoyage des balises markdown éventuelles
+  const cleanText = text.replace(/[*_#`]/g, '').trim();
+  const selected = (tutorKey || localStorage.getItem('selected_tutor') || 'yasmine').toLowerCase();
+  const isYasmine = selected.includes('yasmine');
 
-  rec.onstart = () => {
-    isListening = true;
-    const micBtn = document.getElementById('micBtn') || document.querySelector('.mic-button');
-    if (micBtn) micBtn.classList.add('listening');
-    console.log("Micro actif, en écoute...");
+  // Attribution des voix neurales Microsoft
+  const voiceName = isYasmine ? 'ar-EG-SalmaNeural' : 'ar-EG-ShakirNeural';
+  
+  // Animation visuelle de l'avatar pendant la prise de parole
+  const avatar = document.querySelector('.tutor-avatar, #tutorAvatarImg');
+  if (avatar) avatar.classList.add('speaking');
+  const avatarWrap = document.getElementById('avatarWrap');
+  if (avatarWrap) avatarWrap.classList.add('state-speaking');
+
+  // Passerelle audio directe Edge TTS
+  const streamUrl = `https://edge-tts.azurewebsites.net/api/synthesize?voice=${voiceName}&text=${encodeURIComponent(cleanText)}`;
+  const audio = new Audio(streamUrl);
+
+  audio.onended = () => {
+    if (avatar) avatar.classList.remove('speaking');
+    if (avatarWrap) avatarWrap.classList.remove('state-speaking');
   };
 
-  rec.onresult = (event) => {
-    const transcript = event.results[0][0].transcript;
-    console.log("Texte capté :", transcript);
-    if (typeof handleUserSpeechInput === 'function') {
-      handleUserSpeechInput(transcript);
-    }
+  audio.onerror = () => {
+    // Fallback secondaire voix arabe femme/homme en cas de coupure réseau
+    const fallbackVoice = isYasmine ? 'Zeina' : 'Maged';
+    const fallbackUrl = `https://api.streamelements.com/kappa/v2/speech?voice=${fallbackVoice}&text=${encodeURIComponent(cleanText)}`;
+    const fallbackAudio = new Audio(fallbackUrl);
+    fallbackAudio.onended = () => {
+      if (avatar) avatar.classList.remove('speaking');
+      if (avatarWrap) avatarWrap.classList.remove('state-speaking');
+    };
+    fallbackAudio.play().catch(e => {
+      console.warn("Fallback audio bloqué :", e);
+      if (avatar) avatar.classList.remove('speaking');
+      if (avatarWrap) avatarWrap.classList.remove('state-speaking');
+    });
   };
 
-  rec.onerror = (e) => {
-    console.error("Erreur micro :", e.error);
-    isListening = false;
-    const micBtn = document.getElementById('micBtn') || document.querySelector('.mic-button');
-    if (micBtn) micBtn.classList.remove('listening');
-  };
-
-  rec.onend = () => {
-    isListening = false;
-    const micBtn = document.getElementById('micBtn') || document.querySelector('.mic-button');
-    if (micBtn) micBtn.classList.remove('listening');
-  };
-
-  return rec;
-}
-
-window.toggleMic = function() {
-  if (!recognition) recognition = initSpeechRecognition();
-  if (!recognition) return;
-
-  if (isListening) {
-    recognition.stop();
-  } else {
-    try {
-      recognition.lang = (window.currentMicLang === 'ar') ? 'ar-SA' : 'fr-FR';
-      recognition.start();
-    } catch (err) {
-      console.warn("Redémarrage recognition :", err);
-      try { recognition.stop(); } catch(x){}
-    }
-  }
+  audio.play().catch(err => {
+    console.warn("Lecture bloquée par le navigateur : interaction requise", err);
+    if (avatar) avatar.classList.remove('speaking');
+    if (avatarWrap) avatarWrap.classList.remove('state-speaking');
+  });
 };
+window.playVoice = window.playTutorAudio;
+window.speakText = function(text, tutorKey) { window.playTutorAudio(text, tutorKey); };
+window.speak = function(text, tutorKey) { window.playTutorAudio(text, tutorKey); };
 
-window.handleUserSpeechInput = function(transcript) {
-  if (!transcript) return;
-  const inp = document.getElementById('input');
-  if (inp) {
-    inp.value = transcript;
-  }
-  if (typeof submitUser === 'function') {
-    submitUser(transcript, true);
-  }
-};
-
-// =========================================================================
-// 2. Son et boutons « Tester » (Voix TTS fiable)
-// =========================================================================
+// Boutons « Tester » dans l'onglet Profil
 window.testTutorVoice = function(tutorKey) {
-  console.log("Test voix pour :", tutorKey);
+  const isYasmine = (tutorKey || '').toLowerCase().includes('yasmine');
+  const testPhrase = isYasmine ? "مَرْحَبًا ! أَنَا يَاسْمِين." : "مَرْحَبًا ! أَنَا طَارِق.";
+  window.playTutorAudio(testPhrase, tutorKey);
+};
+
+// =========================================================================
+// 2. Gestionnaire Microphone Robuste (Android Chrome)
+// =========================================================================
+let recognitionInstance = null;
+let isListening = false;
+
+window.toggleMic = async function() {
+  const micBtn = document.getElementById('micBtn') || document.querySelector('.mic-button');
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  
+  if (!SpeechRecognition) {
+    alert("Reconnaissance vocale non disponible sur ce navigateur. Utilisez Chrome.");
+    return;
+  }
+
+  // Arrêt manuel si déjà en écoute
+  if (isListening && recognitionInstance) {
+    try { recognitionInstance.stop(); } catch(e) {}
+    return;
+  }
+
+  // 1. Débloquer la permission matérielle
   try {
-    window.speechSynthesis.cancel();
-    
-    const isYasmine = tutorKey === 'yasmine';
-    const text = isYasmine ? "مَرْحَبًا ! Je suis Yasmine." : "مَرْحَبًا ! Je suis Tariq.";
-    
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.pitch = isYasmine ? 1.25 : 0.85;
-    utterance.rate = 0.95;
-    
-    const voices = window.speechSynthesis.getVoices();
-    // Trouver voix arabe ou fallback
-    const arVoice = voices && voices.find(v => v.lang && v.lang.startsWith('ar'));
-    if (arVoice) utterance.voice = arVoice;
-    
-    window.speechSynthesis.speak(utterance);
-    if (typeof flash === "function") flash("Test voix : " + (isYasmine ? "Yasmine" : "Tariq"));
-  } catch(e) {
-    console.error("testTutorVoice error:", e);
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    stream.getTracks().forEach(track => track.stop());
+  } catch (err) {
+    alert("Veuillez autoriser l'accès au microphone dans les réglages de votre navigateur.");
+    return;
+  }
+
+  // 2. Nettoyage de toute session fantôme précédente
+  if (recognitionInstance) {
+    try { recognitionInstance.abort(); } catch(e) {}
+    recognitionInstance = null;
+  }
+
+  // 3. Nouvelle instance à chaque déclenchement tactile
+  try {
+    recognitionInstance = new SpeechRecognition();
+    recognitionInstance.continuous = false;
+    recognitionInstance.interimResults = false;
+    recognitionInstance.lang = 'ar-SA';
+
+    recognitionInstance.onstart = () => {
+      isListening = true;
+      if (micBtn) micBtn.classList.add('listening');
+    };
+
+    recognitionInstance.onresult = (event) => {
+      const transcript = event.results[0][0].transcript;
+      console.log("Texte reconnu :", transcript);
+      if (typeof window.appendMessage === 'function') {
+        window.appendMessage('user', transcript);
+      }
+      if (typeof window.sendToGemini === 'function') {
+        window.sendToGemini(transcript);
+      }
+    };
+
+    recognitionInstance.onerror = (e) => {
+      console.warn("Événement micro :", e.error);
+      isListening = false;
+      if (micBtn) micBtn.classList.remove('listening');
+    };
+
+    recognitionInstance.onend = () => {
+      isListening = false;
+      if (micBtn) micBtn.classList.remove('listening');
+    };
+
+    recognitionInstance.start();
+  } catch (err) {
+    console.error("Échec du démarrage de recognition :", err);
+    isListening = false;
+    if (micBtn) micBtn.classList.remove('listening');
   }
 };
 
@@ -1585,8 +1619,8 @@ window.initTutorGreeting = function() {
     welcome.appendChild(wText);
     if (logEl) logEl.appendChild(welcome);
     if (inp) inp.focus();
-    if (typeof S !== "undefined" && S.mode !== "write" && typeof speakBilingualText === "function") {
-      speakBilingualText(welcomeText);
+    if (typeof S !== "undefined" && S.mode !== "write" && typeof window.playTutorAudio === "function") {
+      window.playTutorAudio(welcomeText, t.id);
     }
   } catch(e) {
     console.error("initTutorGreeting error:", e);
@@ -1723,41 +1757,6 @@ function appendMessage(role, text) {
 }
 window.appendMessage = appendMessage;
 
-function fallbackLocalVoice(text, isFemale) {
-  if (!('speechSynthesis' in window)) return;
-  window.speechSynthesis.cancel();
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = 'ar-SA';
-  // Forcer un pitch aigu pour une voix féminine même si le moteur local est un homme
-  utterance.pitch = isFemale ? 1.4 : 0.85;
-  utterance.rate = 0.95;
-  window.speechSynthesis.speak(utterance);
-}
-window.fallbackLocalVoice = fallbackLocalVoice;
-
-window.playVoice = function(text, tutorKey) {
-  const isYasmine = tutorKey ? tutorKey.includes('yasmine') : true;
-  
-  // 1. Tentative par flux audio externe garanti (Femme / Homme)
-  try {
-    // Passerelle TTS directe
-    const voiceName = isYasmine ? 'ar-XA-Wavenet-B' : 'ar-XA-Standard-A';
-    const audioUrl = `https://api.streamelements.com/kappa/v2/speech?voice=${voiceName}&text=${encodeURIComponent(text)}`;
-    const audio = new Audio(audioUrl);
-    audio.play().catch(e => {
-      console.warn("Audio cloud non dispo, fallback pitch", e);
-      fallbackLocalVoice(text, isYasmine);
-    });
-  } catch (err) {
-    fallbackLocalVoice(text, isYasmine);
-  }
-};
-window.playTutorAudio = window.playVoice;
-window.speakText = function(text) {
-  const tutorId = localStorage.getItem('selected_tutor') || 'yasmine';
-  window.playVoice(text, tutorId);
-};
-
 async function sendToGemini(userMessage) {
   const apiKey = localStorage.getItem('gemini_api_key') || localStorage.getItem('apiKey');
   if (!apiKey) {
@@ -1815,13 +1814,11 @@ async function sendToGemini(userMessage) {
     // 3. Afficher la réponse dans le chat
     appendMessage('assistant', botReply);
 
-    // 4. Lecture vocale garantie (Flux Audio Cloud)
-    if (typeof window.playVoice === 'function') {
-      window.playVoice(botReply, tutorId);
-    } else if (typeof window.playTutorAudio === 'function') {
+    // 4. Lecture vocale garantie (Salma / Shakir via Edge TTS)
+    if (typeof window.playTutorAudio === 'function') {
       window.playTutorAudio(botReply, tutorId);
-    } else if (typeof window.speakText === 'function') {
-      window.speakText(botReply);
+    } else if (typeof window.playVoice === 'function') {
+      window.playVoice(botReply, tutorId);
     }
 
   } catch (error) {
@@ -3210,190 +3207,15 @@ function getRemoteAudioUrl(text, tutorNameOrLang){
 }
 window.getRemoteAudioUrl = getRemoteAudioUrl;
 
-function speakLocalFallback(text, tutorName){
-  return new Promise(resolve => {
-    try {
-      if(!("speechSynthesis" in window) || !text){
-        updateAvatarSpeaking(false);
-        resolve();
-        return;
-      }
-      try { window.speechSynthesis.cancel(); } catch(x){}
-
-      const clean = (typeof cleanTextForSpeech === "function") ? cleanTextForSpeech(text) : text.trim();
-      if(!clean){
-        updateAvatarSpeaking(false);
-        resolve();
-        return;
-      }
-
-      const activeTutor = (typeof getActiveTutor === "function") ? getActiveTutor() : { id: tutorName || 'yasmine', gender: 'female' };
-      const isFemale = (activeTutor.gender === 'female' || activeTutor.id === 'yasmine');
-      const tutorPitch = isFemale ? 1.4 : 0.85;
-
-      const isArabic = /[\u0600-\u06FF]/.test(clean);
-      const targetLang = isArabic ? 'ar-SA' : ((typeof S !== 'undefined' && S.lang === 'en') ? 'en-GB' : ((typeof S !== 'undefined' && S.lang === 'nl') ? 'nl-NL' : 'fr-FR'));
-
-      const u = new SpeechSynthesisUtterance(clean);
-      u.lang = targetLang;
-      u.rate = isArabic ? 0.88 : 0.95;
-      u.pitch = tutorPitch;
-
-      if(typeof getTutorVoice === "function"){
-        try {
-          const v = getTutorVoice(isArabic ? 'ar' : (typeof S !== 'undefined' ? S.lang : 'fr'), isFemale ? 'female' : 'male', activeTutor.id);
-          if(v) u.voice = v;
-        } catch(x){}
-      }
-
-      let done = false;
-      const fin = () => {
-        if(done) return;
-        done = true;
-        updateAvatarSpeaking(false);
-        resolve();
-      };
-
-      u.onend = fin;
-      u.onerror = fin;
-
-      updateAvatarSpeaking(true);
-      window.speechSynthesis.speak(u);
-      setTimeout(fin, Math.max(3000, 3000 + clean.length * 90));
-    } catch(err){
-      console.error("speakLocalFallback error:", err);
-      updateAvatarSpeaking(false);
-      resolve();
-    }
-  });
-}
-window.speakLocalFallback = speakLocalFallback;
-
-async function playTutorAudio(text, tutorName){
-  try {
-    stopSpeak();
-    if(!text || typeof text !== "string"){
-      updateAvatarSpeaking(false);
-      return;
-    }
-    const clean = (typeof cleanTextForSpeech === "function") ? cleanTextForSpeech(text) : text.trim();
-    if(!clean){
-      updateAvatarSpeaking(false);
-      return;
-    }
-
-    // Tentative de lecture distante
-    const audioUrl = getRemoteAudioUrl(clean, tutorName);
-    if(!audioUrl) throw new Error("URL audio cloud non disponible");
-
-    await new Promise((resolve, reject) => {
-      let settled = false;
-      const audio = new Audio(audioUrl);
-      currentTutorAudio = audio;
-
-      const activeTutor = (typeof getActiveTutor === "function") ? getActiveTutor() : { id: tutorName || 'yasmine', gender: 'female' };
-      const isFemale = (activeTutor.gender === 'female' || activeTutor.id === 'yasmine');
-      try {
-        audio.preservesPitch = false;
-        audio.playbackRate = isFemale ? 1.12 : 0.88;
-      } catch(e){}
-
-      audio.onplay = () => updateAvatarSpeaking(true);
-      audio.onended = () => {
-        if(settled) return;
-        settled = true;
-        updateAvatarSpeaking(false);
-        currentTutorAudio = null;
-        resolve();
-      };
-      audio.onerror = (err) => {
-        if(settled) return;
-        settled = true;
-        currentTutorAudio = null;
-        reject(err || new Error("Erreur audio distante"));
-      };
-
-      const playPromise = audio.play();
-      if(playPromise !== undefined){
-        playPromise.catch(err => {
-          if(settled) return;
-          settled = true;
-          currentTutorAudio = null;
-          reject(err);
-        });
-      }
-    });
-  } catch (err) {
-    console.warn("Échec lecture cloud, fallback local:", err);
-    // Fallback local non bloquant
-    await speakLocalFallback(text, tutorName);
-  }
-}
-window.playTutorAudio = playTutorAudio;
-
-async function speakBilingualText(rawText){
-  try {
-    stopSpeak();
-    if(!rawText) return;
-
-    const textToRead = cleanTextForSpeech(rawText);
-    if(!textToRead) return;
-
-    // Découper le texte en segments selon l'alphabet (Arabe vs Français/Latin)
-    const segments = [];
-    const regex = /([\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\s\.\,\!\؟]+)|([^\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]+)/g;
-    let match;
-
-    while ((match = regex.exec(textToRead)) !== null) {
-      const part = cleanTextForSpeech(match[0]);
-      if(!part) continue;
-      const isArabic = /[\u0600-\u06FF]/.test(part);
-      segments.push({ text: part, lang: isArabic ? 'ar' : 'fr' });
-    }
-
-    if(segments.length === 0) return;
-
-    const activeTutor = (typeof getActiveTutor === "function") ? getActiveTutor() : { id: 'yasmine' };
-    const tutorId = activeTutor ? activeTutor.id : 'yasmine';
-
-    updateAvatarSpeaking(true);
-
-    for (const seg of segments) {
-      if(typeof S !== "undefined" && !S.speaking && currentTutorAudio === null && (!window.speechSynthesis || !window.speechSynthesis.speaking)){
-        break;
-      }
-      await playTutorAudio(seg.text, seg.lang === 'ar' ? 'ar' : tutorId);
-    }
-  } catch(err){
-    console.error("speakBilingualText error:", err);
-    try {
-      await speakLocalFallback(rawText);
-    } catch(e){}
-  } finally {
-    updateAvatarSpeaking(false);
-  }
-}
-window.speakBilingualText = speakBilingualText;
-
-function speakText(text, tutorName){
-  try {
-    return playTutorAudio(text, tutorName);
-  } catch(e){
-    console.error("speakText error:", e);
-    return speakLocalFallback(text, tutorName);
-  }
-}
-window.speakText = speakText;
-
+// Redirection universelle de l'audio vers le moteur Edge TTS (Salma & Shakir)
 function speak(text, rate, forceLang){
-  try {
-    return speakBilingualText(text);
-  } catch(e){
-    console.error("speak error:", e);
-    return speakLocalFallback(text);
-  }
+  const tutorId = localStorage.getItem('selected_tutor') || 'yasmine';
+  return window.playTutorAudio(text, tutorId);
 }
 window.speak = speak;
+window.speakText = speak;
+window.speakBilingualText = speak;
+window.speakLocalFallback = speak;
 
 /* ---------- micro (entrée) ---------- */
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
