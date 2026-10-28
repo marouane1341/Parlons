@@ -943,11 +943,16 @@ audio,
       <div class="panel" id="cfgBox">
         <h3 style="font-size:16px;display:flex;align-items:center;gap:6px">&#9881;&#65039; Fournisseur d'IA &amp; Cl&eacute; API</h3>
         <label class="label" for="provider">Fournisseur d'IA</label>
-        <select class="field" id="provider"></select>
+        <select class="field" id="provider" name="apiProviderSelect">
+          <option value="gemini" selected>Google Gemini (Flash Lite)</option>
+          <option value="groq">Groq (Llama 3.3)</option>
+          <option value="mistral">Mistral AI</option>
+          <option value="anthropic">Claude (Anthropic)</option>
+        </select>
         <p class="small muted" id="provNote"></p>
 
         <label class="label" for="apikey">Cl&eacute; API</label>
-        <input class="field" id="apikey" type="password" autocomplete="off" placeholder="Collez votre cle API Google Gemini ici">
+        <input class="field" id="apikey" name="apiKeyInput" type="password" autocomplete="off" placeholder="Collez votre cle API Google Gemini ici">
         <p class="small" id="keyDetectNote" style="color:var(--good);font-weight:600;display:none;margin-top:4px"></p>
 
         <label class="label" for="mChat">Mod&egrave;le de conversation (rapide)</label>
@@ -965,7 +970,7 @@ audio,
         </datalist>
 
         <div class="row" style="margin-top:6px">
-          <button class="btn sm" id="saveKey">Enregistrer</button>
+          <button class="btn sm" id="saveKey" name="saveSettingsBtn">Enregistrer</button>
           <button class="btn sm ghost" id="testKey">Tester connexion IA</button>
           <button class="btn sm ghost" id="testMicBtn">&#127908; Tester mon micro</button>
           <button class="btn sm ghost" id="listModels">Voir mod&egrave;les</button>
@@ -1284,8 +1289,95 @@ function closeSettings(){
 }
 window.closeSettings = closeSettings;
 
+// 2. Correction du garde de navigation vers le Tuteur Libre
+function checkApiKeyBeforeTutor() {
+  const key = localStorage.getItem('gemini_api_key') || localStorage.getItem('apiKey') || localStorage.getItem('gemini_key') || (typeof curKey === 'function' ? curKey() : '');
+  if (!key) {
+    // Si vraiment aucune clé n'existe, basculer sur l'onglet Réglages/Profil
+    alert('Veuillez configurer votre clé API dans les Réglages pour démarrer.');
+    if (typeof switchTab === 'function') {
+      switchTab('profile');
+    } else if (typeof switchMainTab === 'function') {
+      switchMainTab('profile');
+    }
+    return false;
+  }
+  return true;
+}
+window.checkApiKeyBeforeTutor = checkApiKeyBeforeTutor;
+
+// 1. Restauration et sauvegarde garantie de la clé API
+function initApiSettings() {
+  try {
+    const apiKeyInput = document.getElementById('apiKeyInput') || document.getElementById('apikey') || document.querySelector('input[type="password"]');
+    const apiProviderSelect = document.getElementById('apiProviderSelect') || document.getElementById('apiProvider') || document.getElementById('provider');
+    const saveBtn = document.getElementById('saveSettingsBtn') || document.getElementById('saveApiKeyBtn') || document.getElementById('saveKey');
+
+    // 1. Remplir le sélecteur de fournisseur s'il est vide
+    if (apiProviderSelect && apiProviderSelect.options.length === 0) {
+      apiProviderSelect.innerHTML = `
+        <option value="gemini" selected>Google Gemini (Flash Lite)</option>
+        <option value="groq">Groq (Llama 3.3)</option>
+        <option value="mistral">Mistral AI</option>
+        <option value="anthropic">Claude (Anthropic)</option>
+      `;
+    }
+
+    // 2. Charger les valeurs existantes
+    const savedKey = localStorage.getItem('gemini_api_key') || localStorage.getItem('apiKey') || localStorage.getItem('gemini_key') || (typeof curKey === 'function' ? curKey() : '');
+    if (apiKeyInput && savedKey) {
+      apiKeyInput.value = savedKey;
+    }
+
+    // 3. Écouteur d'enregistrement robuste
+    if (saveBtn) {
+      saveBtn.onclick = function(e) {
+        if(e && typeof e.preventDefault === "function") e.preventDefault();
+        const val = apiKeyInput ? apiKeyInput.value.trim() : '';
+        if (!val) {
+          alert('Veuillez saisir une clé API valide.');
+          return;
+        }
+        // Enregistrer sous tous les alias possibles pour éviter tout conflit
+        try {
+          localStorage.setItem('gemini_api_key', val);
+          localStorage.setItem('apiKey', val);
+          localStorage.setItem('gemini_key', val);
+        } catch(err){}
+
+        if (typeof S !== "undefined" && S.cfg) {
+          if (!S.cfg.keys) S.cfg.keys = {};
+          const p = (apiProviderSelect && apiProviderSelect.value) || S.cfg.provider || 'gemini';
+          S.cfg.provider = p;
+          S.cfg.keys[p] = val;
+          if (p === 'gemini') S.cfg.keys.gemini = val;
+          if (typeof save === 'function') save();
+        }
+        if (typeof readCfg === 'function') {
+          try { readCfg(); } catch(err) { console.warn(err); }
+        }
+
+        alert('Clé API enregistrée avec succès !');
+        
+        // Fermer l'écran des réglages et revenir à l'accueil/tuteur
+        if (typeof switchTab === 'function') {
+          switchTab('tutor');
+        } else if (typeof switchMainTab === 'function') {
+          switchMainTab('tutor');
+        } else {
+          location.reload();
+        }
+      };
+    }
+  } catch(err) {
+    console.error("initApiSettings error:", err);
+  }
+}
+window.initApiSettings = initApiSettings;
+
 function bindCoreNavigation(){
   try {
+    initApiSettings();
     // A. 4 onglets de navigation inférieure
     document.querySelectorAll(".nav-item, .nav-tab, .bnav-btn").forEach(btn => {
       safeAddListener(btn, "click", (e) => {
@@ -1582,6 +1674,15 @@ function load(){
       S.cfg.provider=c.provider&&PROVIDERS[c.provider]?c.provider:"gemini";
       S.cfg.voice=c.voice||{};
     }
+    // Synchroniser avec les alias directs dans localStorage
+    try {
+      const extGemKey = localStorage.getItem('gemini_api_key') || localStorage.getItem('apiKey') || localStorage.getItem('gemini_key');
+      if(extGemKey){
+        if(!S.cfg.keys) S.cfg.keys = {};
+        if(!S.cfg.keys.gemini) S.cfg.keys.gemini = extGemKey;
+        if(!S.cfg.keys[S.cfg.provider]) S.cfg.keys[S.cfg.provider] = extGemKey;
+      }
+    } catch(ex){}
     // Auto-correction : si la clé actuelle appartient à un autre fournisseur, basculer immédiatement
     const activeKey=(S.cfg.keys&&S.cfg.keys[S.cfg.provider])||"";
     const det=detectProvider(activeKey);
@@ -1639,13 +1740,33 @@ function adopt(prov,oldM,best){
 
 /* ---------- appels à l'IA ---------- */
 function curKey(){
-  let p=S.cfg.provider||"gemini";
-  if(!S.cfg.keys)S.cfg.keys={};
-  const k=String(S.cfg.keys[p]||"").trim();
-  const det=detectProvider(k);
-  if(det&&det!==p&&PROVIDERS[det]){S.cfg.provider=p=det;S.cfg.keys[det]=k}
-  return k;
+  let p = (typeof S !== "undefined" && S.cfg && S.cfg.provider) ? S.cfg.provider : "gemini";
+  if(typeof S !== "undefined" && S.cfg){
+    if(!S.cfg.keys) S.cfg.keys = {};
+    let k = String(S.cfg.keys[p] || "").trim();
+    if(!k){
+      try {
+        k = String(localStorage.getItem('gemini_api_key') || localStorage.getItem('apiKey') || localStorage.getItem('gemini_key') || "").trim();
+      } catch(e){}
+      if(k){
+        S.cfg.keys[p] = k;
+        if(p === "gemini") S.cfg.keys.gemini = k;
+      }
+    }
+    const det = (typeof detectProvider === "function") ? detectProvider(k) : null;
+    if(det && det !== p && typeof PROVIDERS !== "undefined" && PROVIDERS[det]){
+      S.cfg.provider = p = det;
+      S.cfg.keys[det] = k;
+    }
+    return k;
+  }
+  try {
+    return String(localStorage.getItem('gemini_api_key') || localStorage.getItem('apiKey') || localStorage.getItem('gemini_key') || "").trim();
+  } catch(e){
+    return "";
+  }
 }
+window.curKey = curKey;
 function mods(){
   const p=S.cfg.provider||"gemini",d=PROVIDERS[p]||PROVIDERS.gemini;
   const m=(S.cfg.models&&S.cfg.models[p])||{};
@@ -2902,29 +3023,40 @@ safeAddListener("#studied", "change", e=>{S.studied=e.target.value.trim()});
 
 /* réglages du fournisseur */
 (function(){
-  const sel=$("#provider");
+  const sel=$("#provider") || document.getElementById("apiProviderSelect");
   if(!sel)return;
-  Object.keys(PROVIDERS).forEach(k=>sel.append(new Option(PROVIDERS[k].name,k)));
+  if(sel.options.length === 0){
+    Object.keys(PROVIDERS).forEach(k=>sel.append(new Option(PROVIDERS[k].name,k)));
+  }
 })();
 function fillCfg(){
   const p=S.cfg.provider||"gemini",d=PROVIDERS[p]||PROVIDERS.gemini,m=mods();
-  if($("#provider"))$("#provider").value=p;
+  const sel=$("#provider") || document.getElementById("apiProviderSelect") || document.getElementById("apiProvider");
+  if(sel){
+    if(sel.options.length === 0){
+      Object.keys(PROVIDERS).forEach(k=>sel.append(new Option(PROVIDERS[k].name,k)));
+    }
+    sel.value=p;
+  }
   if($("#provNote"))$("#provNote").textContent=d.note+" Clé à créer sur "+d.keyUrl+". En cas de doute, utilisez « Voir les modèles disponibles ».";
-  if($("#apikey"))$("#apikey").value=curKey();
+  const apik=$("#apikey") || document.getElementById("apiKeyInput");
+  if(apik) apik.value=curKey();
   if($("#mChat"))$("#mChat").value=m.chat;
   if($("#mHeavy"))$("#mHeavy").value=m.heavy;
   updateKeyDetectNote();
 }
 function updateKeyDetectNote(){
-  const val=$("#apikey")?$("#apikey").value.trim():"";
+  const apik = $("#apikey") || document.getElementById("apiKeyInput");
+  const val = apik ? apik.value.trim() : "";
   const det=detectProvider(val);
   const note=$("#keyDetectNote");
   if(!note)return;
   if(det&&PROVIDERS[det]){
     note.style.display="block";
     note.textContent="✓ Clé reconnue : "+PROVIDERS[det].name;
-    if($("#provider")&&$("#provider").value!==det){
-      $("#provider").value=det;
+    const sel = $("#provider") || document.getElementById("apiProviderSelect");
+    if(sel&&sel.value!==det){
+      sel.value=det;
       S.cfg.provider=det;
       if($("#mChat"))$("#mChat").value="";
       if($("#mHeavy"))$("#mHeavy").value="";
@@ -2937,14 +3069,22 @@ function updateKeyDetectNote(){
   }
 }
 function readCfg(){
-  const apik = $("#apikey");
+  const apik = $("#apikey") || document.getElementById("apiKeyInput");
   const val = apik ? apik.value.trim() : "";
+  if(val){
+    try{
+      localStorage.setItem('gemini_api_key', val);
+      localStorage.setItem('apiKey', val);
+      localStorage.setItem('gemini_key', val);
+    }catch(e){}
+  }
   const det=detectProvider(val);
   if(det&&PROVIDERS[det])S.cfg.provider=det;
   const p=S.cfg.provider||"gemini",d=PROVIDERS[p]||PROVIDERS.gemini;
   if(!S.cfg.keys)S.cfg.keys={};
   if(!S.cfg.models)S.cfg.models={};
   S.cfg.keys[p]=val;
+  if(p==="gemini") S.cfg.keys.gemini=val;
   const rawChat=$("#mChat")?$("#mChat").value.trim():"";
   const rawHeavy=$("#mHeavy")?$("#mHeavy").value.trim():"";
   const cleanC=cleanModel(rawChat||d.chat, p);
@@ -3195,7 +3335,7 @@ const OPENERS={
   nl:{reply:"Hallo! Leuk je te ontmoeten. Hoe heet je?",tr:"",fr:"Bonjour ! Enchanté. Comment t'appelles-tu ?"}
 };
 async function start(s){
-  if(!curKey()){openSettings("Collez d'abord votre clé API pour démarrer.");return}
+  if(!checkApiKeyBeforeTutor()) return;
   if(s && s.id === "free"){
     startTutor();
     return;
@@ -3232,7 +3372,7 @@ function updateTutorSttUI(){
 }
 
 function startTutor(){
-  if(!curKey()){openSettings("Collez d'abord votre clé API pour démarrer.");return}
+  if(!checkApiKeyBeforeTutor()) return;
   const t = getActiveTutor();
   const isAr = (S.lang === "ar");
   S.scn={
@@ -3561,7 +3701,7 @@ safeAddListener("#tutorSttBtn", "click", ()=>{S.tutorStt=(S.tutorStt==="fr"?S.la
 safeAddListener("#repeatBtn", "click", () => openRepeat());
 safeAddListener("#repeatBack", "click", () => {leaveSession();show("home")});
 async function openRepeat(){
-  if(!curKey()){openSettings("Collez d'abord votre clé API pour démarrer.");return}
+  if(!checkApiKeyBeforeTutor()) return;
   const body=$("#repeatBody");body.textContent="";
   show("repeat");
   body.append(el("p","muted","Le professeur prépare cinq phrases…"));
@@ -4340,7 +4480,10 @@ safeAddListener("#hintBtn", "click", ()=>{
 function initApp(){
   try {
     bindCoreNavigation();
-    if(!curKey()){
+    initApiSettings();
+    if(typeof fillCfg === "function") fillCfg();
+    const hasKey = !!(curKey() || localStorage.getItem('gemini_api_key') || localStorage.getItem('apiKey'));
+    if(!hasKey){
       switchMainTab("profile");
     } else {
       switchMainTab("lessons");
