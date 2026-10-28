@@ -920,7 +920,7 @@ audio,
             </div>
             <div class="row" style="margin-top:auto;gap:6px">
               <button class="mini ghost" type="button" data-test-voice="yasmine" onclick="testTutorVoice('yasmine')" style="font-size:11px;padding:3px 8px">&#128266; Tester</button>
-              <button class="btn sm tutor-select-btn" id="selectYasmineBtn" data-select-tutor="yasmine" onclick="window.selectTutor('yasmine')" type="button" style="flex:1;font-size:11px;padding:4px 8px">&check; S&eacute;lectionn&eacute;e</button>
+              <button type="button" class="btn sm tutor-select-btn" id="btnSelectYasmine" onclick="chooseTutor('yasmine')" style="flex:1;font-size:11px;padding:4px 8px">S&eacute;lectionner</button>
             </div>
           </div>
 
@@ -943,7 +943,7 @@ audio,
             </div>
             <div class="row" style="margin-top:auto;gap:6px">
               <button class="mini ghost" type="button" data-test-voice="tariq" onclick="testTutorVoice('tariq')" style="font-size:11px;padding:3px 8px">&#128266; Tester</button>
-              <button class="btn sm ghost tutor-select-btn" id="selectTariqBtn" data-select-tutor="tariq" onclick="window.selectTutor('tariq')" type="button" style="flex:1;font-size:11px;padding:4px 8px">S&eacute;lectionner</button>
+              <button type="button" class="btn sm ghost tutor-select-btn" id="btnSelectTariq" onclick="chooseTutor('tariq')" style="flex:1;font-size:11px;padding:4px 8px">S&eacute;lectionner</button>
             </div>
           </div>
         </div>
@@ -1058,7 +1058,7 @@ audio,
     <!-- 1. En-tete superieur (35% de la hauteur) -->
     <header class="chat-header-zone">
       <div class="chat-top-bar">
-        <button class="icon-circle-btn" id="backBtn" onclick="window.closeConversationScreen()" aria-label="Quitter la conversation" title="Quitter">&#10005;</button>
+        <button id="closeConversationBtn" class="icon-circle-btn" onclick="closeChat()" style="cursor: pointer; z-index: 10001;">&#10005;</button>
         <div class="chat-title-wrap">
           <span id="chatTitle" class="chat-title-text">Conversation</span>
           <span class="timer-pill" id="timer" hidden></span>
@@ -1150,19 +1150,19 @@ audio,
 
   <!-- Barre de navigation inferieure fixe (4 onglets natifs) -->
   <nav id="bottomNav" class="bottom-nav" aria-label="Navigation principale">
-    <button class="bnav-btn nav-tab nav-item active" data-tab="lessons" id="navLessonsBtn" onclick="window.switchTab('lessons')" aria-label="Leçons" aria-selected="true">
+    <button class="bnav-btn nav-tab nav-item active" data-tab="lessons" id="navLessonsBtn" onclick="closeChat(); switchTab('lessons')" aria-label="Leçons" aria-selected="true">
       <span class="bnav-icon">&#128506;&#65039;</span>
       <span class="bnav-label">Le&ccedil;ons</span>
     </button>
-    <button class="bnav-btn nav-tab nav-item" data-tab="roles" id="navRoleplayBtn" onclick="window.switchTab('roles')" aria-label="Jeux de rôle" aria-selected="false">
+    <button class="bnav-btn nav-tab nav-item" data-tab="roles" id="navRoleplayBtn" onclick="closeChat(); switchTab('roles')" aria-label="Jeux de rôle" aria-selected="false">
       <span class="bnav-icon">&#127917;</span>
       <span class="bnav-label">Jeux de r&ocirc;le</span>
     </button>
-    <button class="bnav-btn nav-tab nav-item" data-tab="tutor" id="navTutorBtn" onclick="window.openFreeTutor()" aria-label="Tuteur Libre" aria-selected="false">
+    <button class="bnav-btn nav-tab nav-item" data-tab="tutor" id="navTutorBtn" onclick="openFreeTutor()" aria-label="Tuteur Libre" aria-selected="false">
       <span class="bnav-icon">&#128172;</span>
       <span class="bnav-label">Tuteur Libre</span>
     </button>
-    <button class="bnav-btn nav-tab nav-item" data-tab="profile" id="navProfileBtn" onclick="window.switchTab('profile')" aria-label="Profil &amp; Réglages" aria-selected="false">
+    <button class="bnav-btn nav-tab nav-item" data-tab="profile" id="navProfileBtn" onclick="closeChat(); switchTab('profile')" aria-label="Profil &amp; Réglages" aria-selected="false">
       <span class="bnav-icon">&#9881;&#65039;</span>
       <span class="bnav-label">Profil</span>
     </button>
@@ -1258,26 +1258,73 @@ window.switchTab = function(tabName) {
 };
 window.switchMainTab = window.switchTab;
 
-window.closeConversationScreen = function() {
+window.closeChat = function() {
   if (typeof leaveSession === 'function') {
     try { leaveSession(); } catch(e){}
   }
-  const chatScreen = document.getElementById('chatScreen') || 
-                     document.getElementById('conversationScreen') || 
-                     document.getElementById('chat') || 
-                     document.querySelector('.conversation-view');
-  if (chatScreen) {
-    chatScreen.style.display = 'none';
-    chatScreen.classList.remove('active');
-  }
-  // Réafficher l'onglet précédent (par exemple Profil ou Leçons)
-  if (typeof window.switchTab === 'function') {
-    window.switchTab('profile');
-  } else {
-    const profileTab = document.getElementById('profile') || document.querySelector('[data-view="profile"]');
-    if (profileTab) profileTab.style.display = 'block';
+  const screens = ['chatScreen', 'conversationScreen', 'tutorScreen', 'chat'];
+  screens.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.style.display = 'none';
+      el.classList.remove('active');
+    }
+  });
+  // Réactivation de la vue profil par défaut
+  const profileView = document.getElementById('profile') || document.querySelector('[data-view="profile"]');
+  if (profileView) {
+    profileView.style.display = 'block';
+    profileView.classList.add('active');
   }
 };
+window.closeConversationScreen = window.closeChat;
+
+window.chooseTutor = function(tutor) {
+  try {
+    localStorage.setItem('selected_tutor', tutor);
+    localStorage.setItem('parlons.tutor', tutor);
+  } catch(e){}
+  
+  const btnY = document.getElementById('btnSelectYasmine') || document.getElementById('selectYasmineBtn');
+  const btnT = document.getElementById('btnSelectTariq') || document.getElementById('selectTariqBtn');
+  const cardY = document.querySelector('.card-yasmine') || document.getElementById('tutorCardYasmine');
+  const cardT = document.querySelector('.card-tariq') || document.getElementById('tutorCardTariq');
+  const badge = document.querySelector('.tutor-active-badge') || document.getElementById('activeTutorChip');
+
+  if (tutor === 'tariq') {
+    if (btnT) { btnT.textContent = '✓ Sélectionné'; btnT.style.background = '#2563eb'; btnT.style.color = '#fff'; }
+    if (btnY) { btnY.textContent = 'Sélectionner'; btnY.style.background = ''; btnY.style.color = ''; }
+    if (cardT) { cardT.classList.add('selected', 'active'); }
+    if (cardY) { cardY.classList.remove('selected', 'active'); }
+    if (badge) badge.textContent = 'Tariq actif';
+  } else {
+    if (btnY) { btnY.textContent = '✓ Sélectionnée'; btnY.style.background = '#2563eb'; btnY.style.color = '#fff'; }
+    if (btnT) { btnT.textContent = 'Sélectionner'; btnT.style.background = ''; btnT.style.color = ''; }
+    if (cardY) { cardY.classList.add('selected', 'active'); }
+    if (cardT) { cardT.classList.remove('selected', 'active'); }
+    if (badge) badge.textContent = 'Yasmine active';
+  }
+
+  if (typeof updateAvatar === "function") {
+    try { updateAvatar(); } catch(e){}
+  }
+  if (typeof populateTutorVoices === "function") {
+    try { populateTutorVoices(); } catch(e){}
+  }
+};
+window.selectTutor = window.chooseTutor;
+window.setActiveTutor = window.chooseTutor;
+
+// Initialiser l'état au chargement
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => {
+    const current = localStorage.getItem('selected_tutor') || localStorage.getItem('parlons.tutor') || 'yasmine';
+    window.chooseTutor(current);
+  });
+} else {
+  const current = localStorage.getItem('selected_tutor') || localStorage.getItem('parlons.tutor') || 'yasmine';
+  window.chooseTutor(current);
+}
 
 // 1. Initialisation de la salutation du tuteur actif
 window.initTutorGreeting = function() {
@@ -1497,18 +1544,18 @@ window.setActiveTutor = setActiveTutor;
 document.addEventListener('click', function(e) {
   try {
     // 1. Bouton Sélectionner Tariq
-    const selectTariqBtn = e.target.closest('#selectTariqBtn, [data-select-tutor="tariq"]');
+    const selectTariqBtn = e.target.closest('#btnSelectTariq, #selectTariqBtn, [data-select-tutor="tariq"]');
     if (selectTariqBtn) {
       e.preventDefault();
-      setActiveTutor('tariq');
+      chooseTutor('tariq');
       return;
     }
 
     // 2. Bouton Sélectionner Yasmine
-    const selectYasmineBtn = e.target.closest('#selectYasmineBtn, [data-select-tutor="yasmine"]');
+    const selectYasmineBtn = e.target.closest('#btnSelectYasmine, #selectYasmineBtn, [data-select-tutor="yasmine"]');
     if (selectYasmineBtn) {
       e.preventDefault();
-      setActiveTutor('yasmine');
+      chooseTutor('yasmine');
       return;
     }
 
@@ -1558,10 +1605,12 @@ document.addEventListener('click', function(e) {
     }
 
     // 6. Bouton Retour / Fermeture ✕ (quitter conversation)
-    const backBtn = e.target.closest('#backBtn, [data-action="back"]');
+    const backBtn = e.target.closest('#closeConversationBtn, #backBtn, [data-action="back"]');
     if (backBtn) {
       e.preventDefault();
-      if (typeof window.closeConversationScreen === 'function') {
+      if (typeof window.closeChat === 'function') {
+        window.closeChat();
+      } else if (typeof window.closeConversationScreen === 'function') {
         window.closeConversationScreen();
       } else {
         if (typeof leaveSession === 'function') leaveSession();
@@ -2508,77 +2557,9 @@ function getActiveTutor(){
 }
 
 window.selectTutor = function(tutorKey) {
-  if (!tutorKey) tutorKey = 'yasmine';
-  try {
-    localStorage.setItem('selected_tutor', tutorKey);
-    localStorage.setItem('parlons.tutor', tutorKey);
-  } catch(e){}
-
-  // Mettre à jour visuellement les deux cartes
-  const cardYasmine = document.querySelector('.card-yasmine') || document.getElementById('tutorCardYasmine') || document.querySelectorAll('.tutor-card')[0];
-  const cardTariq = document.querySelector('.card-tariq') || document.getElementById('tutorCardTariq') || document.querySelectorAll('.tutor-card')[1];
-  const btnYasmine = document.getElementById('selectYasmineBtn') || (cardYasmine ? cardYasmine.querySelector('.tutor-select-btn') : null);
-  const btnTariq = document.getElementById('selectTariqBtn') || (cardTariq ? cardTariq.querySelector('.tutor-select-btn') : null);
-  const badgeActive = document.querySelector('.tutor-active-badge') || document.getElementById('activeTutorChip');
-
-  if (tutorKey === 'tariq') {
-    if (cardTariq) {
-      cardTariq.classList.add('selected');
-      cardTariq.classList.add('active');
-    }
-    if (cardYasmine) {
-      cardYasmine.classList.remove('selected');
-      cardYasmine.classList.remove('active');
-    }
-    if (btnTariq) {
-      btnTariq.textContent = '✓ Sélectionné';
-      btnTariq.classList.add('active');
-      btnTariq.classList.remove('ghost');
-    }
-    if (btnYasmine) {
-      btnYasmine.textContent = 'Sélectionner';
-      btnYasmine.classList.remove('active');
-      btnYasmine.classList.add('ghost');
-    }
-    if (badgeActive) {
-      badgeActive.textContent = 'Tariq actif';
-    }
-  } else {
-    // Cas Yasmine
-    if (cardYasmine) {
-      cardYasmine.classList.add('selected');
-      cardYasmine.classList.add('active');
-    }
-    if (cardTariq) {
-      cardTariq.classList.remove('selected');
-      cardTariq.classList.remove('active');
-    }
-    if (btnYasmine) {
-      btnYasmine.textContent = '✓ Sélectionnée';
-      btnYasmine.classList.add('active');
-      btnYasmine.classList.remove('ghost');
-    }
-    if (btnTariq) {
-      btnTariq.textContent = 'Sélectionner';
-      btnTariq.classList.remove('active');
-      btnTariq.classList.add('ghost');
-    }
-    if (badgeActive) {
-      badgeActive.textContent = 'Yasmine active';
-    }
+  if (typeof window.chooseTutor === 'function') {
+    window.chooseTutor(tutorKey);
   }
-
-  if (typeof updateAvatar === "function") {
-    try { updateAvatar(); } catch(e){}
-  }
-  if (typeof populateTutorVoices === "function") {
-    try { populateTutorVoices(); } catch(e){}
-  }
-  const t = (typeof TUTORS !== "undefined" && TUTORS[tutorKey]) ? TUTORS[tutorKey] : {id: tutorKey, name: tutorKey === "tariq" ? "Tariq" : "Yasmine", title: ""};
-  if (typeof flash === "function") {
-    try { flash("Professeur actif : " + t.name + (t.title ? " (" + t.title + ")" : "")); } catch(e){}
-  }
-  console.log("Tuteur sélectionné :", tutorKey);
 };
 window.setActiveTutor = window.selectTutor;
 
@@ -2699,31 +2680,8 @@ window.testTutorVoice = function(tid, e){
 
 function renderTutorSelection(){
   const cur = getActiveTutor();
-  const chip = $("#activeTutorChip") || document.querySelector(".tutor-active-badge");
-  if(chip) chip.textContent = (cur.id === "tariq" ? "Tariq actif" : "Yasmine active");
-
-  const cardY = $("#tutorCardYasmine") || document.querySelector(".card-yasmine");
-  const cardT = $("#tutorCardTariq") || document.querySelector(".card-tariq");
-
-  if(cardY){
-    const isY = (cur.id === "yasmine");
-    cardY.classList.toggle("active", isY);
-    cardY.classList.toggle("selected", isY);
-    const btn = cardY.querySelector(".tutor-select-btn");
-    if(btn){
-      btn.className = "btn sm " + (isY ? "active " : "ghost ") + "tutor-select-btn";
-      btn.textContent = isY ? "✓ Sélectionnée" : "Sélectionner";
-    }
-  }
-  if(cardT){
-    const isT = (cur.id === "tariq");
-    cardT.classList.toggle("active", isT);
-    cardT.classList.toggle("selected", isT);
-    const btn = cardT.querySelector(".tutor-select-btn");
-    if(btn){
-      btn.className = "btn sm " + (isT ? "active " : "ghost ") + "tutor-select-btn";
-      btn.textContent = isT ? "✓ Sélectionné" : "Sélectionner";
-    }
+  if (typeof window.chooseTutor === 'function') {
+    window.chooseTutor(cur.id);
   }
   if (typeof populateTutorVoices === "function") populateTutorVoices();
 }
