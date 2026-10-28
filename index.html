@@ -1762,14 +1762,6 @@ function speakBilingualText(rawText) {
       window.speechSynthesis.speak(utterance);
     }
 
-      utterance.onerror = () => {
-        index++;
-        playNext();
-      };
-
-      window.speechSynthesis.speak(utterance);
-    }
-
     // Demarrer la lecture et activer l'animation
     S.speaking = true;
     setStatus();
@@ -1788,9 +1780,6 @@ function speak(text, rate, forceLang){
       speechSynthesis.cancel();
       const cleaned = cleanTTS(text);
       const langKey = forceLang || S.lang;
-      const targetVoice = voiceFor(langKey);
-      const targetLang = (targetVoice && targetVoice.lang) || SPEECH[langKey].tts;
-
       const activeTutor = getActiveTutor();
       const isFemale = (activeTutor.gender === 'female' || activeTutor.id === 'yasmine');
       const gender = isFemale ? 'female' : 'male';
@@ -1917,38 +1906,44 @@ function micErr(e){
   }
 }
 function updateAvatar(){
-  const av=$("#avatarWrap");if(!av)return;
-  const label=$("#avatarStateText");
-  const activeTutor=getActiveTutor();
-  const avatarImg=$("#tutorAvatarImg");
-  const seal=$("#sealMedallion");
+  try{
+    const av=$("#avatarWrap");
+    const label=$("#avatarStateText");
+    const activeTutor=getActiveTutor() || (TUTORS && TUTORS.yasmine) || {id:"yasmine",name:"Yasmine"};
+    const avatarImg=document.getElementById('tutorAvatarImg') || $("#tutorAvatarImg");
+    const seal=$("#sealMedallion");
 
-  if(avatarImg){
-    const isTariq=(activeTutor.id==="tariq");
-    const targetSrc=isTariq?"assets/tariq.png":"assets/yasmine.png";
-    const fallbackSrc=isTariq
-      ?"https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=512&h=512&q=80"
-      :"https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=512&h=512&q=80";
-    if(avatarImg.getAttribute("src")!==targetSrc && avatarImg.getAttribute("src")!==fallbackSrc){
-      avatarImg.onerror=function(){ this.onerror=null; this.src=fallbackSrc; };
-      avatarImg.src=targetSrc;
-      avatarImg.alt="Portrait de "+activeTutor.name;
+    if(avatarImg){
+      const isTariq=(activeTutor.id==="tariq");
+      const targetSrc=isTariq?"assets/tariq.png":"assets/yasmine.png";
+      const fallbackSrc=isTariq
+        ?"https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=512&h=512&q=80"
+        :"https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=512&h=512&q=80";
+      if(avatarImg.getAttribute("src")!==targetSrc && avatarImg.getAttribute("src")!==fallbackSrc){
+        avatarImg.onerror=function(){ this.onerror=null; this.src=fallbackSrc; };
+        avatarImg.src=targetSrc;
+        avatarImg.alt="Portrait de "+(activeTutor.name||"Tuteur");
+      }
     }
-  }
-  if(seal){
-    seal.classList.toggle("tutor-tariq",activeTutor.id==="tariq");
-  }
+    if(seal){
+      seal.classList.toggle("tutor-tariq",activeTutor.id==="tariq");
+    }
 
-  av.classList.remove("state-neutral","state-listening","state-speaking");
-  if(S.speaking){
-    av.classList.add("state-speaking");
-    if(label)label.textContent=activeTutor.name+" parle\u2026";
-  } else if(S.listening){
-    av.classList.add("state-listening");
-    if(label)label.textContent="\u00C0 votre \u00E9coute\u2026";
-  } else {
-    av.classList.add("state-neutral");
-    if(label)label.textContent=S.busy?"En r\u00E9flexion\u2026":(activeTutor.name+(activeTutor.id==="yasmine"?" pr\u00EAte":" pr\u00EAt"));
+    if(av){
+      av.classList.remove("state-neutral","state-listening","state-speaking");
+      if(S.speaking){
+        av.classList.add("state-speaking");
+        if(label)label.textContent=(activeTutor.name||"Professeur")+" parle\u2026";
+      } else if(S.listening){
+        av.classList.add("state-listening");
+        if(label)label.textContent="\u00C0 votre \u00E9coute\u2026";
+      } else {
+        av.classList.add("state-neutral");
+        if(label)label.textContent=S.busy?"En r\u00E9flexion\u2026":((activeTutor.name||"Professeur")+(activeTutor.id==="yasmine"?" pr\u00EAte":" pr\u00EAt"));
+      }
+    }
+  }catch(e){
+    console.warn("updateAvatar safe error:", e);
   }
 }function setStatus(){
   const s=$("#status");if(!s)return;
@@ -2828,7 +2823,7 @@ function send(){
 $("#sendBtn").onclick=send;
 safeOn("#input","keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send()}});
 $("#input").addEventListener("input",e=>{const t=e.target;t.style.height="auto";t.style.height=Math.min(140,t.scrollHeight)+"px"});
-safeClick("#backBtn",()=>{leaveSession();show("home");renderDue();renderPath()});
+safeClick("#backBtn",()=>{leaveSession();switchMainTab("lessons");renderDue();renderPath()});
 
 /* micro : un tour de parole */
 async function micTap(){
@@ -3717,29 +3712,45 @@ function switchMainTab(tabName){
   }
 }
 
-// Bloc d'initialisation securise
+// Bloc d'initialisation securise et prioritaire
+function bindCoreNavigation(){
+  try{
+    // Bouton conversation informelle / start
+    const startBtn = document.querySelector('.btn-primary') || document.getElementById('startConversationBtn') || document.getElementById('informalBtn');
+    if (startBtn) {
+      startBtn.onclick = (e) => {
+        e.preventDefault();
+        startTutor();
+      };
+    }
+
+    // 4 onglets de navigation inferieure
+    document.querySelectorAll('.nav-item, .nav-tab, .bnav-btn').forEach(btn => {
+      btn.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const targetId = btn.getAttribute('data-tab');
+        if (typeof switchMainTab === "function") switchMainTab(targetId);
+      };
+    });
+
+    // Bouton quitter conversation
+    const backBtn = document.getElementById('backBtn');
+    if (backBtn) {
+      backBtn.onclick = (e) => {
+        e.preventDefault();
+        if (typeof leaveSession === "function") leaveSession();
+        if (typeof switchMainTab === "function") switchMainTab("lessons");
+      };
+    }
+  }catch(err){
+    console.warn("bindCoreNavigation warning:", err);
+  }
+}
+
 function initApp(){
   console.log('App initialisée');
-
-  // Bouton conversation informelle / start
-  const startBtn = document.querySelector('.btn-primary') || document.getElementById('startConversationBtn') || document.getElementById('informalBtn');
-  if (startBtn) {
-    startBtn.onclick = (e) => {
-      e.preventDefault();
-      const scn = SCENARIOS.find(s => s.id === "free") || {id:"free",t:"Conversation libre",d:"Parler de ce que vous voulez",p:"Conversation libre : suis les sujets de l'apprenant, relance avec curiosité."};
-      start(scn);
-    };
-  }
-
-  // 4 onglets de navigation
-  document.querySelectorAll('.nav-item, .nav-tab, .bnav-btn').forEach(btn => {
-    btn.onclick = (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const targetId = btn.getAttribute('data-tab');
-      switchMainTab(targetId);
-    };
-  });
+  bindCoreNavigation();
 
   // Premier affichage selon cle API
   try{
@@ -3753,6 +3764,8 @@ function initApp(){
   }
 }
 
+// Attacher immediatement ET au DOMContentLoaded
+bindCoreNavigation();
 if(document.readyState === 'loading'){
   window.addEventListener('DOMContentLoaded', initApp);
 } else {
