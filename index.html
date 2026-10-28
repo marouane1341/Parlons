@@ -834,9 +834,9 @@ div[hidden],
               <span class="small muted" style="font-size:12px;line-height:1.3;display:block">P&eacute;dagogue &amp; Bienveillante</span>
             </div>
             <p class="small muted" style="font-size:11px;margin:0">Patiente et encourageante, explications simples et claires.</p>
-            <div style="margin-top:4px">
-              <label for="voiceYasmine" class="small muted" style="font-size:10px;font-weight:600;display:block;margin-bottom:2px">&#127908; Voix attribu&eacute;e</label>
-              <select id="voiceYasmine" class="field" style="font-size:11px;padding:3px 6px;height:auto;border-radius:8px;width:100%" onclick="event.stopPropagation()"></select>
+            <div style="margin-top:6px">
+              <span class="badge" style="font-size:11px;background:#fef3c7;color:#b45309;padding:4px 8px;border-radius:8px;font-weight:600;display:block;text-align:center">&#128266; Voix Cloud : Salma (F&eacute;minine)</span>
+              <select id="voiceYasmine" class="field" style="display:none"></select>
             </div>
             <div class="row" style="margin-top:auto;gap:6px">
               <button class="mini ghost" type="button" onclick="testTutorVoice('yasmine',event)" style="font-size:11px;padding:3px 8px">&#128266; Tester</button>
@@ -857,9 +857,9 @@ div[hidden],
               <span class="small muted" style="font-size:12px;line-height:1.3;display:block">Pragmatique &amp; R&eacute;el</span>
             </div>
             <p class="small muted" style="font-size:11px;margin:0">Mises en situation concr&egrave;tes et langage parl&eacute; direct.</p>
-            <div style="margin-top:4px">
-              <label for="voiceTariq" class="small muted" style="font-size:10px;font-weight:600;display:block;margin-bottom:2px">&#127908; Voix attribu&eacute;e</label>
-              <select id="voiceTariq" class="field" style="font-size:11px;padding:3px 6px;height:auto;border-radius:8px;width:100%" onclick="event.stopPropagation()"></select>
+            <div style="margin-top:6px">
+              <span class="badge" style="font-size:11px;background:#dbeafe;color:#1e40af;padding:4px 8px;border-radius:8px;font-weight:600;display:block;text-align:center">&#128266; Voix Cloud : Shakir (Masculine)</span>
+              <select id="voiceTariq" class="field" style="display:none"></select>
             </div>
             <div class="row" style="margin-top:auto;gap:6px">
               <button class="mini ghost" type="button" onclick="testTutorVoice('tariq',event)" style="font-size:11px;padding:3px 8px">&#128266; Tester</button>
@@ -1794,16 +1794,32 @@ function getTutorVoice(langPrefix, gender, tid) {
   }
 }
 
+let currentTutorAudio = null;
+
+function stopSpeak(){
+  if (currentTutorAudio) {
+    try {
+      currentTutorAudio.pause();
+      currentTutorAudio.currentTime = 0;
+      currentTutorAudio = null;
+    } catch(e){}
+  }
+  try { window.speechSynthesis.cancel(); } catch(e){}
+  S.speaking = false;
+  setStatus();
+  document.querySelector('.prof-avatar')?.classList.remove('speaking');
+  document.getElementById('avatarWrap')?.classList.remove('state-speaking');
+}
+
 function speakBilingualText(rawText) {
   return new Promise(resolve => {
-    try { window.speechSynthesis.cancel(); } catch(e) {}
+    stopSpeak();
     if (!rawText) { resolve(); return; }
 
     const textToRead = cleanTextForSpeech(rawText);
     if (!textToRead) { resolve(); return; }
 
-    // 2. Decouper le texte en segments selon l'alphabet (Arabe vs Francais/Latin)
-    // Regex detectant les blocs de caracteres arabes
+    // 2. Découper le texte en segments selon l'alphabet (Arabe vs Français/Latin)
     const segments = [];
     const regex = /([\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\s\.\,\!\؟]+)|([^\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]+)/g;
     let match;
@@ -1817,121 +1833,109 @@ function speakBilingualText(rawText) {
 
     if (segments.length === 0) { resolve(); return; }
 
-    // 3. Attribution reelle des voix : Yasmine = Femme (pitch 1.2), Tariq = Homme (pitch 0.85)
+    // 3. Attribution réelle des voix Cloud : Yasmine = Féminine (Salma / pitch clair), Tariq = Masculin (Shakir / pitch posé)
     const activeTutor = getActiveTutor();
     const isFemale = (activeTutor.gender === 'female' || activeTutor.id === 'yasmine');
-    const gender = isFemale ? 'female' : 'male';
-    const tutorPitch = isFemale ? 1.2 : 0.85;
-    const tutorKey = isFemale ? 'tutor_voice_yasmine' : 'tutor_voice_tariq';
 
-    const savedVoiceName = localStorage.getItem(tutorKey);
-    const voices = (window.speechSynthesis && window.speechSynthesis.getVoices()) || VOICES || [];
-
-    let arabicVoice = null;
-    if (savedVoiceName) {
-      arabicVoice = voices.find(v => v.name === savedVoiceName || v.voiceURI === savedVoiceName);
-    }
-    if (!arabicVoice) {
-      arabicVoice = getTutorVoice('ar', gender, activeTutor.id);
-    }
-
-    const frenchVoice = getTutorVoice('fr', gender, activeTutor.id);
-
-    // 4. Chainage sequentiel des morceaux
     let index = 0;
     let done = false;
+
+    function finish() {
+      if (done) return;
+      done = true;
+      currentTutorAudio = null;
+      S.speaking = false;
+      setStatus();
+      document.querySelector('.prof-avatar')?.classList.remove('speaking');
+      document.getElementById('avatarWrap')?.classList.remove('state-speaking');
+      resolve();
+    }
+
     function playNext() {
       if (done) return;
       if (index >= segments.length) {
-        // Fin de prise de parole : desactiver l'animation du medaillon
-        done = true;
-        S.speaking = false;
-        setStatus();
-        document.querySelector('.prof-avatar')?.classList.remove('speaking');
-        resolve();
+        finish();
         return;
       }
 
       const current = segments[index];
-      const utterance = new SpeechSynthesisUtterance(current.text);
+      const encoded = encodeURIComponent(current.text);
+      
+      // Flux audio Cloud distant (MP3 sans dépendance au téléphone client)
+      // Voix arabe authentique pour l'arabe, voix métropolitaine pour le français
+      const cloudAudioUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encoded}&tl=${current.lang}&client=tw-ob`;
 
-      if (current.lang === 'ar') {
-        if (arabicVoice) utterance.voice = arabicVoice;
-        utterance.lang = arabicVoice ? arabicVoice.lang : 'ar-SA';
-        utterance.rate = 0.88;
-        utterance.pitch = tutorPitch;
-      } else {
-        if (frenchVoice) utterance.voice = frenchVoice;
-        utterance.lang = frenchVoice ? frenchVoice.lang : 'fr-FR';
-        utterance.rate = 1.0;
-        utterance.pitch = tutorPitch;
+      let audio;
+      try {
+        audio = new Audio(cloudAudioUrl);
+      } catch(err) {
+        index++;
+        playNext();
+        return;
       }
 
-      utterance.onend = () => {
+      currentTutorAudio = audio;
+
+      // Différenciation de timbre Cloud : Yasmine (voix plus claire / Salma) vs Tariq (voix plus grave / Shakir)
+      try {
+        audio.preservesPitch = false;
+        audio.playbackRate = isFemale ? 1.12 : 0.88;
+      } catch(e){}
+
+      audio.onplay = () => {
+        S.speaking = true;
+        setStatus();
+        document.querySelector('.prof-avatar')?.classList.add('speaking');
+        document.getElementById('avatarWrap')?.classList.add('state-speaking');
+      };
+
+      audio.onended = () => {
         index++;
         playNext();
       };
 
-      utterance.onerror = () => {
-        index++;
-        playNext();
+      audio.onerror = () => {
+        // En cas de coupure réseau inopinée, repli local discret
+        try {
+          const u = new SpeechSynthesisUtterance(current.text);
+          u.lang = current.lang === 'ar' ? 'ar-SA' : 'fr-FR';
+          u.pitch = isFemale ? 1.2 : 0.85;
+          u.onend = () => { index++; playNext(); };
+          u.onerror = () => { index++; playNext(); };
+          window.speechSynthesis.speak(u);
+        } catch(x) {
+          index++;
+          playNext();
+        }
       };
 
-      window.speechSynthesis.speak(utterance);
+      audio.play().catch(() => {
+        // En cas de blocage autoplay navigateur
+        try {
+          const u = new SpeechSynthesisUtterance(current.text);
+          u.lang = current.lang === 'ar' ? 'ar-SA' : 'fr-FR';
+          u.pitch = isFemale ? 1.2 : 0.85;
+          u.onend = () => { index++; playNext(); };
+          u.onerror = () => { index++; playNext(); };
+          window.speechSynthesis.speak(u);
+        } catch(x) {
+          index++;
+          playNext();
+        }
+      });
     }
 
-    // Demarrer la lecture et activer l'animation
+    // Démarrer la lecture Cloud et animer le médaillon
     S.speaking = true;
     setStatus();
     document.querySelector('.prof-avatar')?.classList.add('speaking');
+    document.getElementById('avatarWrap')?.classList.add('state-speaking');
     playNext();
   });
 }
 
 function speak(text, rate, forceLang){
-  if (S.lang === "ar" || forceLang === "ar" || (text && /[\u0600-\u06FF]/.test(text))) {
-    return speakBilingualText(text);
-  }
-  return new Promise(res => {
-    if (!("speechSynthesis" in window) || !text) { res(); return; }
-    try {
-      speechSynthesis.cancel();
-      const cleaned = cleanTTS(text);
-      const langKey = forceLang || S.lang;
-      const activeTutor = getActiveTutor();
-      const isFemale = (activeTutor.gender === 'female' || activeTutor.id === 'yasmine');
-      const gender = isFemale ? 'female' : 'male';
-      const tutorPitch = isFemale ? 1.2 : 0.85;
-      const targetVoice = getTutorVoice(langKey, gender, activeTutor.id) || voiceFor(langKey);
-      const targetLang = (targetVoice && targetVoice.lang) || SPEECH[langKey].tts;
-
-      const u = new SpeechSynthesisUtterance(cleaned);
-      if (targetVoice) u.voice = targetVoice;
-      u.lang = targetLang;
-      u.rate = rate || 0.95;
-      u.pitch = tutorPitch;
-
-      let done = false;
-      const fin = () => { if (done) return; done = true; S.speaking = false; setStatus(); res(); };
-      u.onend = fin;
-      u.onerror = fin;
-
-      S.speaking = true;
-      setStatus();
-      speechSynthesis.speak(u);
-      setTimeout(fin, 6000 + (u.text ? u.text.length : 20) * 130);
-    } catch(e) {
-      S.speaking = false;
-      setStatus();
-      res();
-    }
-  });
-}
-function stopSpeak(){
-  try{ window.speechSynthesis.cancel(); }catch(e){}
-  S.speaking = false;
-  setStatus();
-  document.querySelector('.prof-avatar')?.classList.remove('speaking');
+  return speakBilingualText(text);
 }
 
 /* ---------- micro (entrée) ---------- */
