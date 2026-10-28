@@ -824,8 +824,8 @@ div[hidden],
           <!-- Carte Yasmine -->
           <div class="tutor-card active" data-tutor="yasmine" id="tutorCardYasmine" onclick="selectTutor('yasmine')">
             <div class="row spread" style="align-items:center">
-              <div class="tutor-avatar-icon" style="width:44px;height:44px;border-radius:50%;padding:2px;background:linear-gradient(135deg, #FEF3C7 0%, #F59E0B 100%);box-shadow:0 3px 10px rgba(245,158,11,0.25);flex-shrink:0;">
-                <img src="assets/yasmine.png" onerror="this.onerror=null;this.src='https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=512&h=512&q=80';" alt="Yasmine" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block;">
+              <div class="tutor-avatar-icon" style="width:48px;height:48px;border-radius:50%;padding:2px;background:linear-gradient(135deg, #FEF3C7 0%, #F59E0B 100%);box-shadow:0 3px 10px rgba(245,158,11,0.25);flex-shrink:0;">
+                <img src="assets/yasmine.png" alt="Yasmine" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block;">
               </div>
               <span class="badge" style="font-size:10px;background:#fef3c7;color:#b45309">Douce</span>
             </div>
@@ -834,8 +834,12 @@ div[hidden],
               <span class="small muted" style="font-size:12px;line-height:1.3;display:block">P&eacute;dagogue &amp; Bienveillante</span>
             </div>
             <p class="small muted" style="font-size:11px;margin:0">Patiente et encourageante, explications simples et claires.</p>
+            <div style="margin-top:4px">
+              <label for="voiceSelYasmine" class="small muted" style="font-size:10px;font-weight:600;display:block;margin-bottom:2px">&#127908; Voix attribu&eacute;e</label>
+              <select id="voiceSelYasmine" class="field" style="font-size:11px;padding:3px 6px;height:auto;border-radius:8px;width:100%" onclick="event.stopPropagation()" onchange="saveTutorVoice('yasmine', this.value)"></select>
+            </div>
             <div class="row" style="margin-top:auto;gap:6px">
-              <button class="mini ghost" type="button" onclick="testTutorVoice('yasmine',event)" style="font-size:11px;padding:3px 8px">&#128266; Voix</button>
+              <button class="mini ghost" type="button" onclick="testTutorVoice('yasmine',event)" style="font-size:11px;padding:3px 8px">&#128266; Tester</button>
               <button class="btn sm tutor-select-btn" type="button" style="flex:1;font-size:11px;padding:4px 8px">&check; S&eacute;lectionn&eacute;e</button>
             </div>
           </div>
@@ -843,8 +847,8 @@ div[hidden],
           <!-- Carte Tariq -->
           <div class="tutor-card" data-tutor="tariq" id="tutorCardTariq" onclick="selectTutor('tariq')">
             <div class="row spread" style="align-items:center">
-              <div class="tutor-avatar-icon" style="width:44px;height:44px;border-radius:50%;padding:2px;background:linear-gradient(135deg, #DBEAFE 0%, #2563EB 100%);box-shadow:0 3px 10px rgba(37,99,235,0.25);flex-shrink:0;">
-                <img src="assets/tariq.png" onerror="this.onerror=null;this.src='https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=512&h=512&q=80';" alt="Tariq" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block;">
+              <div class="tutor-avatar-icon" style="width:48px;height:48px;border-radius:50%;padding:2px;background:linear-gradient(135deg, #DBEAFE 0%, #2563EB 100%);box-shadow:0 3px 10px rgba(37,99,235,0.25);flex-shrink:0;">
+                <img src="assets/tariq.png" alt="Tariq" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block;">
               </div>
               <span class="badge" style="font-size:10px;background:#dbeafe;color:#1e40af">Dynamique</span>
             </div>
@@ -853,8 +857,12 @@ div[hidden],
               <span class="small muted" style="font-size:12px;line-height:1.3;display:block">Pragmatique &amp; R&eacute;el</span>
             </div>
             <p class="small muted" style="font-size:11px;margin:0">Mises en situation concr&egrave;tes et langage parl&eacute; direct.</p>
+            <div style="margin-top:4px">
+              <label for="voiceSelTariq" class="small muted" style="font-size:10px;font-weight:600;display:block;margin-bottom:2px">&#127908; Voix attribu&eacute;e</label>
+              <select id="voiceSelTariq" class="field" style="font-size:11px;padding:3px 6px;height:auto;border-radius:8px;width:100%" onclick="event.stopPropagation()" onchange="saveTutorVoice('tariq', this.value)"></select>
+            </div>
             <div class="row" style="margin-top:auto;gap:6px">
-              <button class="mini ghost" type="button" onclick="testTutorVoice('tariq',event)" style="font-size:11px;padding:3px 8px">&#128266; Voix</button>
+              <button class="mini ghost" type="button" onclick="testTutorVoice('tariq',event)" style="font-size:11px;padding:3px 8px">&#128266; Tester</button>
               <button class="btn sm ghost tutor-select-btn" type="button" style="flex:1;font-size:11px;padding:4px 8px">S&eacute;lectionner</button>
             </div>
           </div>
@@ -1493,28 +1501,26 @@ function loadVoices() {
   const voices = window.speechSynthesis.getVoices() || [];
   VOICES = voices;
   const voiceSelect = document.getElementById('voiceSel');
-  if (!voiceSelect || voices.length === 0) return;
+  if (voiceSelect && voices.length > 0) {
+    voiceSelect.innerHTML = '';
+    // Prioriser les voix arabes
+    const arabicVoices = voices.filter(v => v.lang && (v.lang.startsWith('ar') || v.lang.includes('ar-XA') || v.lang.includes('ar-SA')));
+    const listToDisplay = arabicVoices.length > 0 ? arabicVoices : voices;
+    const saved = S.cfg && S.cfg.voice && S.cfg.voice[S.lang];
 
-  voiceSelect.innerHTML = '';
-  // Prioriser les voix arabes
-  const arabicVoices = voices.filter(v => v.lang && (v.lang.startsWith('ar') || v.lang.includes('ar-XA') || v.lang.includes('ar-SA')));
-
-  // Si des voix arabes existent, les mettre en tete de liste
-  const listToDisplay = arabicVoices.length > 0 ? arabicVoices : voices;
-
-  const saved = S.cfg && S.cfg.voice && S.cfg.voice[S.lang];
-
-  listToDisplay.forEach(v => {
-    const opt = document.createElement('option');
-    opt.value = v.name;
-    opt.textContent = `${v.name} (${v.lang})`;
-    if (saved && (saved === v.name || saved === v.voiceURI)) {
-      opt.selected = true;
-    } else if (v.lang && (v.lang.startsWith('ar') || v.lang.includes('ar-XA') || v.lang.includes('ar-SA'))) {
-      opt.selected = true;
-    }
-    voiceSelect.appendChild(opt);
-  });
+    listToDisplay.forEach(v => {
+      const opt = document.createElement('option');
+      opt.value = v.name;
+      opt.textContent = `${v.name} (${v.lang})`;
+      if (saved && (saved === v.name || saved === v.voiceURI)) {
+        opt.selected = true;
+      } else if (v.lang && (v.lang.startsWith('ar') || v.lang.includes('ar-XA') || v.lang.includes('ar-SA'))) {
+        opt.selected = true;
+      }
+      voiceSelect.appendChild(opt);
+    });
+  }
+  populateTutorVoiceSelects();
 }
 
 // Ecouter l'evenement indispensable sur mobile
@@ -1600,13 +1606,74 @@ window.selectTutor = function(tid){
   flash("Professeur actif : " + t.name + " (" + t.title + ")");
 };
 
+function saveTutorVoice(tid, voiceName) {
+  try {
+    localStorage.setItem("tutor_voice_" + tid, voiceName || "");
+  } catch(e){}
+  const label = (tid === "yasmine" ? "Yasmine" : "Tariq");
+  flash("Voix de " + label + " enregistrée.");
+}
+window.saveTutorVoice = saveTutorVoice;
+
+function getSavedTutorVoice(tid) {
+  try {
+    return localStorage.getItem("tutor_voice_" + tid) || "";
+  } catch(e) {
+    return "";
+  }
+}
+window.getSavedTutorVoice = getSavedTutorVoice;
+
+function populateTutorVoiceSelects() {
+  const voices = (window.speechSynthesis && window.speechSynthesis.getVoices()) || VOICES || [];
+  if (!voices.length) return;
+
+  const selY = document.getElementById('voiceSelYasmine');
+  const selT = document.getElementById('voiceSelTariq');
+  if (!selY && !selT) return;
+
+  const curLangPrefix = (S.lang || 'ar').slice(0, 2).toLowerCase();
+  let filtered = voices.filter(v => v.lang && v.lang.toLowerCase().startsWith(curLangPrefix));
+  if (curLangPrefix === 'fr') {
+    filtered = filtered.filter(v => !v.lang.includes('CA') && !v.name.includes('Canada') && !v.name.toLowerCase().includes('canadien'));
+  }
+  const voiceList = (filtered.length > 0) ? filtered : voices;
+
+  const savedY = getSavedTutorVoice('yasmine');
+  const savedT = getSavedTutorVoice('tariq');
+
+  const defaultY = getTutorVoice(curLangPrefix, 'female', 'yasmine');
+  const defaultT = getTutorVoice(curLangPrefix, 'male', 'tariq');
+
+  [ { sel: selY, saved: savedY, defVoice: defaultY, gender: 'female' },
+    { sel: selT, saved: savedT, defVoice: defaultT, gender: 'male' }
+  ].forEach(item => {
+    if (!item.sel) return;
+    item.sel.innerHTML = '';
+    voiceList.forEach(v => {
+      const opt = document.createElement('option');
+      opt.value = v.name;
+      opt.textContent = `${v.name} (${v.lang})`;
+      if (item.saved && (item.saved === v.name || item.saved === v.voiceURI)) {
+        opt.selected = true;
+      } else if (!item.saved && item.defVoice && (item.defVoice.name === v.name || item.defVoice.voiceURI === v.voiceURI)) {
+        opt.selected = true;
+      }
+      item.sel.appendChild(opt);
+    });
+  });
+}
+
 window.testTutorVoice = function(tid, e){
   if(e){ try{ e.preventDefault(); e.stopPropagation(); }catch(x){} }
   window.selectTutor(tid);
   const t = TUTORS[tid] || TUTORS.yasmine;
-  const sample = (t.id === "yasmine")
-    ? "مَرْحَبًا ! Je suis Yasmine, votre professeure d'arabe. Posez-moi vos questions !"
-    : "مَرْحَبًا ! Je suis Tariq, votre professeur d'arabe. Posez-moi vos questions !";
+  const isAr = (S.lang === "ar");
+  const sample = isAr
+    ? (t.id === "yasmine"
+        ? "مَرْحَبًا ! Je suis Yasmine, votre professeure d'arabe. Posez-moi n'importe quelle question en arabe ou en français."
+        : "مَرْحَبًا ! Je suis Tariq, votre professeur d'arabe. Parlons ensemble de situations du quotidien !")
+    : ("Bonjour ! Je suis " + t.name + ", votre tuteur en " + LANGS[S.lang].name + ". Parlons ensemble !");
   speakBilingualText(sample);
   flash("Voix de " + t.name + " en cours de lecture…");
 };
@@ -1637,6 +1704,7 @@ function renderTutorSelection(){
       btn.textContent = isT ? "✓ Sélectionné" : "Sélectionner";
     }
   }
+  populateTutorVoiceSelects();
 }
 
 function cleanTextForSpeech(text) {
@@ -1665,24 +1733,38 @@ function renderMarkdownVisual(text) {
     .replace(/\n/g, '<br>');
 }
 
-function getTutorVoice(langPrefix, gender) {
+function getTutorVoice(langPrefix, gender, tid) {
   const voices = (window.speechSynthesis && window.speechSynthesis.getVoices()) || VOICES || [];
-  // 1. Filtrer les voix de la langue demandee (ex: 'ar' ou 'fr')
+  if (!tid) {
+    const active = (typeof getActiveTutor === "function") ? getActiveTutor() : null;
+    tid = active ? active.id : (gender === 'female' ? 'yasmine' : 'tariq');
+  }
+
+  // 1. Verifier si une voix dediee a ete choisie par l'utilisateur
+  const savedName = (typeof getSavedTutorVoice === "function") ? getSavedTutorVoice(tid) : "";
+  if (savedName) {
+    const savedVoice = voices.find(v => v.name === savedName || v.voiceURI === savedName);
+    if (savedVoice) {
+      if (!langPrefix || (savedVoice.lang && savedVoice.lang.toLowerCase().startsWith(langPrefix.toLowerCase()))) {
+        return savedVoice;
+      }
+    }
+  }
+
+  // 2. Filtrer les voix de la langue demandee (ex: 'ar' ou 'fr')
   let available = voices.filter(v => v.lang && (v.lang.startsWith(langPrefix) || v.lang.toLowerCase().startsWith(langPrefix.toLowerCase())));
   
-  // Pour le francais, exclure formellement le Canada (fr-CA)
+  // Pour le francais, exclure formellement le Canada (fr-CA ou contenant 'Canada')
   if (langPrefix === 'fr') {
-    available = available.filter(v => !v.lang.includes('CA') && !v.name.includes('Canada'));
+    available = available.filter(v => !v.lang.includes('CA') && !v.name.includes('Canada') && !v.name.toLowerCase().includes('canadien'));
   }
   
   if (available.length === 0) return null;
   
-  // 2. Sur Android Google TTS : les voix paires/impaires ou voix 1 / voix 2 correspondent aux genres
+  // 3. Sur Android Google TTS : voix 1 / A = femme (Yasmine), voix 2 / B = homme (Tariq)
   if (gender === 'female') {
-    // Prendre la premiere voix disponible ou index 0
     return available.find(v => v.name.toLowerCase().includes('female') || v.name.includes('1') || v.name.includes('A')) || available[0];
   } else {
-    // Tariq : prendre la voix 2 ou une voix masculine
     return available.find(v => v.name.toLowerCase().includes('male') || v.name.includes('2') || v.name.includes('B')) || available[Math.min(1, available.length - 1)];
   }
 }
@@ -1710,14 +1792,14 @@ function speakBilingualText(rawText) {
 
     if (segments.length === 0) { resolve(); return; }
 
-    // 3. Attribution reelle des voix : Yasmine = Femme (pitch 1.15), Tariq = Homme (pitch 0.85)
+    // 3. Attribution reelle des voix : Yasmine = Femme (pitch 1.25), Tariq = Homme (pitch 0.85)
     const activeTutor = getActiveTutor();
     const isFemale = (activeTutor.gender === 'female' || activeTutor.id === 'yasmine');
     const gender = isFemale ? 'female' : 'male';
-    const tutorPitch = isFemale ? 1.15 : 0.85;
+    const tutorPitch = isFemale ? 1.25 : 0.85;
 
-    const arabicVoice = getTutorVoice('ar', gender);
-    const frenchVoice = getTutorVoice('fr', gender);
+    const arabicVoice = getTutorVoice('ar', gender, activeTutor.id);
+    const frenchVoice = getTutorVoice('fr', gender, activeTutor.id);
 
     // 4. Chainage sequentiel des morceaux
     let index = 0;
@@ -1783,8 +1865,8 @@ function speak(text, rate, forceLang){
       const activeTutor = getActiveTutor();
       const isFemale = (activeTutor.gender === 'female' || activeTutor.id === 'yasmine');
       const gender = isFemale ? 'female' : 'male';
-      const tutorPitch = isFemale ? 1.15 : 0.85;
-      const targetVoice = getTutorVoice(langKey, gender) || voiceFor(langKey);
+      const tutorPitch = isFemale ? 1.25 : 0.85;
+      const targetVoice = getTutorVoice(langKey, gender, activeTutor.id) || voiceFor(langKey);
       const targetLang = (targetVoice && targetVoice.lang) || SPEECH[langKey].tts;
 
       const u = new SpeechSynthesisUtterance(cleaned);
@@ -2624,8 +2706,8 @@ function startTutor(){
   const welcome=el("div","msg t");
   const welcomeText = isAr
     ? (t.id === "yasmine"
-        ? "مَرْحَبًا ! Je suis Yasmine, votre professeure d'arabe. Posez-moi vos questions !"
-        : "مَرْحَبًا ! Je suis Tariq, votre professeur d'arabe. Posez-moi vos questions !")
+        ? "مَرْحَبًا ! Je suis Yasmine, votre professeure d'arabe. Posez-moi n'importe quelle question en arabe ou en français."
+        : "مَرْحَبًا ! Je suis Tariq, votre professeur d'arabe. Parlons ensemble de situations du quotidien !")
     : "Bonjour ! Je suis " + t.name + ", votre tuteur en " + LANGS[S.lang].name + ". Posez-moi vos questions !";
   const wText=el("div",null,welcomeText);
   welcome.append(wText);
