@@ -1380,52 +1380,40 @@ window.closeChat = function() {
 window.closeConversationScreen = window.closeChat;
 
 // =========================================================================
-// 1. Moteur Audio Distant Haute Définition (Salma & Shakir)
+// 1. Moteur Audio direct compatible CORS (Voix Arabe Homme/Femme)
 // =========================================================================
 window.playTutorAudio = function(text, tutorKey) {
   if (!text) return;
-  
-  // Nettoyage des balises markdown éventuelles
   const cleanText = text.replace(/[*_#`]/g, '').trim();
   const selected = (tutorKey || localStorage.getItem('selected_tutor') || 'yasmine').toLowerCase();
   const isYasmine = selected.includes('yasmine');
-
-  // Attribution des voix neurales Microsoft
-  const voiceName = isYasmine ? 'ar-EG-SalmaNeural' : 'ar-EG-ShakirNeural';
   
-  // Animation visuelle de l'avatar pendant la prise de parole
+  // Zeina (Femme arabe) ou Maged (Homme arabe) - Compatible mobile sans CORS
+  const voiceName = isYasmine ? 'Zeina' : 'Maged';
+  const audioUrl = `https://api.streamelements.com/kappa/v2/speech?voice=${voiceName}&text=${encodeURIComponent(cleanText)}`;
+  
+  const audio = new Audio();
+  audio.crossOrigin = "anonymous";
+  audio.src = audioUrl;
+  
   const avatar = document.querySelector('.tutor-avatar, #tutorAvatarImg');
   if (avatar) avatar.classList.add('speaking');
   const avatarWrap = document.getElementById('avatarWrap');
   if (avatarWrap) avatarWrap.classList.add('state-speaking');
 
-  // Passerelle audio directe Edge TTS
-  const streamUrl = `https://edge-tts.azurewebsites.net/api/synthesize?voice=${voiceName}&text=${encodeURIComponent(cleanText)}`;
-  const audio = new Audio(streamUrl);
-
   audio.onended = () => {
     if (avatar) avatar.classList.remove('speaking');
     if (avatarWrap) avatarWrap.classList.remove('state-speaking');
   };
-
+  
   audio.onerror = () => {
-    // Fallback secondaire voix arabe femme/homme en cas de coupure réseau
-    const fallbackVoice = isYasmine ? 'Zeina' : 'Maged';
-    const fallbackUrl = `https://api.streamelements.com/kappa/v2/speech?voice=${fallbackVoice}&text=${encodeURIComponent(cleanText)}`;
-    const fallbackAudio = new Audio(fallbackUrl);
-    fallbackAudio.onended = () => {
-      if (avatar) avatar.classList.remove('speaking');
-      if (avatarWrap) avatarWrap.classList.remove('state-speaking');
-    };
-    fallbackAudio.play().catch(e => {
-      console.warn("Fallback audio bloqué :", e);
-      if (avatar) avatar.classList.remove('speaking');
-      if (avatarWrap) avatarWrap.classList.remove('state-speaking');
-    });
+    console.warn("Erreur de flux audio distant.");
+    if (avatar) avatar.classList.remove('speaking');
+    if (avatarWrap) avatarWrap.classList.remove('state-speaking');
   };
 
-  audio.play().catch(err => {
-    console.warn("Lecture bloquée par le navigateur : interaction requise", err);
+  audio.play().catch(e => {
+    console.warn("Lecture bloquée :", e);
     if (avatar) avatar.classList.remove('speaking');
     if (avatarWrap) avatarWrap.classList.remove('state-speaking');
   });
@@ -1434,64 +1422,52 @@ window.playVoice = window.playTutorAudio;
 window.speakText = function(text, tutorKey) { window.playTutorAudio(text, tutorKey); };
 window.speak = function(text, tutorKey) { window.playTutorAudio(text, tutorKey); };
 
-// Boutons « Tester » dans l'onglet Profil
 window.testTutorVoice = function(tutorKey) {
-  const isYasmine = (tutorKey || '').toLowerCase().includes('yasmine');
-  const testPhrase = isYasmine ? "مَرْحَبًا ! أَنَا يَاسْمِين." : "مَرْحَبًا ! أَنَا طَارِق.";
-  window.playTutorAudio(testPhrase, tutorKey);
+  const isYasmine = tutorKey ? tutorKey.includes('yasmine') : true;
+  const sample = isYasmine ? "مَرْحَبًا ! أَنَا يَاسْمِين." : "مَرْحَبًا ! أَنَا طَارِق.";
+  window.playTutorAudio(sample, tutorKey);
 };
 
 // =========================================================================
-// 2. Gestionnaire Microphone Robuste (Android Chrome)
+// 2. Gestionnaire Microphone Robuste (Android Chrome - Sans getUserMedia)
 // =========================================================================
-let recognitionInstance = null;
+let speechRec = null;
 let isListening = false;
 
-window.toggleMic = async function() {
+window.toggleMic = function() {
   const micBtn = document.getElementById('micBtn') || document.querySelector('.mic-button');
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const SpeechRecClass = window.SpeechRecognition || window.webkitSpeechRecognition;
   
-  if (!SpeechRecognition) {
-    alert("Reconnaissance vocale non disponible sur ce navigateur. Utilisez Chrome.");
+  if (!SpeechRecClass) {
+    alert("Reconnaissance vocale non supportée. Utilisez Google Chrome.");
     return;
   }
 
-  // Arrêt manuel si déjà en écoute
-  if (isListening && recognitionInstance) {
-    try { recognitionInstance.stop(); } catch(e) {}
+  // Si déjà en cours, on coupe proprement
+  if (isListening && speechRec) {
+    try { speechRec.stop(); } catch(e) {}
     return;
   }
 
-  // 1. Débloquer la permission matérielle
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    stream.getTracks().forEach(track => track.stop());
-  } catch (err) {
-    alert("Veuillez autoriser l'accès au microphone dans les réglages de votre navigateur.");
-    return;
-  }
+    if (speechRec) {
+      try { speechRec.abort(); } catch(e) {}
+    }
+    
+    speechRec = new SpeechRecClass();
+    speechRec.continuous = false;
+    speechRec.interimResults = false;
+    speechRec.lang = 'ar-SA';
 
-  // 2. Nettoyage de toute session fantôme précédente
-  if (recognitionInstance) {
-    try { recognitionInstance.abort(); } catch(e) {}
-    recognitionInstance = null;
-  }
-
-  // 3. Nouvelle instance à chaque déclenchement tactile
-  try {
-    recognitionInstance = new SpeechRecognition();
-    recognitionInstance.continuous = false;
-    recognitionInstance.interimResults = false;
-    recognitionInstance.lang = 'ar-SA';
-
-    recognitionInstance.onstart = () => {
+    speechRec.onstart = () => {
       isListening = true;
-      if (micBtn) micBtn.classList.add('listening');
+      if (micBtn) micBtn.style.boxShadow = '0 0 0 6px rgba(37, 99, 235, 0.4)';
+      console.log("Micro en écoute active...");
     };
 
-    recognitionInstance.onresult = (event) => {
-      const transcript = event.results[0][0].transcript;
-      console.log("Texte reconnu :", transcript);
+    speechRec.onresult = (e) => {
+      const transcript = e.results[0][0].transcript;
+      console.log("Reçu :", transcript);
       if (typeof window.appendMessage === 'function') {
         window.appendMessage('user', transcript);
       }
@@ -1500,22 +1476,23 @@ window.toggleMic = async function() {
       }
     };
 
-    recognitionInstance.onerror = (e) => {
-      console.warn("Événement micro :", e.error);
+    speechRec.onerror = (e) => {
+      console.warn("Erreur reconnaissance :", e.error);
       isListening = false;
-      if (micBtn) micBtn.classList.remove('listening');
+      if (micBtn) micBtn.style.boxShadow = '';
     };
 
-    recognitionInstance.onend = () => {
+    speechRec.onend = () => {
       isListening = false;
-      if (micBtn) micBtn.classList.remove('listening');
+      if (micBtn) micBtn.style.boxShadow = '';
     };
 
-    recognitionInstance.start();
+    // Démarrage direct sans getUserMedia préalable
+    speechRec.start();
   } catch (err) {
-    console.error("Échec du démarrage de recognition :", err);
+    console.error("Échec start micro :", err);
     isListening = false;
-    if (micBtn) micBtn.classList.remove('listening');
+    if (micBtn) micBtn.style.boxShadow = '';
   }
 };
 
