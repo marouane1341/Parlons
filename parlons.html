@@ -1033,14 +1033,14 @@ audio,
         <p class="small" id="keyDetectNote" style="color:var(--good);font-weight:600;display:none;margin-top:4px"></p>
 
         <label class="label" for="mChat">Mod&egrave;le de conversation (rapide)</label>
-        <input class="field" id="mChat" type="text" autocomplete="off" list="modelList" value="gemini-3.5-flash-lite">
+        <input class="field" id="mChat" type="text" autocomplete="off" list="modelList" value="gemini-1.5-flash">
         <label class="label" for="mHeavy">Mod&egrave;le pour le bilan &amp; l'arabe</label>
-        <input class="field" id="mHeavy" type="text" autocomplete="off" list="modelList" value="gemini-3.5-flash-lite">
+        <input class="field" id="mHeavy" type="text" autocomplete="off" list="modelList" value="gemini-1.5-flash">
         <datalist id="modelList">
-          <option value="gemini-3.5-flash-lite">
-          <option value="gemini-3.8-flash">
-          <option value="gemini-2.5-flash">
+          <option value="gemini-1.5-flash">
           <option value="gemini-2.0-flash">
+          <option value="gemini-2.5-flash">
+          <option value="gemini-1.5-pro">
           <option value="llama-3.3-70b-versatile">
           <option value="claude-haiku-5-5">
           <option value="mistral-small-latest">
@@ -1134,6 +1134,7 @@ audio,
 
     <!-- 2. Zone centrale de dialogue (45% de la hauteur) -->
     <main class="chat-dialogue-zone" id="chatDialogueZone">
+      <div class="error-banner" id="chatErrorMessage" style="display:none;background:#fee2e2;color:#b91c1c;padding:10px 14px;border-radius:10px;margin:8px 12px;font-size:14px;border:1px solid #f87171;text-align:center;"></div>
       <div id="goalsBox" class="targets" hidden></div>
       <div id="targets" class="targets" hidden></div>
       <div class="log" id="log" aria-live="polite"></div>
@@ -1642,6 +1643,185 @@ window.loadLessonData = function(lessonId) {
     console.error("loadLessonData error:", e);
   }
 };
+
+// --- GESTION ROBUSTE DE GEMINI & CHAT ---
+function appendMessage(role, text) {
+  const log = document.getElementById("log");
+  if (!log) return;
+  if (role === 'user') {
+    const isTutor = (typeof S !== "undefined" && S.scn && S.scn.id === "tutor");
+    const isAr = (typeof S !== "undefined" && S.lang === "ar");
+    const m = document.createElement("div");
+    m.className = "msg u" + (isAr && !isTutor ? " ar" : "");
+    m.dir = "auto";
+    m.textContent = text;
+    log.appendChild(m);
+    if (typeof S !== "undefined") S.lastUserEl = m;
+    m.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  } else {
+    if (typeof bubbleT === 'function') {
+      const b = bubbleT({ reply: text, tr: "", fr: "", corrections: [], tip: null, targets: [], used: [], end: false });
+      log.appendChild(b);
+      b.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    } else {
+      const b = document.createElement("div");
+      b.className = "msg t";
+      const main = document.createElement("div");
+      main.className = "ar-msg";
+      main.textContent = text;
+      main.dir = "auto";
+      b.appendChild(main);
+      log.appendChild(b);
+      b.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }
+  }
+}
+window.appendMessage = appendMessage;
+
+window.playTutorAudio = function(text, tutorKey) {
+  if (typeof speak === 'function') {
+    speak(text, null);
+  } else if (typeof window.speakText === 'function') {
+    window.speakText(text);
+  }
+};
+
+window.speakText = function(text) {
+  if (typeof speak === 'function') {
+    speak(text, null);
+  } else if ('speechSynthesis' in window) {
+    try {
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = 'ar-SA';
+      window.speechSynthesis.speak(u);
+    } catch(e) {}
+  }
+};
+
+async function sendToGemini(userMessage) {
+  const apiKey = localStorage.getItem('gemini_api_key') || localStorage.getItem('apiKey');
+  if (!apiKey) {
+    alert("Clé API absente. Veuillez la renseigner dans Profil.");
+    return;
+  }
+
+  // 1. Récupération robuste du tuteur (sans crash sur .id)
+  const tutorKey = localStorage.getItem('selected_tutor') || 'yasmine';
+  const isYasmine = tutorKey.toLowerCase().includes('yasmine');
+  
+  const systemInstruction = isYasmine
+    ? "Tu es Yasmine, professeure d'arabe bienveillante et encourageante. Réponds de façon concise et pédagogique, principalement en arabe avec transcription et traduction française si nécessaire."
+    : "Tu es Tariq, professeur d'arabe pragmatique et dynamique. Réponds de façon vivante et concrète, principalement en arabe parlé.";
+
+  // 2. Appel direct et universel à Gemini 1.5 Flash
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+
+  const payload = {
+    contents: [
+      {
+        role: "user",
+        parts: [{ text: userMessage }]
+      }
+    ],
+    systemInstruction: {
+      parts: [{ text: systemInstruction }]
+    }
+  };
+
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await response.json();
+
+    if (data.error) {
+      throw new Error(data.error.message || "Erreur renvoyée par l'API Gemini");
+    }
+
+    // Extraction sécurisée de la réponse (sans jamais lire .id)
+    const botReply = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!botReply) {
+      throw new Error("Réponse textuelle vide reçue de Gemini.");
+    }
+
+    // 3. Afficher la réponse dans le chat
+    appendMessage('assistant', botReply);
+
+    // 4. Lecture vocale
+    if (typeof window.playTutorAudio === 'function') {
+      window.playTutorAudio(botReply, tutorKey);
+    } else if (typeof window.speakText === 'function') {
+      window.speakText(botReply);
+    }
+
+  } catch (error) {
+    console.error("Erreur Gemini détaillée :", error);
+    const errorContainer = document.querySelector('.error-banner') || document.getElementById('chatErrorMessage');
+    if (errorContainer) {
+      errorContainer.textContent = `Erreur : ${error.message}`;
+      errorContainer.style.display = 'block';
+    } else {
+      alert(`Erreur : ${error.message}`);
+    }
+  }
+}
+window.sendToGemini = sendToGemini;
+window.callGeminiApi = sendToGemini;
+
+async function handleSend() {
+  const inp = document.getElementById("input");
+  if (!inp) return;
+  const v = inp.value.trim();
+  if (!v) return;
+  
+  if (typeof S !== "undefined" && S.busy) {
+    if (typeof flash === "function") flash("Le professeur répond encore : patientez.");
+    return;
+  }
+  
+  inp.value = "";
+  inp.style.height = "auto";
+  
+  const errBox = document.querySelector('.error-banner') || document.getElementById('chatErrorMessage');
+  if (errBox) errBox.style.display = 'none';
+
+  appendMessage('user', v);
+
+  if (typeof S !== "undefined") {
+    if (!S.scn) {
+      S.scn = { id: "tutor", t: "Tuteur · " + ((typeof LANGS !== "undefined" && LANGS[S.lang]) ? LANGS[S.lang].name : "arabe"), p: "Mode tuteur libre." };
+    }
+    S.turns = S.turns || [];
+    S.turns.push({ role: "user", content: v });
+    S.busy = true;
+    if (typeof setStatus === "function") setStatus();
+  }
+
+  const log = document.getElementById("log");
+  const ty = document.createElement("p");
+  ty.className = "typing";
+  ty.id = "geminiTypingIndicator";
+  ty.textContent = "Le professeur écrit…";
+  if (log) log.appendChild(ty);
+
+  try {
+    await sendToGemini(v);
+  } finally {
+    const ind = document.getElementById("geminiTypingIndicator");
+    if (ind) ind.remove();
+    if (typeof S !== "undefined") {
+      S.busy = false;
+      if (typeof setStatus === "function") setStatus();
+    }
+    const sendBtn = document.getElementById("sendBtn");
+    if (sendBtn) sendBtn.disabled = false;
+  }
+}
+window.handleSend = handleSend;
 
 const $=s=>document.querySelector(s==="#chat"?"#chatScreen, #chat":s);
 const el=(t,c,x)=>{const e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e};
@@ -2190,7 +2370,7 @@ const LANGS={
 
 /* ---------- fournisseurs d'IA ---------- */
 const PROVIDERS={
-  gemini:{name:"Google Gemini",chat:"gemini-3.5-flash-lite",heavy:"gemini-3.5-flash-lite",keyUrl:"aistudio.google.com/apikey",
+  gemini:{name:"Google Gemini",chat:"gemini-1.5-flash",heavy:"gemini-1.5-flash",keyUrl:"aistudio.google.com/apikey",
     note:"Palier gratuit sans carte bancaire, modèles ultra-rapides et récents."},
   groq:{name:"Groq",chat:"llama-3.3-70b-versatile",heavy:"llama-3.3-70b-versatile",base:"https://api.groq.com/openai/v1",keyUrl:"console.groq.com/keys",
     note:"Réponses quasi-instantanées, idéal pour la conversation orale."},
@@ -3814,13 +3994,19 @@ function arRules(){
     +"Emploie l'arabe littéraire standard, sans dialecte.";
 }
 function rules(){
-  const L=LANGS[S.lang];const lvl=levelNow();const goal=S.goals[S.lang];
-  const id=S.scn.id;
+  const L=LANGS[S.lang] || { name: "arabe", rtl: true };
+  const lvl=levelNow();
+  const goal=S.goals[S.lang];
+  if(!S.scn){
+    S.scn = { id: "tutor", t: "Tuteur · " + (L ? L.name : "arabe"), p: "Mode tuteur libre." };
+  }
+  const id=S.scn ? S.scn.id : "tutor";
 
-  const activeTutor = getActiveTutor();
+  const activeTutor = (typeof getActiveTutor === "function") ? getActiveTutor() : { id: "yasmine", name: "Yasmine", promptText: "Tu es Yasmine, professeure d'arabe." };
+  const promptTutor = (activeTutor && activeTutor.promptText) || "Tu es Yasmine, professeure d'arabe bienveillante.";
   if(id==="tutor"){
     return [
-      activeTutor.promptText + " Quand l'utilisateur te pose une question, réponds de façon concise et pédagogique en français (pas de pavé théorique inutile). Chaque exemple ou mot en arabe doit obligatoirement comporter TOUTES ses voyelles courtes (Tachkil complet), suivi de sa translittération phonétique et de sa traduction française.",
+      promptTutor + " Quand l'utilisateur te pose une question, réponds de façon concise et pédagogique en français (pas de pavé théorique inutile). Chaque exemple ou mot en arabe doit obligatoirement comporter TOUTES ses voyelles courtes (Tachkil complet), suivi de sa translittération phonétique et de sa traduction française.",
       "Consignes de forme :",
       "- Sois chaleureux, concis et directement utile pour un apprenant.",
       "- Réponds STRICTEMENT au format JSON valide, sans texte superflu autour :",
@@ -3840,9 +4026,9 @@ function rules(){
   if(S.resume)ctx="Contexte de la dernière séance (reprends-la naturellement, sans effet de leçon à cocher) : niveau estimé "+(S.resume.level||"?")+" ; erreurs récurrentes : "+((S.resume.recurring||[]).map(r=>r.pattern).join(" ; ")||"aucune notée")+" ; sujet prévu : "+(S.resume.next||"libre")+".";
   const ar=S.lang==="ar"?arRules():"\"tr\" vaut une chaîne vide.";
   let review="";
-  if(id==="review")review="Séance de révision. Éléments à faire retravailler (fais PRODUIRE chacun par l'apprenant dans une mini-situation, sans QCM et sans lui donner la réponse d'avance) : "+S.reviewItems.map(i=>"« "+i.text+" »"+(i.note?" ("+i.note+")":"")).join(" ; ")+".";
+  if(id==="review")review="Séance de révision. Éléments à faire retravailler (fais PRODUIRE chacun par l'apprenant dans une mini-situation, sans QCM et sans lui donner la réponse d'avance) : "+(S.reviewItems||[]).map(i=>"« "+i.text+" »"+(i.note?" ("+i.note+")":"")).join(" ; ")+".";
   let unitTxt="";
-  if(S.scn.unit){
+  if(S.scn && S.scn.unit){
     const u=S.scn.unit,st=unitPeek(u);
     unitTxt="Unité du parcours : « "+u.t+" » (niveau "+u.lvl+"). Capacités à faire démontrer à l'apprenant : "+u.can.map((c,j)=>(j+1)+") "+c+(st.can[j]?" [déjà démontrée]":"")).join(" ; ")+". Crée des situations naturelles qui l'amènent à démontrer les capacités non acquises, l'une après l'autre. Ne présente pas cela comme une liste d'exercices.";
   }
@@ -3854,8 +4040,8 @@ function rules(){
     :id==="check"?"Après le 8e échange, termine par une phrase de conclusion chaleureuse et indique dans \"end\" la valeur true."
     :"\"end\" vaut false.";
   return [
-    activeTutor.promptText + " Tu es le professeur virtuel de "+L.name+" pour un francophone adulte. Approche antiscolaire : on parle dès le début, la grammaire reste en arrière-plan.",
-    "Situation : "+S.scn.p,
+    promptTutor + " Tu es le professeur virtuel de "+(L?L.name:"arabe")+" pour un francophone adulte. Approche antiscolaire : on parle dès le début, la grammaire reste en arrière-plan.",
+    "Situation : "+((S.scn && S.scn.p) || "Conversation libre."),
     unitTxt,
     "Niveau de l'apprenant : "+lvl+"."+(goal?" Son objectif : « "+goal+" ».":""),
     ctx,review,
@@ -4039,7 +4225,7 @@ function bubbleT(d){
 
   let trEl=null, glossEl=null;
   if(d.tr&&typeof d.tr==="string"&&d.tr.trim()){trEl=el("div","tr",d.tr);trEl.dir="ltr";b.append(trEl)}
-  if(d.fr&&typeof d.fr==="string"&&d.fr.trim()&&S.imm<2&&S.scn.id!=="check"){glossEl=el("div","gloss",d.fr);b.append(glossEl)}
+  if(d.fr&&typeof d.fr==="string"&&d.fr.trim()&&S.imm<2&&(!S.scn||S.scn.id!=="check")){glossEl=el("div","gloss",d.fr);b.append(glossEl)}
 
   // Sous la bulle, deux boutons ronds discrets : \uD83D\uDD0A Reecouter et \uD83C\uDF10 Traduire
   const tools=el("div","bubble-actions-row");
@@ -4134,7 +4320,7 @@ async function ask(){
     ty.remove();
     if(!d||typeof d.reply!=="string"||!d.reply.trim())throw {code:"json"};
     if(S.lastUserEl&&Array.isArray(d.corrections)&&d.corrections.length)S.lastUserEl.after(fixCard(d.corrections));
-    const noT=S.scn.id==="diag"||S.scn.id==="review"||S.scn.id==="check"||S.scn.id==="tutor";
+    const noT=!S.scn||S.scn.id==="diag"||S.scn.id==="review"||S.scn.id==="check"||S.scn.id==="tutor";
     if(!S.targets.length&&Array.isArray(d.targets)&&d.targets.length&&!noT){
       S.targets=d.targets.slice(0,3).map(x=>({expr:String(x&&x.expr||x||""),fr:String(x&&x.fr||""),used:false})).filter(x=>x.expr);
     }
@@ -4142,7 +4328,7 @@ async function ask(){
     S.turns.push({role:"assistant",content:d.reply});
     const b=bubbleT(d);log.append(b);
     if(d.tip&&typeof d.tip==="string")log.append(el("div","tip",d.tip));
-    if(d.end&&S.scn.id!=="tutor")log.append(el("p","typing","La séance est terminée. Touchez « Bilan » pour voir le résultat."));
+    if(d.end&&(!S.scn||S.scn.id!=="tutor"))log.append(el("p","typing","La séance est terminée. Touchez « Bilan » pour voir le résultat."));
     b.scrollIntoView({block:"nearest",behavior:"smooth"});
     if(S.mode!=="write")spoke=speak(d.reply,null);
   }catch(e){
@@ -4170,6 +4356,7 @@ async function submitUser(text,fromVoice,conf){
   if(!text)return;
   if(S.busy)return; /* verrou : un seul appel à la fois, jamais de double envoi */
   stopSpeak();
+  if(!S.scn) S.scn = { id: "tutor", t: "Tuteur · " + ((typeof LANGS !== "undefined" && LANGS[S.lang]) ? LANGS[S.lang].name : "arabe"), p: "Mode tuteur libre." };
   const isTutor=S.scn&&S.scn.id==="tutor";
   const m=el("div","msg u"+(LANGS[S.lang].rtl&&!isTutor?" ar":""),text);m.dir="auto";
   $("#log").append(m);S.lastUserEl=m;
@@ -4179,6 +4366,10 @@ async function submitUser(text,fromVoice,conf){
   await ask();
 }
 function send(){
+  if (typeof handleSend === 'function') {
+    handleSend();
+    return;
+  }
   const inp=$("#input");const v=inp.value.trim();
   if(!v)return;
   if(S.busy){flash("Le professeur répond encore : patientez ou touchez Annuler.");return}
