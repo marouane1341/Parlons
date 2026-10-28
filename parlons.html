@@ -825,7 +825,7 @@ div[hidden],
           <div class="tutor-card active" data-tutor="yasmine" id="tutorCardYasmine" onclick="selectTutor('yasmine')">
             <div class="row spread" style="align-items:center">
               <div class="tutor-avatar-icon" style="width:48px;height:48px;border-radius:50%;padding:2px;background:linear-gradient(135deg, #FEF3C7 0%, #F59E0B 100%);box-shadow:0 3px 10px rgba(245,158,11,0.25);flex-shrink:0;">
-                <img src="assets/yasmine.png" alt="Yasmine" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block;">
+                <img src="https://images.unsplash.com/photo-1567532939604-b6b5b0db2604?auto=format&fit=crop&w=500&q=80" onerror="this.onerror=null;this.src='assets/yasmine.png';" alt="Yasmine" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block;">
               </div>
               <span class="badge" style="font-size:10px;background:#fef3c7;color:#b45309">Douce</span>
             </div>
@@ -835,8 +835,8 @@ div[hidden],
             </div>
             <p class="small muted" style="font-size:11px;margin:0">Patiente et encourageante, explications simples et claires.</p>
             <div style="margin-top:4px">
-              <label for="voiceSelYasmine" class="small muted" style="font-size:10px;font-weight:600;display:block;margin-bottom:2px">&#127908; Voix attribu&eacute;e</label>
-              <select id="voiceSelYasmine" class="field" style="font-size:11px;padding:3px 6px;height:auto;border-radius:8px;width:100%" onclick="event.stopPropagation()" onchange="saveTutorVoice('yasmine', this.value)"></select>
+              <label for="voiceYasmine" class="small muted" style="font-size:10px;font-weight:600;display:block;margin-bottom:2px">&#127908; Voix attribu&eacute;e</label>
+              <select id="voiceYasmine" class="field" style="font-size:11px;padding:3px 6px;height:auto;border-radius:8px;width:100%" onclick="event.stopPropagation()"></select>
             </div>
             <div class="row" style="margin-top:auto;gap:6px">
               <button class="mini ghost" type="button" onclick="testTutorVoice('yasmine',event)" style="font-size:11px;padding:3px 8px">&#128266; Tester</button>
@@ -848,7 +848,7 @@ div[hidden],
           <div class="tutor-card" data-tutor="tariq" id="tutorCardTariq" onclick="selectTutor('tariq')">
             <div class="row spread" style="align-items:center">
               <div class="tutor-avatar-icon" style="width:48px;height:48px;border-radius:50%;padding:2px;background:linear-gradient(135deg, #DBEAFE 0%, #2563EB 100%);box-shadow:0 3px 10px rgba(37,99,235,0.25);flex-shrink:0;">
-                <img src="assets/tariq.png" alt="Tariq" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block;">
+                <img src="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=500&q=80" onerror="this.onerror=null;this.src='assets/tariq.png';" alt="Tariq" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block;">
               </div>
               <span class="badge" style="font-size:10px;background:#dbeafe;color:#1e40af">Dynamique</span>
             </div>
@@ -858,8 +858,8 @@ div[hidden],
             </div>
             <p class="small muted" style="font-size:11px;margin:0">Mises en situation concr&egrave;tes et langage parl&eacute; direct.</p>
             <div style="margin-top:4px">
-              <label for="voiceSelTariq" class="small muted" style="font-size:10px;font-weight:600;display:block;margin-bottom:2px">&#127908; Voix attribu&eacute;e</label>
-              <select id="voiceSelTariq" class="field" style="font-size:11px;padding:3px 6px;height:auto;border-radius:8px;width:100%" onclick="event.stopPropagation()" onchange="saveTutorVoice('tariq', this.value)"></select>
+              <label for="voiceTariq" class="small muted" style="font-size:10px;font-weight:600;display:block;margin-bottom:2px">&#127908; Voix attribu&eacute;e</label>
+              <select id="voiceTariq" class="field" style="font-size:11px;padding:3px 6px;height:auto;border-radius:8px;width:100%" onclick="event.stopPropagation()"></select>
             </div>
             <div class="row" style="margin-top:auto;gap:6px">
               <button class="mini ghost" type="button" onclick="testTutorVoice('tariq',event)" style="font-size:11px;padding:3px 8px">&#128266; Tester</button>
@@ -985,7 +985,7 @@ div[hidden],
       <div id="avatarWrap" class="avatar-container prof-avatar state-neutral" aria-label="Portrait du professeur">
         <div class="avatar-ripple"></div>
         <div class="seal-medallion large-seal" id="sealMedallion">
-          <img id="tutorAvatarImg" src="assets/yasmine.png" onerror="this.onerror=null;this.src='https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=512&h=512&q=80';" alt="Avatar tuteur" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
+          <img id="tutorAvatarImg" src="https://images.unsplash.com/photo-1567532939604-b6b5b0db2604?auto=format&fit=crop&w=500&q=80" onerror="this.onerror=null;this.src='assets/yasmine.png';" alt="Avatar tuteur" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
         </div>
         <div class="avatar-status-pill">
           <span class="avatar-dot"></span>
@@ -1608,7 +1608,8 @@ window.selectTutor = function(tid){
 
 function saveTutorVoice(tid, voiceName) {
   try {
-    localStorage.setItem("tutor_voice_" + tid, voiceName || "");
+    const key = (tid === "yasmine" ? "tutor_voice_yasmine" : "tutor_voice_tariq");
+    localStorage.setItem(key, voiceName || "");
   } catch(e){}
   const label = (tid === "yasmine" ? "Yasmine" : "Tariq");
   flash("Voix de " + label + " enregistrée.");
@@ -1617,52 +1618,76 @@ window.saveTutorVoice = saveTutorVoice;
 
 function getSavedTutorVoice(tid) {
   try {
-    return localStorage.getItem("tutor_voice_" + tid) || "";
+    const key = (tid === "yasmine" ? "tutor_voice_yasmine" : "tutor_voice_tariq");
+    return localStorage.getItem(key) || localStorage.getItem("tutor_voice_" + tid) || "";
   } catch(e) {
     return "";
   }
 }
 window.getSavedTutorVoice = getSavedTutorVoice;
 
-function populateTutorVoiceSelects() {
+function populateTutorVoices() {
   const voices = (window.speechSynthesis && window.speechSynthesis.getVoices()) || VOICES || [];
-  if (!voices.length) return;
+  if (!voices || voices.length === 0) return;
 
-  const selY = document.getElementById('voiceSelYasmine');
-  const selT = document.getElementById('voiceSelTariq');
-  if (!selY && !selT) return;
+  // Déterminer le préfixe selon la langue active en haut (ar, en, nl)
+  const currentLangCode = (typeof S !== 'undefined' && S.lang) ? S.lang : 'ar';
+  const langPrefix = (typeof currentLanguage !== 'undefined' && currentLanguage === 'anglais') ? 'en' :
+                     ((typeof currentLanguage !== 'undefined' && currentLanguage === 'neerlandais') ? 'nl' :
+                     ((currentLangCode === 'en' || currentLangCode === 'nl') ? currentLangCode : 'ar'));
 
-  const curLangPrefix = (S.lang || 'ar').slice(0, 2).toLowerCase();
-  let filtered = voices.filter(v => v.lang && v.lang.toLowerCase().startsWith(curLangPrefix));
-  if (curLangPrefix === 'fr') {
-    filtered = filtered.filter(v => !v.lang.includes('CA') && !v.name.includes('Canada') && !v.name.toLowerCase().includes('canadien'));
+  // Filtrer STRICTEMENT les voix de la langue sélectionnée
+  let available = voices.filter(v => v.lang && v.lang.toLowerCase().replace('_', '-').startsWith(langPrefix));
+  
+  // Fallback de sécurité si le format du tag système diffère
+  if (available.length === 0) {
+    available = voices.filter(v => (v.lang && v.lang.toLowerCase().includes(langPrefix)) || (v.name && v.name.toLowerCase().includes(langPrefix)));
   }
-  const voiceList = (filtered.length > 0) ? filtered : voices;
 
-  const savedY = getSavedTutorVoice('yasmine');
-  const savedT = getSavedTutorVoice('tariq');
+  const selects = [
+    { el: document.getElementById('voiceYasmine') || document.getElementById('voiceSelYasmine'), key: 'tutor_voice_yasmine', defaultIdx: 0, pitch: 1.2 },
+    { el: document.getElementById('voiceTariq') || document.getElementById('voiceSelTariq'), key: 'tutor_voice_tariq', defaultIdx: Math.min(1, available.length - 1), pitch: 0.85 }
+  ];
 
-  const defaultY = getTutorVoice(curLangPrefix, 'female', 'yasmine');
-  const defaultT = getTutorVoice(curLangPrefix, 'male', 'tariq');
+  selects.forEach(({ el, key, defaultIdx, pitch }) => {
+    if (!el) return;
+    const savedVoice = localStorage.getItem(key);
+    el.innerHTML = '';
 
-  [ { sel: selY, saved: savedY, defVoice: defaultY, gender: 'female' },
-    { sel: selT, saved: savedT, defVoice: defaultT, gender: 'male' }
-  ].forEach(item => {
-    if (!item.sel) return;
-    item.sel.innerHTML = '';
-    voiceList.forEach(v => {
+    if (available.length === 0) {
+      const opt = document.createElement('option');
+      opt.value = '';
+      opt.textContent = `Voix système ${langPrefix} par défaut`;
+      el.appendChild(opt);
+      return;
+    }
+
+    available.forEach((v, idx) => {
       const opt = document.createElement('option');
       opt.value = v.name;
       opt.textContent = `${v.name} (${v.lang})`;
-      if (item.saved && (item.saved === v.name || item.saved === v.voiceURI)) {
-        opt.selected = true;
-      } else if (!item.saved && item.defVoice && (item.defVoice.name === v.name || item.defVoice.voiceURI === v.voiceURI)) {
+      if (savedVoice ? v.name === savedVoice : idx === defaultIdx) {
         opt.selected = true;
       }
-      item.sel.appendChild(opt);
+      el.appendChild(opt);
     });
+
+    el.onchange = (e) => {
+      localStorage.setItem(key, e.target.value);
+    };
   });
 }
+
+// Déclencher à l'initialisation ET dès que le moteur Android injecte les voix
+if (typeof window !== "undefined" && "speechSynthesis" in window) {
+  window.speechSynthesis.onvoiceschanged = () => {
+    if (typeof loadVoices === "function") loadVoices();
+    populateTutorVoices();
+  };
+}
+document.addEventListener('DOMContentLoaded', populateTutorVoices);
+window.populateTutorVoices = populateTutorVoices;
+const populateTutorVoiceSelects = populateTutorVoices;
 
 window.testTutorVoice = function(tid, e){
   if(e){ try{ e.preventDefault(); e.stopPropagation(); }catch(x){} }
@@ -1704,7 +1729,7 @@ function renderTutorSelection(){
       btn.textContent = isT ? "✓ Sélectionné" : "Sélectionner";
     }
   }
-  populateTutorVoiceSelects();
+  populateTutorVoices();
 }
 
 function cleanTextForSpeech(text) {
@@ -1792,13 +1817,24 @@ function speakBilingualText(rawText) {
 
     if (segments.length === 0) { resolve(); return; }
 
-    // 3. Attribution reelle des voix : Yasmine = Femme (pitch 1.25), Tariq = Homme (pitch 0.85)
+    // 3. Attribution reelle des voix : Yasmine = Femme (pitch 1.2), Tariq = Homme (pitch 0.85)
     const activeTutor = getActiveTutor();
     const isFemale = (activeTutor.gender === 'female' || activeTutor.id === 'yasmine');
     const gender = isFemale ? 'female' : 'male';
-    const tutorPitch = isFemale ? 1.25 : 0.85;
+    const tutorPitch = isFemale ? 1.2 : 0.85;
+    const tutorKey = isFemale ? 'tutor_voice_yasmine' : 'tutor_voice_tariq';
 
-    const arabicVoice = getTutorVoice('ar', gender, activeTutor.id);
+    const savedVoiceName = localStorage.getItem(tutorKey);
+    const voices = (window.speechSynthesis && window.speechSynthesis.getVoices()) || VOICES || [];
+
+    let arabicVoice = null;
+    if (savedVoiceName) {
+      arabicVoice = voices.find(v => v.name === savedVoiceName || v.voiceURI === savedVoiceName);
+    }
+    if (!arabicVoice) {
+      arabicVoice = getTutorVoice('ar', gender, activeTutor.id);
+    }
+
     const frenchVoice = getTutorVoice('fr', gender, activeTutor.id);
 
     // 4. Chainage sequentiel des morceaux
@@ -1865,7 +1901,7 @@ function speak(text, rate, forceLang){
       const activeTutor = getActiveTutor();
       const isFemale = (activeTutor.gender === 'female' || activeTutor.id === 'yasmine');
       const gender = isFemale ? 'female' : 'male';
-      const tutorPitch = isFemale ? 1.25 : 0.85;
+      const tutorPitch = isFemale ? 1.2 : 0.85;
       const targetVoice = getTutorVoice(langKey, gender, activeTutor.id) || voiceFor(langKey);
       const targetLang = (targetVoice && targetVoice.lang) || SPEECH[langKey].tts;
 
@@ -1995,16 +2031,21 @@ function updateAvatar(){
     const avatarImg=document.getElementById('tutorAvatarImg') || $("#tutorAvatarImg");
     const seal=$("#sealMedallion");
 
+    const photoYasmine = "https://images.unsplash.com/photo-1567532939604-b6b5b0db2604?auto=format&fit=crop&w=500&q=80";
+    const photoTariq = "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=500&q=80";
+
     if(avatarImg){
       const isTariq=(activeTutor.id==="tariq");
-      const targetSrc=isTariq?"assets/tariq.png":"assets/yasmine.png";
-      const fallbackSrc=isTariq
-        ?"https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=512&h=512&q=80"
-        :"https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=512&h=512&q=80";
+      const targetSrc=isTariq?photoTariq:photoYasmine;
+      const fallbackSrc=isTariq?"assets/tariq.png":"assets/yasmine.png";
       if(avatarImg.getAttribute("src")!==targetSrc && avatarImg.getAttribute("src")!==fallbackSrc){
         avatarImg.onerror=function(){ this.onerror=null; this.src=fallbackSrc; };
         avatarImg.src=targetSrc;
         avatarImg.alt="Portrait de "+(activeTutor.name||"Tuteur");
+        avatarImg.style.width="100%";
+        avatarImg.style.height="100%";
+        avatarImg.style.objectFit="cover";
+        avatarImg.style.borderRadius="50%";
       }
     }
     if(seal){
