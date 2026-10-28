@@ -856,7 +856,7 @@ audio,
 
     <section id="home" class="col active">
     <!-- Onglet 1 : Leçons & Parcours (Roadmap) -->
-    <div id="tabLessonsView" data-view="lessons" class="tab-view tab-content view active">
+    <div id="lessonsScreen" data-view="lessons" class="tab-view tab-content view active">
       <div class="lessons-roadmap-container" style="padding: 16px; padding-bottom: 90px;">
         <div class="roadmap-header">
           <h2 style="font-size: 1.25rem; font-weight: 700;">Parcours d'apprentissage</h2>
@@ -908,7 +908,7 @@ audio,
     </div>
 
     <!-- Onglet 2 : Jeux de role & Situations -->
-    <div id="tabRoleplayView" data-view="roles" class="tab-view tab-content view" hidden>
+    <div id="rolesScreen" data-view="roles" class="tab-view tab-content view" hidden>
       <div class="panel">
         <div class="row spread" style="align-items:center">
           <h2 style="font-size:18px;display:flex;align-items:center;gap:8px">&#127917; Situations &amp; Jeux de r&ocirc;le</h2>
@@ -926,7 +926,7 @@ audio,
     </div>
 
     <!-- Onglet 3 : Tuteur Libre (Pratique directe) -->
-    <div id="tabTutorView" data-view="tutor" class="tab-view tab-content view" hidden style="padding: 16px; padding-bottom: 90px;">
+    <div id="tutorScreen" data-view="tutor" class="tab-view tab-content view" hidden style="padding: 16px; padding-bottom: 90px;">
       <div class="panel informal-hero-card" id="informalCard" style="background: white; border-radius: 16px; padding: 20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border: 1px solid #e2e8f0;">
         <div class="row spread" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
           <span class="label" style="color: #2563eb; margin: 0; font-weight: 700; font-size: 0.9rem;">&#9889; Pratique directe</span>
@@ -944,7 +944,7 @@ audio,
     </div>
 
     <!-- Onglet 4 : Profil & Reglages (Rangement du panneau technique) -->
-    <div id="tabProfileView" data-view="profile" class="tab-view tab-content view" hidden>
+    <div id="profileScreen" data-view="profile" class="tab-view tab-content view" hidden>
       <!-- Section Choix du Tuteur -->
       <div class="panel" id="tutorProfileBox">
         <div class="row spread" style="align-items:center;margin-bottom:6px">
@@ -972,7 +972,7 @@ audio,
               <select id="voiceYasmine" class="field" style="display:none"></select>
             </div>
             <div class="row" style="margin-top:auto;gap:6px">
-              <button class="mini ghost" type="button" data-test-voice="yasmine" onclick="testTutorVoice('yasmine')" style="font-size:11px;padding:3px 8px">&#128266; Tester</button>
+              <button class="mini ghost" type="button" data-test-voice="yasmine" onclick="window.testTutorVoice('yasmine')" style="font-size:11px;padding:3px 8px">&#128266; Tester</button>
               <button type="button" class="btn sm tutor-select-btn" id="btnSelectYasmine" onclick="chooseTutor('yasmine')" style="flex:1;font-size:11px;padding:4px 8px">S&eacute;lectionner</button>
             </div>
           </div>
@@ -995,7 +995,7 @@ audio,
               <select id="voiceTariq" class="field" style="display:none"></select>
             </div>
             <div class="row" style="margin-top:auto;gap:6px">
-              <button class="mini ghost" type="button" data-test-voice="tariq" onclick="testTutorVoice('tariq')" style="font-size:11px;padding:3px 8px">&#128266; Tester</button>
+              <button class="mini ghost" type="button" data-test-voice="tariq" onclick="window.testTutorVoice('tariq')" style="font-size:11px;padding:3px 8px">&#128266; Tester</button>
               <button type="button" class="btn sm ghost tutor-select-btn" id="btnSelectTariq" onclick="chooseTutor('tariq')" style="flex:1;font-size:11px;padding:4px 8px">S&eacute;lectionner</button>
             </div>
           </div>
@@ -1107,7 +1107,7 @@ audio,
     </div>
   </section>
 
-    <section id="chatScreen" class="chat-immersive conversation-view" data-view="tutor" hidden>
+    <section id="chatScreen" class="chat-immersive conversation-view" data-view="chat" hidden>
     <!-- 1. En-tete superieur (35% de la hauteur) -->
     <header class="chat-header-zone">
       <div class="chat-top-bar">
@@ -1162,7 +1162,7 @@ audio,
 
         <!-- Grand bouton Micro flottant au centre avec halo lumineux -->
         <div class="mic-glow-wrap">
-          <button class="mic-hero-btn" id="micBtn" aria-label="Parler au micro" title="Parler">
+          <button class="mic-hero-btn mic-button" id="micBtn" onclick="window.toggleMic()" style="cursor: pointer; pointer-events: auto;" aria-label="Parler au micro" title="Parler">
             <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor" aria-hidden="true">
               <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
               <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
@@ -1211,7 +1211,7 @@ audio,
       <span class="bnav-icon">&#127917;</span>
       <span class="bnav-label">Jeux de r&ocirc;le</span>
     </button>
-    <button class="bnav-btn nav-tab nav-item" data-tab="tutor" id="navTutorBtn" onclick="openFreeTutor()" aria-label="Tuteur Libre" aria-selected="false">
+    <button class="bnav-btn nav-tab nav-item" data-tab="tutor" id="navTutorBtn" onclick="window.switchTab('tutor')" aria-label="Tuteur Libre" aria-selected="false">
       <span class="bnav-icon">&#128172;</span>
       <span class="bnav-label">Tuteur Libre</span>
     </button>
@@ -1248,7 +1248,7 @@ window.switchTab = function(tabName) {
     }
 
     // Désactivation stricte de l'écran immersif de chat
-    const ch = document.getElementById("chat");
+    const ch = document.getElementById("chatScreen") || document.getElementById("chat");
     if(ch){
       ch.hidden = true;
       ch.classList.remove("active");
@@ -1265,18 +1265,9 @@ window.switchTab = function(tabName) {
       hm.style.pointerEvents = "auto";
     }
 
-    // Mappage précis des vues
-    const tabMap = {
-      lessons: document.getElementById("tabLessonsView") || document.getElementById("lessonsScreen") || document.querySelector('[data-view="lessons"]'),
-      roleplay: document.getElementById("tabRoleplayView") || document.querySelector('[data-view="roles"]'),
-      roles: document.getElementById("tabRoleplayView") || document.querySelector('[data-view="roles"]'),
-      tutor: document.getElementById("tabTutorView") || document.getElementById("tutorScreen") || document.querySelector('[data-view="tutor"]'),
-      profile: document.getElementById("tabProfileView") || document.querySelector('[data-view="profile"]')
-    };
-
-    // Masquer toutes les vues inactives
-    document.querySelectorAll(".tab-view, .tab-content, .view").forEach(el => {
-      if(el.id !== "home" && el.id !== "app" && el.id !== "body"){
+    // Cacher toutes les sections/onglets
+    document.querySelectorAll('.tab-view, .tab-content, .view').forEach(el => {
+      if(el.id !== "home" && el.id !== "app" && el.id !== "body" && el.id !== "bottomNav"){
         el.classList.remove("active");
         el.hidden = true;
         el.style.display = "none";
@@ -1284,18 +1275,27 @@ window.switchTab = function(tabName) {
       }
     });
 
-    const activeView = tabMap[tabName] || document.getElementById(tabName) || document.querySelector(`[data-view="${tabName}"]`);
-    if(activeView){
-      activeView.classList.add("active");
-      activeView.hidden = false;
-      activeView.style.display = "block";
-      activeView.style.pointerEvents = "auto";
+    // Activer la vue demandée
+    const targetMap = {
+      'lessons': document.getElementById('lessonsScreen') || document.getElementById('tabLessonsView') || document.querySelector('[data-view="lessons"]'),
+      'roles': document.getElementById('rolesScreen') || document.getElementById('tabRoleplayView') || document.querySelector('[data-view="roles"]'),
+      'roleplay': document.getElementById('rolesScreen') || document.getElementById('tabRoleplayView') || document.querySelector('[data-view="roles"]'),
+      'tutor': document.getElementById('tutorScreen') || document.getElementById('tabTutorView') || document.querySelector('[data-view="tutor"]'),
+      'profile': document.getElementById('profileScreen') || document.getElementById('tabProfileView') || document.querySelector('[data-view="profile"]')
+    };
+
+    const target = targetMap[tabName];
+    if(target){
+      target.classList.add("active");
+      target.hidden = false;
+      target.style.display = "block";
+      target.style.pointerEvents = "auto";
     }
 
     // Mise à jour visuelle des onglets de navigation
     document.querySelectorAll(".bnav-btn, .nav-tab, .nav-item").forEach(btn => {
-      const target = btn.dataset.tab || btn.getAttribute("data-tab");
-      const active = (target === tabName || (tabName === "roleplay" && target === "roles") || (tabName === "roles" && target === "roleplay"));
+      const t = btn.dataset.tab || btn.getAttribute("data-tab");
+      const active = (t === tabName || (tabName === "roleplay" && t === "roles") || (tabName === "roles" && t === "roleplay"));
       btn.classList.toggle("active", active);
       btn.setAttribute("aria-selected", active ? "true" : "false");
     });
@@ -1332,6 +1332,112 @@ window.closeChat = function() {
   }
 };
 window.closeConversationScreen = window.closeChat;
+
+// =========================================================================
+// 1. Microphone (Reconnaissance vocale universelle)
+// =========================================================================
+let recognition = null;
+let isListening = false;
+window.currentMicLang = 'fr';
+
+function initSpeechRecognition() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    alert("La reconnaissance vocale n'est pas supportée sur ce navigateur. Utilisez Chrome.");
+    return null;
+  }
+  const rec = new SpeechRecognition();
+  rec.continuous = false;
+  rec.interimResults = false;
+  
+  // Langue d'écoute selon le toggle de conversation
+  rec.lang = (window.currentMicLang === 'ar') ? 'ar-SA' : 'fr-FR';
+
+  rec.onstart = () => {
+    isListening = true;
+    const micBtn = document.getElementById('micBtn') || document.querySelector('.mic-button');
+    if (micBtn) micBtn.classList.add('listening');
+    console.log("Micro actif, en écoute...");
+  };
+
+  rec.onresult = (event) => {
+    const transcript = event.results[0][0].transcript;
+    console.log("Texte capté :", transcript);
+    if (typeof handleUserSpeechInput === 'function') {
+      handleUserSpeechInput(transcript);
+    }
+  };
+
+  rec.onerror = (e) => {
+    console.error("Erreur micro :", e.error);
+    isListening = false;
+    const micBtn = document.getElementById('micBtn') || document.querySelector('.mic-button');
+    if (micBtn) micBtn.classList.remove('listening');
+  };
+
+  rec.onend = () => {
+    isListening = false;
+    const micBtn = document.getElementById('micBtn') || document.querySelector('.mic-button');
+    if (micBtn) micBtn.classList.remove('listening');
+  };
+
+  return rec;
+}
+
+window.toggleMic = function() {
+  if (!recognition) recognition = initSpeechRecognition();
+  if (!recognition) return;
+
+  if (isListening) {
+    recognition.stop();
+  } else {
+    try {
+      recognition.lang = (window.currentMicLang === 'ar') ? 'ar-SA' : 'fr-FR';
+      recognition.start();
+    } catch (err) {
+      console.warn("Redémarrage recognition :", err);
+      try { recognition.stop(); } catch(x){}
+    }
+  }
+};
+
+window.handleUserSpeechInput = function(transcript) {
+  if (!transcript) return;
+  const inp = document.getElementById('input');
+  if (inp) {
+    inp.value = transcript;
+  }
+  if (typeof submitUser === 'function') {
+    submitUser(transcript, true);
+  }
+};
+
+// =========================================================================
+// 2. Son et boutons « Tester » (Voix TTS fiable)
+// =========================================================================
+window.testTutorVoice = function(tutorKey) {
+  console.log("Test voix pour :", tutorKey);
+  try {
+    window.speechSynthesis.cancel();
+    
+    const isYasmine = tutorKey === 'yasmine';
+    const text = isYasmine ? "مَرْحَبًا ! Je suis Yasmine." : "مَرْحَبًا ! Je suis Tariq.";
+    
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.pitch = isYasmine ? 1.25 : 0.85;
+    utterance.rate = 0.95;
+    
+    const voices = window.speechSynthesis.getVoices();
+    // Trouver voix arabe ou fallback
+    const arVoice = voices && voices.find(v => v.lang && v.lang.startsWith('ar'));
+    if (arVoice) utterance.voice = arVoice;
+    
+    window.speechSynthesis.speak(utterance);
+    if (typeof flash === "function") flash("Test voix : " + (isYasmine ? "Yasmine" : "Tariq"));
+  } catch(e) {
+    console.error("testTutorVoice error:", e);
+  }
+};
 
 window.chooseTutor = function(tutor) {
   try {
@@ -2707,26 +2813,7 @@ document.addEventListener('DOMContentLoaded', () => {
 window.populateTutorVoices = populateTutorVoices;
 const populateTutorVoiceSelects = populateTutorVoices;
 
-window.testTutorVoice = function(tid, e){
-  if(e){ try{ e.preventDefault(); e.stopPropagation(); }catch(x){} }
-  if(typeof window.setActiveTutor === "function") window.setActiveTutor(tid);
-  else if(typeof window.selectTutor === "function") window.selectTutor(tid);
-  const t = (typeof TUTORS !== "undefined" && TUTORS[tid]) || {id:tid, name:tid==="tariq"?"Tariq":"Yasmine"};
-  const isAr = (typeof S !== "undefined" && S.lang === "ar");
-  const sample = isAr
-    ? (t.id === "yasmine"
-        ? "مَرْحَبًا ! Je suis Yasmine, votre professeure d'arabe. Posez-moi n'importe quelle question en arabe ou en français."
-        : "مَرْحَبًا ! Je suis Tariq, votre professeur d'arabe. Parlons ensemble de situations du quotidien !")
-    : ("Bonjour ! Je suis " + t.name + ", votre professeur. Parlons ensemble !");
-  if(typeof playTutorAudio === "function"){
-    playTutorAudio(sample, t.id || tid);
-  } else if(typeof speakBilingualText === "function"){
-    speakBilingualText(sample);
-  } else if(typeof speak === "function"){
-    speak(sample);
-  }
-  if(typeof flash === "function") flash("Voix de " + t.name + " en cours de lecture…");
-};
+// window.testTutorVoice est défini plus haut pour un son immédiat
 
 function renderTutorSelection(){
   const cur = getActiveTutor();
@@ -4193,7 +4280,7 @@ function alignWords(target,heard){
   return ok;
 }
 safeAddListener("#tutorBtn", "click", ()=>startTutor());
-safeAddListener("#tutorSttBtn", "click", ()=>{S.tutorStt=(S.tutorStt==="fr"?S.lang:"fr");updateTutorSttUI();});
+safeAddListener("#tutorSttBtn", "click", ()=>{S.tutorStt=(S.tutorStt==="fr"?S.lang:"fr");window.currentMicLang=S.tutorStt;updateTutorSttUI();});
 safeAddListener("#repeatBtn", "click", () => openRepeat());
 safeAddListener("#repeatBack", "click", () => {leaveSession();show("home")});
 async function openRepeat(){
