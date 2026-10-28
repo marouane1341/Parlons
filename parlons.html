@@ -250,6 +250,7 @@ ul.clean{margin:0;padding-inline-start:18px;display:flex;flex-direction:column;g
 
 /* REGLE ABSOLUE ANTI-BLOCAGE DES CLICS & GESTION STRICTE DU MASQUAGE */
 [hidden],
+[hidden] *,
 #chat[hidden],
 #chat.chat-immersive[hidden],
 section[hidden],
@@ -257,12 +258,31 @@ main[hidden],
 div[hidden],
 .tab-view[hidden],
 .tab-content[hidden],
-.modal-backdrop[hidden] {
+.modal-backdrop[hidden],
+.composer-drawer[hidden],
+#composerDrawer[hidden] {
   display: none !important;
   pointer-events: none !important;
   visibility: hidden !important;
   opacity: 0 !important;
   z-index: -9999 !important;
+}
+
+/* Interactivité garantie sur tous les éléments cliquables et navigation */
+.bottom-nav,
+.bnav-btn,
+.nav-tab,
+.nav-item,
+.btn,
+.btn-primary,
+.mic-hero-btn,
+.action-round-btn,
+.icon-circle-btn,
+.tutor-card,
+.tutor-select-btn {
+  pointer-events: auto !important;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* Onglets de la vue principale */
@@ -1087,13 +1107,269 @@ div[hidden],
 <script>
 (function(){
 "use strict";
+
+// Interception globale d'erreurs pour éviter tout arrêt de l'application
+window.addEventListener("error", function(evt){
+  console.error("Parlons Global Error Intercepted:", evt && evt.error ? evt.error : evt);
+});
+window.addEventListener("unhandledrejection", function(evt){
+  console.error("Parlons Unhandled Promise Rejection:", evt && evt.reason ? evt.reason : evt);
+});
+
 const $=s=>document.querySelector(s);
 const el=(t,c,x)=>{const e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e};
-const safeClick=(sel,fn)=>{const e=$(sel);if(e)e.onclick=fn;return e};
-const safeOn=(sel,evt,fn)=>{const e=$(sel);if(e)e.addEventListener(evt,fn);return e};
-window.openTutorView=function(){if(typeof startTutor==="function")startTutor()};
-window.switchTab=function(id){if(typeof switchMainTab==="function")switchMainTab(id)};
+const safeClick=(sel,fn)=>{try{const e=$(sel);if(e)e.onclick=fn;return e;}catch(x){console.error(x);}};
+const safeOn=(sel,evt,fn)=>{try{const e=$(sel);if(e)e.addEventListener(evt,fn);return e;}catch(x){console.error(x);}};
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+
+// =========================================================================
+// 1. DÉGAGEMENT DE LA BOUCLE PRINCIPALE (LES CLICS D'ABORD)
+// Attachement prioritaire absolu des événements tactiles avant tout le reste
+// =========================================================================
+
+function switchMainTab(tabName){
+  try {
+    if(tabName === "tutor"){
+      if(typeof startTutor === "function") startTutor();
+      return;
+    }
+    if(typeof show === "function"){
+      show("home");
+    } else {
+      const hm = document.getElementById("home");
+      if(hm){ hm.hidden = false; hm.style.display = "flex"; hm.style.pointerEvents = "auto"; }
+      const ch = document.getElementById("chat");
+      if(ch){ ch.hidden = true; ch.style.display = "none"; ch.style.pointerEvents = "none"; }
+    }
+
+    document.querySelectorAll(".bnav-btn, .nav-tab, .nav-item").forEach(tab => {
+      const active = (tab.dataset.tab === tabName);
+      tab.classList.toggle("active", active);
+      tab.setAttribute("aria-selected", active ? "true" : "false");
+    });
+
+    const tabMap = {
+      lessons: document.getElementById("tabLessonsView"),
+      roleplay: document.getElementById("tabRoleplayView"),
+      profile: document.getElementById("tabProfileView")
+    };
+
+    Object.keys(tabMap).forEach(key => {
+      const elem = tabMap[key];
+      if(!elem) return;
+      const isTarget = (key === tabName);
+      elem.hidden = !isTarget;
+      elem.style.display = isTarget ? "flex" : "none";
+      elem.style.pointerEvents = isTarget ? "auto" : "none";
+    });
+
+    const bNav = document.getElementById("bottomNav");
+    if(bNav){
+      bNav.hidden = false;
+      bNav.style.display = "flex";
+      bNav.style.pointerEvents = "auto";
+    }
+  } catch(e) {
+    console.error("switchMainTab error:", e);
+  }
+}
+window.switchMainTab = switchMainTab;
+window.switchTab = switchMainTab;
+window.openTutorView = function(){ if(typeof startTutor === "function") startTutor(); };
+
+function leaveSession(){
+  try {
+    const endBtn = document.getElementById("endBtn");
+    if(endBtn) endBtn.hidden = false;
+    const inp = document.getElementById("input");
+    if(inp) inp.placeholder = "Écrivez ou dictez votre message…";
+    const tBar = document.getElementById("tutorSttBar");
+    if(tBar) tBar.hidden = true;
+    if(typeof S !== "undefined"){
+      S.hf = false;
+      if(S.ctl){ try{ S.ctl.abort(); }catch(x){} }
+      try{ if(S.wl){ S.wl.release(); S.wl = null; } }catch(x){}
+    }
+    if(typeof stopListen === "function") stopListen();
+    if(typeof stopSpeak === "function") stopSpeak();
+    if(typeof stopTimer === "function") stopTimer();
+  } catch(e) {
+    console.error("leaveSession error:", e);
+  }
+}
+window.leaveSession = leaveSession;
+
+function openSettings(msg){
+  try {
+    switchMainTab("profile");
+    try {
+      const savedTheme = localStorage.getItem("parlons.theme") || "studio";
+      const sel = document.getElementById("themeSelModal");
+      if(sel) sel.value = savedTheme;
+    } catch(e){}
+    if(msg && typeof flash === "function") flash(msg);
+    const apik = document.getElementById("apikey");
+    if(apik && !apik.value) apik.focus();
+  } catch(e) {
+    console.error("openSettings error:", e);
+  }
+}
+window.openSettings = openSettings;
+
+function closeSettings(){
+  try {
+    switchMainTab("lessons");
+  } catch(e) {
+    console.error("closeSettings error:", e);
+  }
+}
+window.closeSettings = closeSettings;
+
+function bindCoreNavigation(){
+  try {
+    // A. 4 onglets de navigation inférieure
+    document.querySelectorAll(".nav-item, .nav-tab, .bnav-btn").forEach(btn => {
+      btn.onclick = (e) => {
+        try {
+          e.preventDefault();
+          e.stopPropagation();
+          const targetId = btn.getAttribute("data-tab");
+          if(targetId) switchMainTab(targetId);
+        } catch(err) {
+          console.error("Tab click error:", err);
+        }
+      };
+    });
+
+    // B. Bouton conversation informelle / Démarrage
+    const startSelectors = ["#informalBtn", "#startConversationBtn", ".btn-primary", "#resumeBtn"];
+    startSelectors.forEach(sel => {
+      document.querySelectorAll(sel).forEach(btn => {
+        btn.onclick = (e) => {
+          try {
+            e.preventDefault();
+            if(typeof startTutor === "function") startTutor();
+            else switchMainTab("lessons");
+          } catch(err) {
+            console.error("Start btn error:", err);
+          }
+        };
+      });
+    });
+
+    // C. Bouton micro (hero mic dans le chat)
+    const mic = document.getElementById("micBtn");
+    if(mic){
+      mic.onclick = (e) => {
+        try {
+          e.preventDefault();
+          if(typeof micTap === "function") micTap();
+        } catch(err) {
+          console.error("micBtn click error:", err);
+        }
+      };
+    }
+
+    // D. Fermeture ✕ (quitter la conversation ou fermer modale)
+    const backBtn = document.getElementById("backBtn");
+    if(backBtn){
+      backBtn.onclick = (e) => {
+        try {
+          e.preventDefault();
+          leaveSession();
+          switchMainTab("lessons");
+        } catch(err) {
+          console.error("backBtn click error:", err);
+        }
+      };
+    }
+    const cfgCloseBtn = document.getElementById("cfgCloseBtn");
+    if(cfgCloseBtn){
+      cfgCloseBtn.onclick = (e) => {
+        try {
+          e.preventDefault();
+          closeSettings();
+        } catch(err) {
+          console.error("cfgCloseBtn click error:", err);
+        }
+      };
+    }
+
+    // E. Paramètres (roue crantée dans le chat et boutons profil)
+    const chatCfgBtn = document.getElementById("chatCfgBtn");
+    if(chatCfgBtn){
+      chatCfgBtn.onclick = (e) => {
+        try {
+          e.preventDefault();
+          openSettings();
+        } catch(err) {
+          console.error("chatCfgBtn click error:", err);
+        }
+      };
+    }
+    const cfgOpenBtn = document.getElementById("cfgOpenBtn");
+    if(cfgOpenBtn){
+      cfgOpenBtn.onclick = (e) => {
+        try {
+          e.preventDefault();
+          openSettings();
+        } catch(err) {
+          console.error("cfgOpenBtn click error:", err);
+        }
+      };
+    }
+
+    // F. Bouton clavier drawer, aide hint, bouton envoi
+    const kBtn = document.getElementById("keyboardToggleBtn");
+    if(kBtn){
+      kBtn.onclick = (e) => {
+        try {
+          e.preventDefault();
+          const d = document.getElementById("composerDrawer");
+          if(d){
+            d.hidden = !d.hidden;
+            if(!d.hidden){
+              const inp = document.getElementById("input");
+              if(inp) inp.focus();
+            }
+          }
+        } catch(err) {
+          console.error("keyboardToggleBtn error:", err);
+        }
+      };
+    }
+
+    const sendBtn = document.getElementById("sendBtn");
+    if(sendBtn){
+      sendBtn.onclick = (e) => {
+        try {
+          e.preventDefault();
+          if(typeof handleSend === "function") handleSend();
+        } catch(err) {
+          console.error("sendBtn error:", err);
+        }
+      };
+    }
+  } catch(err) {
+    console.error("bindCoreNavigation error:", err);
+  }
+}
+window.bindCoreNavigation = bindCoreNavigation;
+
+// Attachement IMMÉDIAT dès le parsing du script
+try {
+  bindCoreNavigation();
+} catch(e) {
+  console.error("Immediate bindCoreNavigation error:", e);
+}
+
+// Ré-attachement de sécurité au DOMContentLoaded et au chargement
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", bindCoreNavigation);
+} else {
+  bindCoreNavigation();
+}
+window.addEventListener("load", bindCoreNavigation);
 
 const SPEECH={en:{tts:"en-GB",stt:"en-GB"},ar:{tts:"ar-SA",stt:"ar-SA"},nl:{tts:"nl-NL",stt:"nl-NL"},fr:{tts:"fr-FR",stt:"fr-FR"}};
 const LANGS={
@@ -1627,65 +1903,76 @@ function getSavedTutorVoice(tid) {
 window.getSavedTutorVoice = getSavedTutorVoice;
 
 function populateTutorVoices() {
-  const voices = (window.speechSynthesis && window.speechSynthesis.getVoices()) || VOICES || [];
-  if (!voices || voices.length === 0) return;
+  try {
+    const voices = (typeof window !== "undefined" && window.speechSynthesis && window.speechSynthesis.getVoices()) || VOICES || [];
+    if (!voices || voices.length === 0) return;
 
-  // Déterminer le préfixe selon la langue active en haut (ar, en, nl)
-  const currentLangCode = (typeof S !== 'undefined' && S.lang) ? S.lang : 'ar';
-  const langPrefix = (typeof currentLanguage !== 'undefined' && currentLanguage === 'anglais') ? 'en' :
-                     ((typeof currentLanguage !== 'undefined' && currentLanguage === 'neerlandais') ? 'nl' :
-                     ((currentLangCode === 'en' || currentLangCode === 'nl') ? currentLangCode : 'ar'));
+    // Déterminer le préfixe selon la langue active en haut (ar, en, nl)
+    const currentLangCode = (typeof S !== 'undefined' && S.lang) ? S.lang : 'ar';
+    const langPrefix = (typeof currentLanguage !== 'undefined' && currentLanguage === 'anglais') ? 'en' :
+                       ((typeof currentLanguage !== 'undefined' && currentLanguage === 'neerlandais') ? 'nl' :
+                       ((currentLangCode === 'en' || currentLangCode === 'nl') ? currentLangCode : 'ar'));
 
-  // Filtrer STRICTEMENT les voix de la langue sélectionnée
-  let available = voices.filter(v => v.lang && v.lang.toLowerCase().replace('_', '-').startsWith(langPrefix));
-  
-  // Fallback de sécurité si le format du tag système diffère
-  if (available.length === 0) {
-    available = voices.filter(v => (v.lang && v.lang.toLowerCase().includes(langPrefix)) || (v.name && v.name.toLowerCase().includes(langPrefix)));
-  }
-
-  const selects = [
-    { el: document.getElementById('voiceYasmine') || document.getElementById('voiceSelYasmine'), key: 'tutor_voice_yasmine', defaultIdx: 0, pitch: 1.2 },
-    { el: document.getElementById('voiceTariq') || document.getElementById('voiceSelTariq'), key: 'tutor_voice_tariq', defaultIdx: Math.min(1, available.length - 1), pitch: 0.85 }
-  ];
-
-  selects.forEach(({ el, key, defaultIdx, pitch }) => {
-    if (!el) return;
-    const savedVoice = localStorage.getItem(key);
-    el.innerHTML = '';
-
+    // Filtrer STRICTEMENT les voix de la langue sélectionnée
+    let available = voices.filter(v => v.lang && v.lang.toLowerCase().replace('_', '-').startsWith(langPrefix));
+    
+    // Fallback de sécurité si le format du tag système diffère
     if (available.length === 0) {
-      const opt = document.createElement('option');
-      opt.value = '';
-      opt.textContent = `Voix système ${langPrefix} par défaut`;
-      el.appendChild(opt);
-      return;
+      available = voices.filter(v => (v.lang && v.lang.toLowerCase().includes(langPrefix)) || (v.name && v.name.toLowerCase().includes(langPrefix)));
     }
 
-    available.forEach((v, idx) => {
-      const opt = document.createElement('option');
-      opt.value = v.name;
-      opt.textContent = `${v.name} (${v.lang})`;
-      if (savedVoice ? v.name === savedVoice : idx === defaultIdx) {
-        opt.selected = true;
-      }
-      el.appendChild(opt);
-    });
+    const selects = [
+      { el: document.getElementById('voiceYasmine') || document.getElementById('voiceSelYasmine'), key: 'tutor_voice_yasmine', defaultIdx: 0, pitch: 1.2 },
+      { el: document.getElementById('voiceTariq') || document.getElementById('voiceSelTariq'), key: 'tutor_voice_tariq', defaultIdx: Math.min(1, available.length - 1), pitch: 0.85 }
+    ];
 
-    el.onchange = (e) => {
-      localStorage.setItem(key, e.target.value);
-    };
-  });
+    selects.forEach(({ el, key, defaultIdx, pitch }) => {
+      if (!el) return;
+      let savedVoice = "";
+      try { savedVoice = localStorage.getItem(key); } catch(x){}
+      el.innerHTML = '';
+
+      if (available.length === 0) {
+        const opt = document.createElement('option');
+        opt.value = '';
+        opt.textContent = `Voix système ${langPrefix} par défaut`;
+        el.appendChild(opt);
+        return;
+      }
+
+      available.forEach((v, idx) => {
+        const opt = document.createElement('option');
+        opt.value = v.name;
+        opt.textContent = `${v.name} (${v.lang})`;
+        if (savedVoice ? v.name === savedVoice : idx === defaultIdx) {
+          opt.selected = true;
+        }
+        el.appendChild(opt);
+      });
+
+      el.onchange = (e) => {
+        try { localStorage.setItem(key, e.target.value); } catch(x){}
+      };
+    });
+  } catch(e) {
+    console.error("populateTutorVoices safe error:", e);
+  }
 }
 
 // Déclencher à l'initialisation ET dès que le moteur Android injecte les voix
-if (typeof window !== "undefined" && "speechSynthesis" in window) {
-  window.speechSynthesis.onvoiceschanged = () => {
-    if (typeof loadVoices === "function") loadVoices();
-    populateTutorVoices();
-  };
-}
-document.addEventListener('DOMContentLoaded', populateTutorVoices);
+try {
+  if (typeof window !== "undefined" && "speechSynthesis" in window) {
+    window.speechSynthesis.onvoiceschanged = () => {
+      try {
+        if (typeof loadVoices === "function") loadVoices();
+        populateTutorVoices();
+      } catch(x){ console.error(x); }
+    };
+  }
+} catch(e){ console.error("speechSynthesis init error:", e); }
+document.addEventListener('DOMContentLoaded', () => {
+  try { populateTutorVoices(); } catch(e){ console.error(e); }
+});
 window.populateTutorVoices = populateTutorVoices;
 const populateTutorVoiceSelects = populateTutorVoices;
 
@@ -1794,149 +2081,263 @@ function getTutorVoice(langPrefix, gender, tid) {
   }
 }
 
+// =========================================================================
+// 2. MODULE AUDIO ROBUSTE & FALLBACK UNIVERSEL (ZÉRO BLOCAGE)
+// =========================================================================
+
 let currentTutorAudio = null;
 
-function stopSpeak(){
-  if (currentTutorAudio) {
-    try {
-      currentTutorAudio.pause();
-      currentTutorAudio.currentTime = 0;
-      currentTutorAudio = null;
-    } catch(e){}
+function updateAvatarSpeaking(isSpeaking){
+  try {
+    if(typeof S !== "undefined"){
+      S.speaking = !!isSpeaking;
+      if(typeof setStatus === "function") setStatus();
+    }
+    const prof = document.querySelector('.prof-avatar');
+    if(prof) prof.classList.toggle('speaking', !!isSpeaking);
+    const wrap = document.getElementById('avatarWrap');
+    if(wrap) wrap.classList.toggle('state-speaking', !!isSpeaking);
+  } catch(e){
+    console.error("updateAvatarSpeaking error:", e);
   }
-  try { window.speechSynthesis.cancel(); } catch(e){}
-  S.speaking = false;
-  setStatus();
-  document.querySelector('.prof-avatar')?.classList.remove('speaking');
-  document.getElementById('avatarWrap')?.classList.remove('state-speaking');
 }
+window.updateAvatarSpeaking = updateAvatarSpeaking;
 
-function speakBilingualText(rawText) {
+function stopSpeak(){
+  try {
+    if (currentTutorAudio) {
+      try {
+        currentTutorAudio.pause();
+        currentTutorAudio.currentTime = 0;
+      } catch(e){}
+      currentTutorAudio = null;
+    }
+  } catch(e){
+    console.error("stopSpeak error:", e);
+  }
+  try {
+    if(typeof window !== "undefined" && window.speechSynthesis){
+      window.speechSynthesis.cancel();
+    }
+  } catch(e){
+    console.error("speechSynthesis cancel error:", e);
+  }
+  updateAvatarSpeaking(false);
+}
+window.stopSpeak = stopSpeak;
+
+function getRemoteAudioUrl(text, tutorNameOrLang){
+  try {
+    if(!text || typeof text !== "string") return "";
+    const clean = (typeof cleanTextForSpeech === "function") ? cleanTextForSpeech(text) : text.trim();
+    if(!clean) return "";
+
+    const encoded = encodeURIComponent(clean);
+    let tl = "ar";
+    if(tutorNameOrLang === "fr" || tutorNameOrLang === "en" || tutorNameOrLang === "nl"){
+      tl = tutorNameOrLang;
+    } else {
+      const isArabic = /[\u0600-\u06FF]/.test(clean);
+      if(isArabic){
+        tl = "ar";
+      } else if(typeof S !== "undefined" && S.lang && (S.lang === "en" || S.lang === "nl")){
+        tl = S.lang;
+      } else {
+        tl = "fr";
+      }
+    }
+    return `https://translate.google.com/translate_tts?ie=UTF-8&q=${encoded}&tl=${tl}&client=tw-ob`;
+  } catch(e){
+    console.error("getRemoteAudioUrl error:", e);
+    return "";
+  }
+}
+window.getRemoteAudioUrl = getRemoteAudioUrl;
+
+function speakLocalFallback(text, tutorName){
   return new Promise(resolve => {
+    try {
+      if(!("speechSynthesis" in window) || !text){
+        updateAvatarSpeaking(false);
+        resolve();
+        return;
+      }
+      try { window.speechSynthesis.cancel(); } catch(x){}
+
+      const clean = (typeof cleanTextForSpeech === "function") ? cleanTextForSpeech(text) : text.trim();
+      if(!clean){
+        updateAvatarSpeaking(false);
+        resolve();
+        return;
+      }
+
+      const activeTutor = (typeof getActiveTutor === "function") ? getActiveTutor() : { id: tutorName || 'yasmine', gender: 'female' };
+      const isFemale = (activeTutor.gender === 'female' || activeTutor.id === 'yasmine');
+      const tutorPitch = isFemale ? 1.2 : 0.85;
+
+      const isArabic = /[\u0600-\u06FF]/.test(clean);
+      const targetLang = isArabic ? 'ar-SA' : ((typeof S !== 'undefined' && S.lang === 'en') ? 'en-GB' : ((typeof S !== 'undefined' && S.lang === 'nl') ? 'nl-NL' : 'fr-FR'));
+
+      const u = new SpeechSynthesisUtterance(clean);
+      u.lang = targetLang;
+      u.rate = isArabic ? 0.88 : 0.95;
+      u.pitch = tutorPitch;
+
+      if(typeof getTutorVoice === "function"){
+        try {
+          const v = getTutorVoice(isArabic ? 'ar' : (typeof S !== 'undefined' ? S.lang : 'fr'), isFemale ? 'female' : 'male', activeTutor.id);
+          if(v) u.voice = v;
+        } catch(x){}
+      }
+
+      let done = false;
+      const fin = () => {
+        if(done) return;
+        done = true;
+        updateAvatarSpeaking(false);
+        resolve();
+      };
+
+      u.onend = fin;
+      u.onerror = fin;
+
+      updateAvatarSpeaking(true);
+      window.speechSynthesis.speak(u);
+      setTimeout(fin, Math.max(3000, 3000 + clean.length * 90));
+    } catch(err){
+      console.error("speakLocalFallback error:", err);
+      updateAvatarSpeaking(false);
+      resolve();
+    }
+  });
+}
+window.speakLocalFallback = speakLocalFallback;
+
+async function playTutorAudio(text, tutorName){
+  try {
     stopSpeak();
-    if (!rawText) { resolve(); return; }
+    if(!text || typeof text !== "string"){
+      updateAvatarSpeaking(false);
+      return;
+    }
+    const clean = (typeof cleanTextForSpeech === "function") ? cleanTextForSpeech(text) : text.trim();
+    if(!clean){
+      updateAvatarSpeaking(false);
+      return;
+    }
+
+    // Tentative de lecture distante
+    const audioUrl = getRemoteAudioUrl(clean, tutorName);
+    if(!audioUrl) throw new Error("URL audio cloud non disponible");
+
+    await new Promise((resolve, reject) => {
+      let settled = false;
+      const audio = new Audio(audioUrl);
+      currentTutorAudio = audio;
+
+      const activeTutor = (typeof getActiveTutor === "function") ? getActiveTutor() : { id: tutorName || 'yasmine', gender: 'female' };
+      const isFemale = (activeTutor.gender === 'female' || activeTutor.id === 'yasmine');
+      try {
+        audio.preservesPitch = false;
+        audio.playbackRate = isFemale ? 1.12 : 0.88;
+      } catch(e){}
+
+      audio.onplay = () => updateAvatarSpeaking(true);
+      audio.onended = () => {
+        if(settled) return;
+        settled = true;
+        updateAvatarSpeaking(false);
+        currentTutorAudio = null;
+        resolve();
+      };
+      audio.onerror = (err) => {
+        if(settled) return;
+        settled = true;
+        currentTutorAudio = null;
+        reject(err || new Error("Erreur audio distante"));
+      };
+
+      const playPromise = audio.play();
+      if(playPromise !== undefined){
+        playPromise.catch(err => {
+          if(settled) return;
+          settled = true;
+          currentTutorAudio = null;
+          reject(err);
+        });
+      }
+    });
+  } catch (err) {
+    console.warn("Échec lecture cloud, fallback local:", err);
+    // Fallback local non bloquant
+    await speakLocalFallback(text, tutorName);
+  }
+}
+window.playTutorAudio = playTutorAudio;
+
+async function speakBilingualText(rawText){
+  try {
+    stopSpeak();
+    if(!rawText) return;
 
     const textToRead = cleanTextForSpeech(rawText);
-    if (!textToRead) { resolve(); return; }
+    if(!textToRead) return;
 
-    // 2. Découper le texte en segments selon l'alphabet (Arabe vs Français/Latin)
+    // Découper le texte en segments selon l'alphabet (Arabe vs Français/Latin)
     const segments = [];
     const regex = /([\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\s\.\,\!\؟]+)|([^\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]+)/g;
     let match;
 
     while ((match = regex.exec(textToRead)) !== null) {
       const part = cleanTextForSpeech(match[0]);
-      if (!part) continue;
+      if(!part) continue;
       const isArabic = /[\u0600-\u06FF]/.test(part);
       segments.push({ text: part, lang: isArabic ? 'ar' : 'fr' });
     }
 
-    if (segments.length === 0) { resolve(); return; }
+    if(segments.length === 0) return;
 
-    // 3. Attribution réelle des voix Cloud : Yasmine = Féminine (Salma / pitch clair), Tariq = Masculin (Shakir / pitch posé)
-    const activeTutor = getActiveTutor();
-    const isFemale = (activeTutor.gender === 'female' || activeTutor.id === 'yasmine');
+    const activeTutor = (typeof getActiveTutor === "function") ? getActiveTutor() : { id: 'yasmine' };
+    const tutorId = activeTutor ? activeTutor.id : 'yasmine';
 
-    let index = 0;
-    let done = false;
+    updateAvatarSpeaking(true);
 
-    function finish() {
-      if (done) return;
-      done = true;
-      currentTutorAudio = null;
-      S.speaking = false;
-      setStatus();
-      document.querySelector('.prof-avatar')?.classList.remove('speaking');
-      document.getElementById('avatarWrap')?.classList.remove('state-speaking');
-      resolve();
-    }
-
-    function playNext() {
-      if (done) return;
-      if (index >= segments.length) {
-        finish();
-        return;
+    for (const seg of segments) {
+      if(typeof S !== "undefined" && !S.speaking && currentTutorAudio === null && (!window.speechSynthesis || !window.speechSynthesis.speaking)){
+        break;
       }
-
-      const current = segments[index];
-      const encoded = encodeURIComponent(current.text);
-      
-      // Flux audio Cloud distant (MP3 sans dépendance au téléphone client)
-      // Voix arabe authentique pour l'arabe, voix métropolitaine pour le français
-      const cloudAudioUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encoded}&tl=${current.lang}&client=tw-ob`;
-
-      let audio;
-      try {
-        audio = new Audio(cloudAudioUrl);
-      } catch(err) {
-        index++;
-        playNext();
-        return;
-      }
-
-      currentTutorAudio = audio;
-
-      // Différenciation de timbre Cloud : Yasmine (voix plus claire / Salma) vs Tariq (voix plus grave / Shakir)
-      try {
-        audio.preservesPitch = false;
-        audio.playbackRate = isFemale ? 1.12 : 0.88;
-      } catch(e){}
-
-      audio.onplay = () => {
-        S.speaking = true;
-        setStatus();
-        document.querySelector('.prof-avatar')?.classList.add('speaking');
-        document.getElementById('avatarWrap')?.classList.add('state-speaking');
-      };
-
-      audio.onended = () => {
-        index++;
-        playNext();
-      };
-
-      audio.onerror = () => {
-        // En cas de coupure réseau inopinée, repli local discret
-        try {
-          const u = new SpeechSynthesisUtterance(current.text);
-          u.lang = current.lang === 'ar' ? 'ar-SA' : 'fr-FR';
-          u.pitch = isFemale ? 1.2 : 0.85;
-          u.onend = () => { index++; playNext(); };
-          u.onerror = () => { index++; playNext(); };
-          window.speechSynthesis.speak(u);
-        } catch(x) {
-          index++;
-          playNext();
-        }
-      };
-
-      audio.play().catch(() => {
-        // En cas de blocage autoplay navigateur
-        try {
-          const u = new SpeechSynthesisUtterance(current.text);
-          u.lang = current.lang === 'ar' ? 'ar-SA' : 'fr-FR';
-          u.pitch = isFemale ? 1.2 : 0.85;
-          u.onend = () => { index++; playNext(); };
-          u.onerror = () => { index++; playNext(); };
-          window.speechSynthesis.speak(u);
-        } catch(x) {
-          index++;
-          playNext();
-        }
-      });
+      await playTutorAudio(seg.text, seg.lang === 'ar' ? 'ar' : tutorId);
     }
-
-    // Démarrer la lecture Cloud et animer le médaillon
-    S.speaking = true;
-    setStatus();
-    document.querySelector('.prof-avatar')?.classList.add('speaking');
-    document.getElementById('avatarWrap')?.classList.add('state-speaking');
-    playNext();
-  });
+  } catch(err){
+    console.error("speakBilingualText error:", err);
+    try {
+      await speakLocalFallback(rawText);
+    } catch(e){}
+  } finally {
+    updateAvatarSpeaking(false);
+  }
 }
+window.speakBilingualText = speakBilingualText;
+
+function speakText(text, tutorName){
+  try {
+    return playTutorAudio(text, tutorName);
+  } catch(e){
+    console.error("speakText error:", e);
+    return speakLocalFallback(text, tutorName);
+  }
+}
+window.speakText = speakText;
 
 function speak(text, rate, forceLang){
-  return speakBilingualText(text);
+  try {
+    return speakBilingualText(text);
+  } catch(e){
+    console.error("speak error:", e);
+    return speakLocalFallback(text);
+  }
 }
+window.speak = speak;
 
 /* ---------- micro (entrée) ---------- */
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
@@ -3723,181 +4124,135 @@ if($("#courseBtn")) $("#courseBtn").onclick = ()=>{
   start({id:"course",t:"Pratique du cours",p:"Pratique d'un cours : l'apprenant vient d'étudier « "+v+" ». Fais-lui employer ce vocabulaire et ces tournures dans une petite situation concrète, sans réciter de liste."});
 };
 
-load();
-if("speechSynthesis" in window){try{speechSynthesis.onvoiceschanged=refreshVoices}catch(e){}refreshVoices()}
-if(!SR||navigator.brave){if(navigator.brave)$("#srNote").textContent="Brave bloque la reconnaissance vocale de Google : le micro ne fonctionnera pas ici. Ouvrez le fichier dans Chrome (ou Edge sur ordinateur). L'écrit et la lecture à voix haute marchent quand même.";$("#srNote").hidden=false}
-if(!SR||navigator.brave){
-  S.mode="write";
-  document.querySelectorAll("#modeSeg button").forEach(x=>x.setAttribute("aria-pressed",x.dataset.mode==="write"?"true":"false"));
-}
-if(location.hash==="#alpha"){
-  S.lang="ar";
-  document.querySelectorAll("#langSeg button").forEach(x=>x.setAttribute("aria-pressed",x.dataset.lang==="ar"?"true":"false"));
-}
-syncUI();
+try {
+  load();
+} catch(e){ console.error("load error:", e); }
+
+try {
+  if("speechSynthesis" in window){
+    speechSynthesis.onvoiceschanged = () => {
+      try {
+        if(typeof refreshVoices === "function") refreshVoices();
+        if(typeof populateTutorVoices === "function") populateTutorVoices();
+      } catch(x){ console.error(x); }
+    };
+    if(typeof refreshVoices === "function") refreshVoices();
+  }
+} catch(e){ console.error("speechSynthesis init error:", e); }
+
+try {
+  if(!SR||navigator.brave){
+    if(navigator.brave && $("#srNote")){
+      $("#srNote").textContent="Brave bloque la reconnaissance vocale de Google : le micro ne fonctionnera pas ici. Ouvrez le fichier dans Chrome (ou Edge sur ordinateur). L'écrit et la lecture à voix haute marchent quand même.";
+      $("#srNote").hidden=false;
+    }
+  }
+  if(!SR||navigator.brave){
+    S.mode="write";
+    document.querySelectorAll("#modeSeg button").forEach(x=>x.setAttribute("aria-pressed",x.dataset.mode==="write"?"true":"false"));
+  }
+  if(location.hash==="#alpha"){
+    S.lang="ar";
+    document.querySelectorAll("#langSeg button").forEach(x=>x.setAttribute("aria-pressed",x.dataset.lang==="ar"?"true":"false"));
+  }
+  syncUI();
+} catch(e){ console.error("syncUI error:", e); }
+
 // Initialisation du theme visuel
 try{
   const savedTheme=localStorage.getItem("parlons.theme")||"studio";
   applyTheme(savedTheme);
-}catch(e){}
+}catch(e){ console.error("applyTheme error:", e); }
 
-const tsm=$("#themeSelModal");if(tsm)tsm.addEventListener("change",e=>applyTheme(e.target.value));
-const ob=$("#cfgOpenBtn");if(ob)ob.addEventListener("click",()=>openSettings());
-const cb=$("#cfgCloseBtn");if(cb)cb.addEventListener("click",()=>closeSettings());
-const cm=$("#cfgModal");if(cm)cm.addEventListener("click",e=>{if(e.target===cm)closeSettings()});
-const chatCfgBtn=$("#chatCfgBtn");if(chatCfgBtn)chatCfgBtn.addEventListener("click",()=>openSettings());
+try {
+  const tsm=$("#themeSelModal");if(tsm)tsm.addEventListener("change",e=>applyTheme(e.target.value));
+  const ob=$("#cfgOpenBtn");if(ob)ob.addEventListener("click",()=>openSettings());
+  const cb=$("#cfgCloseBtn");if(cb)cb.addEventListener("click",()=>closeSettings());
+  const cm=$("#cfgModal");if(cm)cm.addEventListener("click",e=>{if(e.target===cm)closeSettings()});
+  const chatCfgBtn=$("#chatCfgBtn");if(chatCfgBtn)chatCfgBtn.addEventListener("click",()=>openSettings());
+} catch(e){ console.error("Settings buttons error:", e); }
 
 // Bouton Clavier escamotable dans le chat
-const kBtn=$("#keyboardToggleBtn");
-if(kBtn){
-  kBtn.addEventListener("click",()=>{
-    const d=$("#composerDrawer");
-    if(!d)return;
-    d.hidden=!d.hidden;
-    if(!d.hidden){
-      const inp=$("#input");
-      if(inp)inp.focus();
-    }
-  });
-}
+try {
+  const kBtn=$("#keyboardToggleBtn");
+  if(kBtn){
+    kBtn.addEventListener("click",()=>{
+      const d=$("#composerDrawer");
+      if(!d)return;
+      d.hidden=!d.hidden;
+      if(!d.hidden){
+        const inp=$("#input");
+        if(inp)inp.focus();
+      }
+    });
+  }
+} catch(e){ console.error(e); }
 
 // Bouton Ampoule (Suggestion / Aide)
-const hintBtn=$("#hintBtn");
-if(hintBtn){
-  hintBtn.addEventListener("click",()=>{
-    const isTutor=(S.scn&&S.scn.id==="tutor");
-    const inp=$("#input");
-    const drawer=$("#composerDrawer");
-    if(isTutor){
-      const suggestions=S.lang==="ar"
-        ?[
-          "Comment dit-on « enchanté de faire votre connaissance » en arabe ?",
-          "Peux-tu m'expliquer la différence entre la fat-ha et la kasra ?",
-          "Comment exprimer « où se trouve la gare ? » avec le Tashkeel complet ?",
-          "Donne-moi 3 expressions utiles du quotidien avec leur phonétique et traduction."
-        ]
-        :(S.lang==="en"
-          ?["How do I politely order food?","What is the difference between 'make' and 'do'?","Can you teach me 3 common idioms?"]
-          :["Hoe vraag ik de weg in het Nederlands?","Wat betekent deze uitdrukking?","Kun je me 3 handige zinnen leren?"]);
-      const chosen=suggestions[Math.floor(Math.random()*suggestions.length)];
-      if(inp){
-        inp.value=chosen;
-        if(drawer)drawer.hidden=false;
-        inp.focus();
-      }
-      flash("\uD83D\uDCA1 Suggestion prête : « "+chosen.slice(0,35)+"… »");
-    }else{
-      if(S.targets&&S.targets.length){
-        const remaining=S.targets.filter(t=>!(S.used||[]).includes(t));
-        const hintText=remaining.length?remaining[0]:S.targets[0];
-        flash("\uD83D\uDCA1 Expression recommandée : « "+hintText+" »");
+try {
+  const hintBtn=$("#hintBtn");
+  if(hintBtn){
+    hintBtn.addEventListener("click",()=>{
+      const isTutor=(S.scn&&S.scn.id==="tutor");
+      const inp=$("#input");
+      const drawer=$("#composerDrawer");
+      if(isTutor){
+        const suggestions=S.lang==="ar"
+          ?[
+            "Comment dit-on « enchanté de faire votre connaissance » en arabe ?",
+            "Peux-tu m'expliquer la différence entre la fat-ha et la kasra ?",
+            "Comment exprimer « où se trouve la gare ? » avec le Tashkeel complet ?",
+            "Donne-moi 3 expressions utiles du quotidien avec leur phonétique et traduction."
+          ]
+          :(S.lang==="en"
+            ?["How do I politely order food?","What is the difference between 'make' and 'do'?","Can you teach me 3 common idioms?"]
+            :["Hoe vraag ik de weg in het Nederlands?","Wat betekent deze uitdrukking?","Kun je me 3 handige zinnen leren?"]);
+        const chosen=suggestions[Math.floor(Math.random()*suggestions.length)];
         if(inp){
-          inp.value=hintText;
+          inp.value=chosen;
           if(drawer)drawer.hidden=false;
+          inp.focus();
         }
+        flash("\uD83D\uDCA1 Suggestion prête : « "+chosen.slice(0,35)+"… »");
       }else{
-        flash("\uD83D\uDCA1 Répondez spontanément au professeur ou posez une question.");
+        if(S.targets&&S.targets.length){
+          const remaining=S.targets.filter(t=>!(S.used||[]).includes(t));
+          const hintText=remaining.length?remaining[0]:S.targets[0];
+          flash("\uD83D\uDCA1 Expression recommandée : « "+hintText+" »");
+          if(inp){
+            inp.value=hintText;
+            if(drawer)drawer.hidden=false;
+          }
+        }else{
+          flash("\uD83D\uDCA1 Répondez spontanément au professeur ou posez une question.");
+        }
       }
-    }
-  });
-}
-
-// Navigation entre onglets avec gestion stricte d'affichage et prevention des conflits d'evenements
-function switchMainTab(tabName){
-  if(tabName === "tutor"){
-    startTutor();
-    return;
-  }
-  show("home");
-
-  document.querySelectorAll(".bnav-btn, .nav-tab, .nav-item").forEach(tab => {
-    const active = (tab.dataset.tab === tabName);
-    tab.classList.toggle("active", active);
-    tab.setAttribute("aria-selected", active ? "true" : "false");
-  });
-
-  const tabMap = {
-    lessons: $("#tabLessonsView"),
-    roleplay: $("#tabRoleplayView"),
-    profile: $("#tabProfileView")
-  };
-
-  Object.keys(tabMap).forEach(key => {
-    const elem = tabMap[key];
-    if(!elem) return;
-    const isTarget = (key === tabName);
-    elem.hidden = !isTarget;
-    elem.style.display = isTarget ? "flex" : "none";
-    elem.style.pointerEvents = isTarget ? "auto" : "none";
-  });
-
-  const bNav = $("#bottomNav");
-  if(bNav){
-    bNav.hidden = false;
-    bNav.style.display = "flex";
-    bNav.style.pointerEvents = "auto";
-  }
-}
-
-// Bloc d'initialisation securise et prioritaire
-function bindCoreNavigation(){
-  try{
-    // Bouton conversation informelle / start
-    const startBtn = document.querySelector('.btn-primary') || document.getElementById('startConversationBtn') || document.getElementById('informalBtn');
-    if (startBtn) {
-      startBtn.onclick = (e) => {
-        e.preventDefault();
-        startTutor();
-      };
-    }
-
-    // 4 onglets de navigation inferieure
-    document.querySelectorAll('.nav-item, .nav-tab, .bnav-btn').forEach(btn => {
-      btn.onclick = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        const targetId = btn.getAttribute('data-tab');
-        if (typeof switchMainTab === "function") switchMainTab(targetId);
-      };
     });
-
-    // Bouton quitter conversation
-    const backBtn = document.getElementById('backBtn');
-    if (backBtn) {
-      backBtn.onclick = (e) => {
-        e.preventDefault();
-        if (typeof leaveSession === "function") leaveSession();
-        if (typeof switchMainTab === "function") switchMainTab("lessons");
-      };
-    }
-  }catch(err){
-    console.warn("bindCoreNavigation warning:", err);
   }
-}
+} catch(e){ console.error(e); }
 
 function initApp(){
-  console.log('App initialisée');
-  bindCoreNavigation();
-
-  // Premier affichage selon cle API
-  try{
+  try {
+    bindCoreNavigation();
     if(!curKey()){
       switchMainTab("profile");
     } else {
       switchMainTab("lessons");
     }
-  }catch(err){
+  } catch(err){
+    console.error("initApp error:", err);
     switchMainTab("lessons");
   }
 }
 
-// Attacher immediatement ET au DOMContentLoaded
-bindCoreNavigation();
-if(document.readyState === 'loading'){
-  window.addEventListener('DOMContentLoaded', initApp);
-} else {
-  initApp();
-}/* ---------- gestion PWA & hors-ligne ---------- */
+try {
+  bindCoreNavigation();
+  if(document.readyState === 'loading'){
+    window.addEventListener('DOMContentLoaded', initApp);
+  } else {
+    initApp();
+  }
+} catch(e){ console.error(e); }/* ---------- gestion PWA & hors-ligne ---------- */
 let deferredInstallPrompt=null;
 window.addEventListener("beforeinstallprompt",e=>{
   e.preventDefault();
