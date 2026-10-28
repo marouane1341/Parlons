@@ -1033,13 +1033,13 @@ audio,
         <p class="small" id="keyDetectNote" style="color:var(--good);font-weight:600;display:none;margin-top:4px"></p>
 
         <label class="label" for="mChat">Mod&egrave;le de conversation (rapide)</label>
-        <input class="field" id="mChat" type="text" autocomplete="off" list="modelList" value="gemini-1.5-flash">
+        <input class="field" id="mChat" type="text" autocomplete="off" list="modelList" value="gemini-3.5-flash-lite">
         <label class="label" for="mHeavy">Mod&egrave;le pour le bilan &amp; l'arabe</label>
-        <input class="field" id="mHeavy" type="text" autocomplete="off" list="modelList" value="gemini-1.5-flash">
+        <input class="field" id="mHeavy" type="text" autocomplete="off" list="modelList" value="gemini-3.5-flash-lite">
         <datalist id="modelList">
-          <option value="gemini-1.5-flash">
-          <option value="gemini-2.0-flash">
+          <option value="gemini-3.5-flash-lite">
           <option value="gemini-2.5-flash">
+          <option value="gemini-2.0-flash">
           <option value="gemini-1.5-pro">
           <option value="llama-3.3-70b-versatile">
           <option value="claude-haiku-5-5">
@@ -1762,8 +1762,10 @@ async function sendToGemini(userMessage) {
       : "Tu es Tariq, professeur d'arabe pragmatique et dynamique. Réponds de façon vivante et concrète, principalement en arabe parlé."
   );
 
-  // 2. Appel direct et universel à Gemini 1.5 Flash
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+  // 2. Appel direct et dynamique à Gemini
+  const storedModel = localStorage.getItem('gemini_chat_model') || 'gemini-3.5-flash-lite';
+  const modelName = storedModel.replace(/^models\//, '').trim() || 'gemini-3.5-flash-lite';
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
 
   const payload = {
     contents: [
@@ -2418,7 +2420,7 @@ const LANGS={
 
 /* ---------- fournisseurs d'IA ---------- */
 const PROVIDERS={
-  gemini:{name:"Google Gemini",chat:"gemini-1.5-flash",heavy:"gemini-1.5-flash",keyUrl:"aistudio.google.com/apikey",
+  gemini:{name:"Google Gemini",chat:"gemini-3.5-flash-lite",heavy:"gemini-3.5-flash-lite",keyUrl:"aistudio.google.com/apikey",
     note:"Palier gratuit sans carte bancaire, modèles ultra-rapides et récents."},
   groq:{name:"Groq",chat:"llama-3.3-70b-versatile",heavy:"llama-3.3-70b-versatile",base:"https://api.groq.com/openai/v1",keyUrl:"console.groq.com/keys",
     note:"Réponses quasi-instantanées, idéal pour la conversation orale."},
@@ -3682,8 +3684,9 @@ function fillCfg(){
   if($("#provNote"))$("#provNote").textContent=d.note+" Clé à créer sur "+d.keyUrl+". En cas de doute, utilisez « Voir les modèles disponibles ».";
   const apik=$("#apikey") || document.getElementById("apiKeyInput");
   if(apik) apik.value=curKey();
-  if($("#mChat"))$("#mChat").value=m.chat;
-  if($("#mHeavy"))$("#mHeavy").value=m.heavy;
+  const storedChatModel = localStorage.getItem('gemini_chat_model');
+  if($("#mChat"))$("#mChat").value = (p === "gemini" && storedChatModel) ? storedChatModel : (m.chat || "gemini-3.5-flash-lite");
+  if($("#mHeavy"))$("#mHeavy").value = m.heavy || "gemini-3.5-flash-lite";
   updateKeyDetectNote();
 }
 function updateKeyDetectNote(){
@@ -3733,6 +3736,7 @@ function readCfg(){
   if($("#mChat")&&$("#mChat").value!==cleanC) $("#mChat").value=cleanC;
   if($("#mHeavy")&&$("#mHeavy").value!==cleanH) $("#mHeavy").value=cleanH;
   S.cfg.models[p]={chat:cleanC,heavy:cleanH};
+  if(p==="gemini"){ try{ localStorage.setItem('gemini_chat_model', cleanC); }catch(e){} }
   save();
 }
 function applyTheme(name){
