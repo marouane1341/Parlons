@@ -267,6 +267,8 @@ ul.clean{margin:0;padding-inline-start:18px;display:flex;flex-direction:column;g
 [hidden],
 [hidden] *,
 #chat[hidden],
+[hidden],
+.hidden,
 #chat.chat-immersive[hidden],
 section[hidden],
 main[hidden],
@@ -275,6 +277,8 @@ div[hidden],
 .tab-content[hidden],
 .modal-backdrop[hidden],
 .modal-backdrop:not(.active),
+.overlay:not(.active),
+.loader:not(.active),
 .composer-drawer[hidden],
 #composerDrawer[hidden],
 .status:empty,
@@ -878,10 +882,10 @@ audio,
         
         <div class="tutor-cards-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px">
           <!-- Carte Yasmine -->
-          <div class="tutor-card active" data-tutor="yasmine" id="tutorCardYasmine" onclick="selectTutor('yasmine')">
+          <div class="tutor-card active" data-tutor="yasmine" id="tutorCardYasmine">
             <div class="row spread" style="align-items:center">
               <div class="tutor-avatar-icon" style="width:48px;height:48px;border-radius:50%;padding:2px;background:linear-gradient(135deg, #FEF3C7 0%, #F59E0B 100%);box-shadow:0 3px 10px rgba(245,158,11,0.25);flex-shrink:0;">
-                <img src="https://images.unsplash.com/photo-1567532939604-b6b5b0db2604?auto=format&fit=crop&w=500&q=80" onerror="this.onerror=null;this.src='assets/yasmine.png';" alt="Yasmine" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block;">
+                <img src="assets/yasmine.png" onerror="this.onerror=null;this.src='yasmine.png';" alt="Yasmine" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block;">
               </div>
               <span class="badge" style="font-size:10px;background:#fef3c7;color:#b45309">Douce</span>
             </div>
@@ -895,16 +899,16 @@ audio,
               <select id="voiceYasmine" class="field" style="display:none"></select>
             </div>
             <div class="row" style="margin-top:auto;gap:6px">
-              <button class="mini ghost" type="button" onclick="testTutorVoice('yasmine',event)" style="font-size:11px;padding:3px 8px">&#128266; Tester</button>
-              <button class="btn sm tutor-select-btn" type="button" style="flex:1;font-size:11px;padding:4px 8px">&check; S&eacute;lectionn&eacute;e</button>
+              <button class="mini ghost" type="button" data-test-voice="yasmine" style="font-size:11px;padding:3px 8px">&#128266; Tester</button>
+              <button class="btn sm tutor-select-btn" id="selectYasmineBtn" data-select-tutor="yasmine" type="button" style="flex:1;font-size:11px;padding:4px 8px">&check; S&eacute;lectionn&eacute;e</button>
             </div>
           </div>
 
           <!-- Carte Tariq -->
-          <div class="tutor-card" data-tutor="tariq" id="tutorCardTariq" onclick="selectTutor('tariq')">
+          <div class="tutor-card" data-tutor="tariq" id="tutorCardTariq">
             <div class="row spread" style="align-items:center">
               <div class="tutor-avatar-icon" style="width:48px;height:48px;border-radius:50%;padding:2px;background:linear-gradient(135deg, #DBEAFE 0%, #2563EB 100%);box-shadow:0 3px 10px rgba(37,99,235,0.25);flex-shrink:0;">
-                <img src="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=500&q=80" onerror="this.onerror=null;this.src='assets/tariq.png';" alt="Tariq" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block;">
+                <img src="assets/tariq.png" onerror="this.onerror=null;this.src='tariq.png';" alt="Tariq" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block;">
               </div>
               <span class="badge" style="font-size:10px;background:#dbeafe;color:#1e40af">Dynamique</span>
             </div>
@@ -918,8 +922,8 @@ audio,
               <select id="voiceTariq" class="field" style="display:none"></select>
             </div>
             <div class="row" style="margin-top:auto;gap:6px">
-              <button class="mini ghost" type="button" onclick="testTutorVoice('tariq',event)" style="font-size:11px;padding:3px 8px">&#128266; Tester</button>
-              <button class="btn sm ghost tutor-select-btn" type="button" style="flex:1;font-size:11px;padding:4px 8px">S&eacute;lectionner</button>
+              <button class="mini ghost" type="button" data-test-voice="tariq" style="font-size:11px;padding:3px 8px">&#128266; Tester</button>
+              <button class="btn sm ghost tutor-select-btn" id="selectTariqBtn" data-select-tutor="tariq" type="button" style="flex:1;font-size:11px;padding:4px 8px">S&eacute;lectionner</button>
             </div>
           </div>
         </div>
@@ -1046,7 +1050,7 @@ audio,
       <div id="avatarWrap" class="avatar-container prof-avatar state-neutral" aria-label="Portrait du professeur">
         <div class="avatar-ripple"></div>
         <div class="seal-medallion large-seal" id="sealMedallion">
-          <img id="tutorAvatarImg" src="https://images.unsplash.com/photo-1567532939604-b6b5b0db2604?auto=format&fit=crop&w=500&q=80" onerror="this.onerror=null;this.src='assets/yasmine.png';" alt="Avatar tuteur" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
+          <img id="tutorAvatarImg" src="assets/yasmine.png" onerror="this.onerror=null;this.src='yasmine.png';" alt="Avatar tuteur" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
         </div>
         <div class="avatar-status-pill">
           <span class="avatar-dot"></span>
@@ -1240,6 +1244,170 @@ function switchMainTab(tabName){
 window.switchMainTab = switchMainTab;
 window.switchTab = switchMainTab;
 window.openTutorView = function(){ if(typeof startTutor === "function") startTutor(); };
+
+function setActiveTutor(tid){
+  try {
+    if(typeof window.selectTutor === "function" && window.selectTutor !== setActiveTutor){
+      window.selectTutor(tid);
+    } else {
+      if(typeof TUTORS !== "undefined" && !TUTORS[tid]) tid = "yasmine";
+      try { localStorage.setItem("parlons.tutor", tid); } catch(e){}
+      if(typeof renderTutorSelection === "function") renderTutorSelection();
+      if(typeof updateAvatar === "function") updateAvatar();
+      const t = (typeof TUTORS !== "undefined" && TUTORS[tid]) ? TUTORS[tid] : {id:tid,name:tid==="tariq"?"Tariq":"Yasmine",title:""};
+      if(typeof flash === "function") flash("Professeur actif : " + t.name + (t.title ? " (" + t.title + ")" : ""));
+    }
+  } catch(e) {
+    console.warn("setActiveTutor error:", e);
+  }
+}
+window.setActiveTutor = setActiveTutor;
+
+// =========================================================================
+// ⚠️ 1. DÉBLOCAGE IMMÉDIAT DE TOUS LES BOUTONS (DÉLÉGATION D'ÉVÉNEMENTS GLOBALE)
+// =========================================================================
+document.addEventListener('click', function(e) {
+  try {
+    // 1. Bouton Sélectionner Tariq
+    const selectTariqBtn = e.target.closest('#selectTariqBtn, [data-select-tutor="tariq"]');
+    if (selectTariqBtn) {
+      e.preventDefault();
+      setActiveTutor('tariq');
+      return;
+    }
+
+    // 2. Bouton Sélectionner Yasmine
+    const selectYasmineBtn = e.target.closest('#selectYasmineBtn, [data-select-tutor="yasmine"]');
+    if (selectYasmineBtn) {
+      e.preventDefault();
+      setActiveTutor('yasmine');
+      return;
+    }
+
+    // 3. Navigation par onglets (Leçons, Rôles, Tuteur, Profil)
+    const tabBtn = e.target.closest('[data-tab], .nav-item, .nav-btn, .bnav-btn, .nav-tab');
+    if (tabBtn) {
+      e.preventDefault();
+      const tabId = tabBtn.getAttribute('data-tab') || tabBtn.dataset.tab;
+      if (tabId && typeof switchTab === 'function') {
+        switchTab(tabId);
+      }
+      return;
+    }
+
+    // 4. Boutons Tester la voix
+    const testVoiceBtn = e.target.closest('[data-test-voice]');
+    if (testVoiceBtn) {
+      e.preventDefault();
+      const tutor = testVoiceBtn.getAttribute('data-test-voice');
+      if (typeof testTutorVoice === 'function') {
+        testTutorVoice(tutor);
+      }
+      return;
+    }
+
+    // 5. Clic sur la carte tuteur directement
+    const tutorCard = e.target.closest('.tutor-card[data-tutor]');
+    if (tutorCard && !e.target.closest('[data-test-voice]')) {
+      e.preventDefault();
+      const tid = tutorCard.getAttribute('data-tutor') || tutorCard.dataset.tutor;
+      if (tid) setActiveTutor(tid);
+      return;
+    }
+
+    // 6. Bouton Retour / Fermeture ✕ (quitter conversation)
+    const backBtn = e.target.closest('#backBtn, [data-action="back"]');
+    if (backBtn) {
+      e.preventDefault();
+      if (typeof leaveSession === 'function') leaveSession();
+      if (typeof switchTab === 'function') switchTab('lessons');
+      return;
+    }
+
+    // 7. Bouton Fermer réglages
+    const cfgCloseBtn = e.target.closest('#cfgCloseBtn');
+    if (cfgCloseBtn) {
+      e.preventDefault();
+      if (typeof closeSettings === 'function') closeSettings();
+      else if (typeof switchTab === 'function') switchTab('lessons');
+      return;
+    }
+
+    // 8. Bouton Ouvrir réglages
+    const cfgOpenBtn = e.target.closest('#chatCfgBtn, #cfgOpenBtn');
+    if (cfgOpenBtn) {
+      e.preventDefault();
+      if (typeof openSettings === 'function') openSettings();
+      else if (typeof switchTab === 'function') switchTab('profile');
+      return;
+    }
+
+    // 9. Démarrage conversation / Tuteur libre
+    const startBtn = e.target.closest('#informalBtn, #startConversationBtn, #resumeBtn, #tutorBtn');
+    if (startBtn) {
+      e.preventDefault();
+      if (typeof startTutor === 'function') startTutor();
+      else if (typeof switchTab === 'function') switchTab('lessons');
+      return;
+    }
+
+    // 10. Bouton Micro
+    const micBtn = e.target.closest('#micBtn');
+    if (micBtn) {
+      e.preventDefault();
+      if (typeof micTap === 'function') micTap();
+      return;
+    }
+
+    // 11. Bouton Clavier drawer
+    const kbBtn = e.target.closest('#keyboardToggleBtn');
+    if (kbBtn) {
+      e.preventDefault();
+      const drawer = document.getElementById('composerDrawer');
+      if (drawer) {
+        drawer.hidden = !drawer.hidden;
+        if (!drawer.hidden) {
+          const inp = document.getElementById('input');
+          if (inp) inp.focus();
+        }
+      }
+      return;
+    }
+
+    // 12. Bouton Hint / Suggestion
+    const hintBtn = e.target.closest('#hintBtn');
+    if (hintBtn) {
+      e.preventDefault();
+      if (typeof handleHintClick === 'function') {
+        handleHintClick();
+      } else {
+        const isTutor = (typeof S !== "undefined" && S.scn && S.scn.id === "tutor");
+        const inp = document.getElementById("input");
+        const drawer = document.getElementById("composerDrawer");
+        if (isTutor) {
+          const suggestions = (typeof S !== "undefined" && S.lang === "ar")
+            ? ["Comment dit-on « enchanté de faire votre connaissance » en arabe ?", "Peux-tu m'expliquer la différence entre la fat-ha et la kasra ?", "Comment exprimer « où se trouve la gare ? » avec le Tashkeel complet ?"]
+            : ["How do I politely order food?", "What is the difference between 'make' and 'do'?"];
+          const chosen = suggestions[Math.floor(Math.random() * suggestions.length)];
+          if (inp) { inp.value = chosen; if (drawer) drawer.hidden = false; inp.focus(); }
+          if (typeof flash === "function") flash("💡 Suggestion prête : « " + chosen.slice(0, 35) + "… »");
+        }
+      }
+      return;
+    }
+
+    // 13. Bouton Envoi
+    const sendBtn = e.target.closest('#sendBtn');
+    if (sendBtn) {
+      e.preventDefault();
+      if (typeof handleSend === 'function') handleSend();
+      else if (typeof send === 'function') send();
+      return;
+    }
+  } catch(err) {
+    console.error("Global document click delegation error:", err);
+  }
+});
 
 function leaveSession(){
   try {
@@ -2094,13 +2262,14 @@ function getActiveTutor(){
 }
 
 window.selectTutor = function(tid){
-  if(!TUTORS[tid]) tid = "yasmine";
+  if(typeof TUTORS !== "undefined" && !TUTORS[tid]) tid = "yasmine";
   try { localStorage.setItem("parlons.tutor", tid); } catch(e){}
-  renderTutorSelection();
-  updateAvatar();
-  const t = TUTORS[tid];
-  flash("Professeur actif : " + t.name + " (" + t.title + ")");
+  if(typeof renderTutorSelection === "function") renderTutorSelection();
+  if(typeof updateAvatar === "function") updateAvatar();
+  const t = (typeof TUTORS !== "undefined" && TUTORS[tid]) ? TUTORS[tid] : {id:tid, name:tid==="tariq"?"Tariq":"Yasmine", title:""};
+  if(typeof flash === "function") flash("Professeur actif : " + t.name + (t.title ? " (" + t.title + ")" : ""));
 };
+window.setActiveTutor = window.selectTutor;
 
 function saveTutorVoice(tid, voiceName) {
   try {
@@ -2198,16 +2367,23 @@ const populateTutorVoiceSelects = populateTutorVoices;
 
 window.testTutorVoice = function(tid, e){
   if(e){ try{ e.preventDefault(); e.stopPropagation(); }catch(x){} }
-  window.selectTutor(tid);
-  const t = TUTORS[tid] || TUTORS.yasmine;
-  const isAr = (S.lang === "ar");
+  if(typeof window.setActiveTutor === "function") window.setActiveTutor(tid);
+  else if(typeof window.selectTutor === "function") window.selectTutor(tid);
+  const t = (typeof TUTORS !== "undefined" && TUTORS[tid]) || {id:tid, name:tid==="tariq"?"Tariq":"Yasmine"};
+  const isAr = (typeof S !== "undefined" && S.lang === "ar");
   const sample = isAr
     ? (t.id === "yasmine"
         ? "مَرْحَبًا ! Je suis Yasmine, votre professeure d'arabe. Posez-moi n'importe quelle question en arabe ou en français."
         : "مَرْحَبًا ! Je suis Tariq, votre professeur d'arabe. Parlons ensemble de situations du quotidien !")
-    : ("Bonjour ! Je suis " + t.name + ", votre tuteur en " + LANGS[S.lang].name + ". Parlons ensemble !");
-  speakBilingualText(sample);
-  flash("Voix de " + t.name + " en cours de lecture…");
+    : ("Bonjour ! Je suis " + t.name + ", votre professeur. Parlons ensemble !");
+  if(typeof playTutorAudio === "function"){
+    playTutorAudio(sample, t.id || tid);
+  } else if(typeof speakBilingualText === "function"){
+    speakBilingualText(sample);
+  } else if(typeof speak === "function"){
+    speak(sample);
+  }
+  if(typeof flash === "function") flash("Voix de " + t.name + " en cours de lecture…");
 };
 
 function renderTutorSelection(){
@@ -2656,22 +2832,22 @@ function updateAvatar(){
     const avatarImg=document.getElementById('tutorAvatarImg') || $("#tutorAvatarImg");
     const seal=$("#sealMedallion");
 
-    const photoYasmine = "https://images.unsplash.com/photo-1567532939604-b6b5b0db2604?auto=format&fit=crop&w=500&q=80";
-    const photoTariq = "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=500&q=80";
+    const photoYasmine = "assets/yasmine.png";
+    const photoTariq = "assets/tariq.png";
 
     if(avatarImg){
       const isTariq=(activeTutor.id==="tariq");
       const targetSrc=isTariq?photoTariq:photoYasmine;
-      const fallbackSrc=isTariq?"assets/tariq.png":"assets/yasmine.png";
+      const fallbackSrc=isTariq?"tariq.png":"yasmine.png";
       if(avatarImg.getAttribute("src")!==targetSrc && avatarImg.getAttribute("src")!==fallbackSrc){
         avatarImg.onerror=function(){ this.onerror=null; this.src=fallbackSrc; };
         avatarImg.src=targetSrc;
-        avatarImg.alt="Portrait de "+(activeTutor.name||"Tuteur");
-        avatarImg.style.width="100%";
-        avatarImg.style.height="100%";
-        avatarImg.style.objectFit="cover";
-        avatarImg.style.borderRadius="50%";
       }
+      avatarImg.alt="Portrait de "+(activeTutor.name||"Tuteur");
+      avatarImg.style.width="100%";
+      avatarImg.style.height="100%";
+      avatarImg.style.objectFit="cover";
+      avatarImg.style.borderRadius="50%";
     }
     if(seal){
       seal.classList.toggle("tutor-tariq",activeTutor.id==="tariq");
