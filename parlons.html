@@ -896,13 +896,13 @@ audio,
       <div class="panel" id="tutorProfileBox">
         <div class="row spread" style="align-items:center;margin-bottom:6px">
           <h2 style="font-size:18px;display:flex;align-items:center;gap:8px;margin:0">&#129489;&#8205;&#127979; Choisir votre professeur</h2>
-          <span class="chip" id="activeTutorChip" style="font-size:11px;padding:2px 8px">Yasmine active</span>
+          <span class="chip tutor-active-badge" id="activeTutorChip" style="font-size:11px;padding:2px 8px">Yasmine active</span>
         </div>
         <p class="small muted">S&eacute;lectionnez la personnalit&eacute; et la voix avec laquelle vous souhaitez pratiquer.</p>
         
         <div class="tutor-cards-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px">
           <!-- Carte Yasmine -->
-          <div class="tutor-card active" data-tutor="yasmine" id="tutorCardYasmine">
+          <div class="tutor-card card-yasmine active selected" data-tutor="yasmine" id="tutorCardYasmine">
             <div class="row spread" style="align-items:center">
               <div class="tutor-avatar-icon" style="width:48px;height:48px;border-radius:50%;padding:2px;background:linear-gradient(135deg, #FEF3C7 0%, #F59E0B 100%);box-shadow:0 3px 10px rgba(245,158,11,0.25);flex-shrink:0;">
                 <img src="assets/yasmine.png" onerror="this.onerror=null;this.src='yasmine.png';" alt="Yasmine" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block;">
@@ -920,12 +920,12 @@ audio,
             </div>
             <div class="row" style="margin-top:auto;gap:6px">
               <button class="mini ghost" type="button" data-test-voice="yasmine" onclick="testTutorVoice('yasmine')" style="font-size:11px;padding:3px 8px">&#128266; Tester</button>
-              <button class="btn sm tutor-select-btn" id="selectYasmineBtn" data-select-tutor="yasmine" onclick="selectTutor('yasmine')" type="button" style="flex:1;font-size:11px;padding:4px 8px">&check; S&eacute;lectionn&eacute;e</button>
+              <button class="btn sm tutor-select-btn" id="selectYasmineBtn" data-select-tutor="yasmine" onclick="window.selectTutor('yasmine')" type="button" style="flex:1;font-size:11px;padding:4px 8px">&check; S&eacute;lectionn&eacute;e</button>
             </div>
           </div>
 
           <!-- Carte Tariq -->
-          <div class="tutor-card" data-tutor="tariq" id="tutorCardTariq">
+          <div class="tutor-card card-tariq" data-tutor="tariq" id="tutorCardTariq">
             <div class="row spread" style="align-items:center">
               <div class="tutor-avatar-icon" style="width:48px;height:48px;border-radius:50%;padding:2px;background:linear-gradient(135deg, #DBEAFE 0%, #2563EB 100%);box-shadow:0 3px 10px rgba(37,99,235,0.25);flex-shrink:0;">
                 <img src="assets/tariq.png" onerror="this.onerror=null;this.src='tariq.png';" alt="Tariq" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block;">
@@ -943,7 +943,7 @@ audio,
             </div>
             <div class="row" style="margin-top:auto;gap:6px">
               <button class="mini ghost" type="button" data-test-voice="tariq" onclick="testTutorVoice('tariq')" style="font-size:11px;padding:3px 8px">&#128266; Tester</button>
-              <button class="btn sm ghost tutor-select-btn" id="selectTariqBtn" data-select-tutor="tariq" onclick="selectTutor('tariq')" type="button" style="flex:1;font-size:11px;padding:4px 8px">S&eacute;lectionner</button>
+              <button class="btn sm ghost tutor-select-btn" id="selectTariqBtn" data-select-tutor="tariq" onclick="window.selectTutor('tariq')" type="button" style="flex:1;font-size:11px;padding:4px 8px">S&eacute;lectionner</button>
             </div>
           </div>
         </div>
@@ -1058,7 +1058,7 @@ audio,
     <!-- 1. En-tete superieur (35% de la hauteur) -->
     <header class="chat-header-zone">
       <div class="chat-top-bar">
-        <button class="icon-circle-btn" id="backBtn" onclick="if(typeof leaveSession==='function')leaveSession();if(typeof window.switchTab==='function')window.switchTab('lessons');" aria-label="Quitter la conversation" title="Quitter">&#10005;</button>
+        <button class="icon-circle-btn" id="backBtn" onclick="window.closeConversationScreen()" aria-label="Quitter la conversation" title="Quitter">&#10005;</button>
         <div class="chat-title-wrap">
           <span id="chatTitle" class="chat-title-text">Conversation</span>
           <span class="timer-pill" id="timer" hidden></span>
@@ -1257,6 +1257,27 @@ window.switchTab = function(tabName) {
   }
 };
 window.switchMainTab = window.switchTab;
+
+window.closeConversationScreen = function() {
+  if (typeof leaveSession === 'function') {
+    try { leaveSession(); } catch(e){}
+  }
+  const chatScreen = document.getElementById('chatScreen') || 
+                     document.getElementById('conversationScreen') || 
+                     document.getElementById('chat') || 
+                     document.querySelector('.conversation-view');
+  if (chatScreen) {
+    chatScreen.style.display = 'none';
+    chatScreen.classList.remove('active');
+  }
+  // Réafficher l'onglet précédent (par exemple Profil ou Leçons)
+  if (typeof window.switchTab === 'function') {
+    window.switchTab('profile');
+  } else {
+    const profileTab = document.getElementById('profile') || document.querySelector('[data-view="profile"]');
+    if (profileTab) profileTab.style.display = 'block';
+  }
+};
 
 // 1. Initialisation de la salutation du tuteur actif
 window.initTutorGreeting = function() {
@@ -1540,8 +1561,12 @@ document.addEventListener('click', function(e) {
     const backBtn = e.target.closest('#backBtn, [data-action="back"]');
     if (backBtn) {
       e.preventDefault();
-      if (typeof leaveSession === 'function') leaveSession();
-      if (typeof switchTab === 'function') switchTab('lessons');
+      if (typeof window.closeConversationScreen === 'function') {
+        window.closeConversationScreen();
+      } else {
+        if (typeof leaveSession === 'function') leaveSession();
+        if (typeof switchTab === 'function') switchTab('profile');
+      }
       return;
     }
 
@@ -2478,17 +2503,82 @@ const TUTORS = {
 
 function getActiveTutor(){
   let tid = "yasmine";
-  try { tid = localStorage.getItem("parlons.tutor") || "yasmine"; } catch(e){}
-  return TUTORS[tid] || TUTORS.yasmine;
+  try { tid = localStorage.getItem("selected_tutor") || localStorage.getItem("parlons.tutor") || "yasmine"; } catch(e){}
+  return (typeof TUTORS !== "undefined" && TUTORS[tid]) ? TUTORS[tid] : ((typeof TUTORS !== "undefined" && TUTORS.yasmine) ? TUTORS.yasmine : {id: tid, name: tid === "tariq" ? "Tariq" : "Yasmine", title: ""});
 }
 
-window.selectTutor = function(tid){
-  if(typeof TUTORS !== "undefined" && !TUTORS[tid]) tid = "yasmine";
-  try { localStorage.setItem("parlons.tutor", tid); } catch(e){}
-  if(typeof renderTutorSelection === "function") renderTutorSelection();
-  if(typeof updateAvatar === "function") updateAvatar();
-  const t = (typeof TUTORS !== "undefined" && TUTORS[tid]) ? TUTORS[tid] : {id:tid, name:tid==="tariq"?"Tariq":"Yasmine", title:""};
-  if(typeof flash === "function") flash("Professeur actif : " + t.name + (t.title ? " (" + t.title + ")" : ""));
+window.selectTutor = function(tutorKey) {
+  if (!tutorKey) tutorKey = 'yasmine';
+  try {
+    localStorage.setItem('selected_tutor', tutorKey);
+    localStorage.setItem('parlons.tutor', tutorKey);
+  } catch(e){}
+
+  // Mettre à jour visuellement les deux cartes
+  const cardYasmine = document.querySelector('.card-yasmine') || document.getElementById('tutorCardYasmine') || document.querySelectorAll('.tutor-card')[0];
+  const cardTariq = document.querySelector('.card-tariq') || document.getElementById('tutorCardTariq') || document.querySelectorAll('.tutor-card')[1];
+  const btnYasmine = document.getElementById('selectYasmineBtn') || (cardYasmine ? cardYasmine.querySelector('.tutor-select-btn') : null);
+  const btnTariq = document.getElementById('selectTariqBtn') || (cardTariq ? cardTariq.querySelector('.tutor-select-btn') : null);
+  const badgeActive = document.querySelector('.tutor-active-badge') || document.getElementById('activeTutorChip');
+
+  if (tutorKey === 'tariq') {
+    if (cardTariq) {
+      cardTariq.classList.add('selected');
+      cardTariq.classList.add('active');
+    }
+    if (cardYasmine) {
+      cardYasmine.classList.remove('selected');
+      cardYasmine.classList.remove('active');
+    }
+    if (btnTariq) {
+      btnTariq.textContent = '✓ Sélectionné';
+      btnTariq.classList.add('active');
+      btnTariq.classList.remove('ghost');
+    }
+    if (btnYasmine) {
+      btnYasmine.textContent = 'Sélectionner';
+      btnYasmine.classList.remove('active');
+      btnYasmine.classList.add('ghost');
+    }
+    if (badgeActive) {
+      badgeActive.textContent = 'Tariq actif';
+    }
+  } else {
+    // Cas Yasmine
+    if (cardYasmine) {
+      cardYasmine.classList.add('selected');
+      cardYasmine.classList.add('active');
+    }
+    if (cardTariq) {
+      cardTariq.classList.remove('selected');
+      cardTariq.classList.remove('active');
+    }
+    if (btnYasmine) {
+      btnYasmine.textContent = '✓ Sélectionnée';
+      btnYasmine.classList.add('active');
+      btnYasmine.classList.remove('ghost');
+    }
+    if (btnTariq) {
+      btnTariq.textContent = 'Sélectionner';
+      btnTariq.classList.remove('active');
+      btnTariq.classList.add('ghost');
+    }
+    if (badgeActive) {
+      badgeActive.textContent = 'Yasmine active';
+    }
+  }
+
+  if (typeof updateAvatar === "function") {
+    try { updateAvatar(); } catch(e){}
+  }
+  if (typeof populateTutorVoices === "function") {
+    try { populateTutorVoices(); } catch(e){}
+  }
+  const t = (typeof TUTORS !== "undefined" && TUTORS[tutorKey]) ? TUTORS[tutorKey] : {id: tutorKey, name: tutorKey === "tariq" ? "Tariq" : "Yasmine", title: ""};
+  if (typeof flash === "function") {
+    try { flash("Professeur actif : " + t.name + (t.title ? " (" + t.title + ")" : "")); } catch(e){}
+  }
+  console.log("Tuteur sélectionné :", tutorKey);
 };
 window.setActiveTutor = window.selectTutor;
 
@@ -2609,31 +2699,33 @@ window.testTutorVoice = function(tid, e){
 
 function renderTutorSelection(){
   const cur = getActiveTutor();
-  const chip = $("#activeTutorChip");
-  if(chip) chip.textContent = cur.name + " active";
+  const chip = $("#activeTutorChip") || document.querySelector(".tutor-active-badge");
+  if(chip) chip.textContent = (cur.id === "tariq" ? "Tariq actif" : "Yasmine active");
 
-  const cardY = $("#tutorCardYasmine");
-  const cardT = $("#tutorCardTariq");
+  const cardY = $("#tutorCardYasmine") || document.querySelector(".card-yasmine");
+  const cardT = $("#tutorCardTariq") || document.querySelector(".card-tariq");
 
   if(cardY){
     const isY = (cur.id === "yasmine");
     cardY.classList.toggle("active", isY);
+    cardY.classList.toggle("selected", isY);
     const btn = cardY.querySelector(".tutor-select-btn");
     if(btn){
-      btn.className = "btn sm " + (isY ? "" : "ghost ") + "tutor-select-btn";
+      btn.className = "btn sm " + (isY ? "active " : "ghost ") + "tutor-select-btn";
       btn.textContent = isY ? "✓ Sélectionnée" : "Sélectionner";
     }
   }
   if(cardT){
     const isT = (cur.id === "tariq");
     cardT.classList.toggle("active", isT);
+    cardT.classList.toggle("selected", isT);
     const btn = cardT.querySelector(".tutor-select-btn");
     if(btn){
-      btn.className = "btn sm " + (isT ? "" : "ghost ") + "tutor-select-btn";
+      btn.className = "btn sm " + (isT ? "active " : "ghost ") + "tutor-select-btn";
       btn.textContent = isT ? "✓ Sélectionné" : "Sélectionner";
     }
   }
-  populateTutorVoices();
+  if (typeof populateTutorVoices === "function") populateTutorVoices();
 }
 
 function cleanTextForSpeech(text) {
