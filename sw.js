@@ -1,8 +1,10 @@
-const CACHE_NAME = 'parlons-pwa-v40';
+const CACHE_NAME = 'parlons-pwa-v41';
 const STATIC_ASSETS = [
   './',
   './index.html',
   './parlons.html',
+  './assets/yasmine.png',
+  './assets/tariq.png',
   './yasmine.png',
   './tariq.png',
   './manifest.json',

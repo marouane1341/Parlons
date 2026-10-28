@@ -825,7 +825,7 @@ div[hidden],
           <div class="tutor-card active" data-tutor="yasmine" id="tutorCardYasmine" onclick="selectTutor('yasmine')">
             <div class="row spread" style="align-items:center">
               <div class="tutor-avatar-icon" style="width:44px;height:44px;border-radius:50%;padding:2px;background:linear-gradient(135deg, #FEF3C7 0%, #F59E0B 100%);box-shadow:0 3px 10px rgba(245,158,11,0.25);flex-shrink:0;">
-                <img src="yasmine.png" alt="Yasmine" style="border-radius:50%;object-fit:cover;width:100%;height:100%;display:block;">
+                <img src="assets/yasmine.png" onerror="this.onerror=null;this.src='https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=512&h=512&q=80';" alt="Yasmine" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block;">
               </div>
               <span class="badge" style="font-size:10px;background:#fef3c7;color:#b45309">Douce</span>
             </div>
@@ -844,7 +844,7 @@ div[hidden],
           <div class="tutor-card" data-tutor="tariq" id="tutorCardTariq" onclick="selectTutor('tariq')">
             <div class="row spread" style="align-items:center">
               <div class="tutor-avatar-icon" style="width:44px;height:44px;border-radius:50%;padding:2px;background:linear-gradient(135deg, #DBEAFE 0%, #2563EB 100%);box-shadow:0 3px 10px rgba(37,99,235,0.25);flex-shrink:0;">
-                <img src="tariq.png" alt="Tariq" style="border-radius:50%;object-fit:cover;width:100%;height:100%;display:block;">
+                <img src="assets/tariq.png" onerror="this.onerror=null;this.src='https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=512&h=512&q=80';" alt="Tariq" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block;">
               </div>
               <span class="badge" style="font-size:10px;background:#dbeafe;color:#1e40af">Dynamique</span>
             </div>
@@ -977,13 +977,8 @@ div[hidden],
       <div id="avatarWrap" class="avatar-container prof-avatar state-neutral" aria-label="Portrait du professeur">
         <div class="avatar-ripple"></div>
         <div class="seal-medallion large-seal" id="sealMedallion">
-          <img id="tutorAvatarImg" src="yasmine.png" alt="Portrait du professeur" class="tutor-portrait-img">
+          <img id="tutorAvatarImg" src="assets/yasmine.png" onerror="this.onerror=null;this.src='https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=512&h=512&q=80';" alt="Avatar tuteur" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
         </div>
-        <div class="avatar-status-pill">
-          <span class="avatar-dot"></span>
-          <span id="avatarStateText">Professeur pr&ecirc;t</span>
-        </div>
-      </div>
         <div class="avatar-status-pill">
           <span class="avatar-dot"></span>
           <span id="avatarStateText">Professeur pr&ecirc;t</span>
@@ -1610,8 +1605,8 @@ window.testTutorVoice = function(tid, e){
   window.selectTutor(tid);
   const t = TUTORS[tid] || TUTORS.yasmine;
   const sample = (t.id === "yasmine")
-    ? "مَرْحَبًا بِكَ! أَنَا يَاسْمِين، مُعَلِّمَتُكَ فِي مَسَارِ اللُّغَةِ الْعَرَبِيَّةِ."
-    : "أَهْلًا وَسَهْلًا! أَنَا طَارِق، دَعْنَا نَتَدَرَّبُ عَلَى الْعَرَبِيَّةِ بِشَكْلٍ عَمَلِيٍّ.";
+    ? "مَرْحَبًا ! Je suis Yasmine, votre professeure d'arabe. Posez-moi vos questions !"
+    : "مَرْحَبًا ! Je suis Tariq, votre professeur d'arabe. Posez-moi vos questions !";
   speakBilingualText(sample);
   flash("Voix de " + t.name + " en cours de lecture…");
 };
@@ -1670,6 +1665,28 @@ function renderMarkdownVisual(text) {
     .replace(/\n/g, '<br>');
 }
 
+function getTutorVoice(langPrefix, gender) {
+  const voices = (window.speechSynthesis && window.speechSynthesis.getVoices()) || VOICES || [];
+  // 1. Filtrer les voix de la langue demandee (ex: 'ar' ou 'fr')
+  let available = voices.filter(v => v.lang && (v.lang.startsWith(langPrefix) || v.lang.toLowerCase().startsWith(langPrefix.toLowerCase())));
+  
+  // Pour le francais, exclure formellement le Canada (fr-CA)
+  if (langPrefix === 'fr') {
+    available = available.filter(v => !v.lang.includes('CA') && !v.name.includes('Canada'));
+  }
+  
+  if (available.length === 0) return null;
+  
+  // 2. Sur Android Google TTS : les voix paires/impaires ou voix 1 / voix 2 correspondent aux genres
+  if (gender === 'female') {
+    // Prendre la premiere voix disponible ou index 0
+    return available.find(v => v.name.toLowerCase().includes('female') || v.name.includes('1') || v.name.includes('A')) || available[0];
+  } else {
+    // Tariq : prendre la voix 2 ou une voix masculine
+    return available.find(v => v.name.toLowerCase().includes('male') || v.name.includes('2') || v.name.includes('B')) || available[Math.min(1, available.length - 1)];
+  }
+}
+
 function speakBilingualText(rawText) {
   return new Promise(resolve => {
     try { window.speechSynthesis.cancel(); } catch(e) {}
@@ -1693,43 +1710,14 @@ function speakBilingualText(rawText) {
 
     if (segments.length === 0) { resolve(); return; }
 
-    // 3. Recuperer les voix Google installees selon le tuteur actif (Yasmine=femme, Tariq=homme)
+    // 3. Attribution reelle des voix : Yasmine = Femme (pitch 1.15), Tariq = Homme (pitch 0.85)
     const activeTutor = getActiveTutor();
     const isFemale = (activeTutor.gender === 'female' || activeTutor.id === 'yasmine');
-    const tutorPitch = isFemale ? 1.12 : 0.88;
+    const gender = isFemale ? 'female' : 'male';
+    const tutorPitch = isFemale ? 1.15 : 0.85;
 
-    const voices = (window.speechSynthesis && window.speechSynthesis.getVoices()) || VOICES || [];
-
-    // Voix arabe selon le tuteur
-    let arabicVoice = null;
-    const arVoices = voices.filter(v => v.lang && (v.lang.toLowerCase().startsWith('ar') || v.lang.includes('ar-SA') || v.lang.includes('ar-XA')));
-
-    if (isFemale) {
-      arabicVoice = arVoices.find(v => {
-        const n = (v.name + " " + (v.voiceURI || "")).toLowerCase();
-        return n.includes("female") || n.includes("femme") || n.includes("wavenet-a") || n.includes("neural2-a") || n.includes("standard-a") || n.includes("salma") || n.includes("zariyah") || n.includes("laila");
-      }) || arVoices[0] || null;
-    } else {
-      arabicVoice = arVoices.find(v => {
-        const n = (v.name + " " + (v.voiceURI || "")).toLowerCase();
-        return n.includes("male") || n.includes("homme") || n.includes("wavenet-b") || n.includes("neural2-b") || n.includes("standard-b") || n.includes("tariq") || n.includes("shakir") || n.includes("hamed");
-      }) || (arVoices.length > 1 ? arVoices[1] : arVoices[0]) || null;
-    }
-
-    // Voix francaise selon le genre du tuteur
-    let frenchVoice = null;
-    const frVoices = voices.filter(v => v.lang && v.lang.toLowerCase().startsWith('fr'));
-    if (isFemale) {
-      frenchVoice = frVoices.find(v => {
-        const n = (v.name + " " + (v.voiceURI || "")).toLowerCase();
-        return n.includes("female") || n.includes("femme") || n.includes("wavenet-a") || n.includes("neural2-a") || n.includes("hortense") || n.includes("julie") || n.includes("celine");
-      }) || frVoices[0] || null;
-    } else {
-      frenchVoice = frVoices.find(v => {
-        const n = (v.name + " " + (v.voiceURI || "")).toLowerCase();
-        return n.includes("male") || n.includes("homme") || n.includes("wavenet-b") || n.includes("neural2-b") || n.includes("paul") || n.includes("mathieu");
-      }) || (frVoices.length > 1 ? frVoices[1] : frVoices[0]) || null;
-    }
+    const arabicVoice = getTutorVoice('ar', gender);
+    const frenchVoice = getTutorVoice('fr', gender);
 
     // 4. Chainage sequentiel des morceaux
     let index = 0;
@@ -1750,12 +1738,12 @@ function speakBilingualText(rawText) {
       const utterance = new SpeechSynthesisUtterance(current.text);
 
       if (current.lang === 'ar') {
-        utterance.voice = arabicVoice || null;
+        if (arabicVoice) utterance.voice = arabicVoice;
         utterance.lang = arabicVoice ? arabicVoice.lang : 'ar-SA';
         utterance.rate = 0.88;
         utterance.pitch = tutorPitch;
       } else {
-        utterance.voice = frenchVoice || null;
+        if (frenchVoice) utterance.voice = frenchVoice;
         utterance.lang = frenchVoice ? frenchVoice.lang : 'fr-FR';
         utterance.rate = 1.0;
         utterance.pitch = tutorPitch;
@@ -1765,6 +1753,14 @@ function speakBilingualText(rawText) {
         index++;
         playNext();
       };
+
+      utterance.onerror = () => {
+        index++;
+        playNext();
+      };
+
+      window.speechSynthesis.speak(utterance);
+    }
 
       utterance.onerror = () => {
         index++;
@@ -1797,7 +1793,10 @@ function speak(text, rate, forceLang){
 
       const activeTutor = getActiveTutor();
       const isFemale = (activeTutor.gender === 'female' || activeTutor.id === 'yasmine');
-      const tutorPitch = isFemale ? 1.12 : 0.88;
+      const gender = isFemale ? 'female' : 'male';
+      const tutorPitch = isFemale ? 1.15 : 0.85;
+      const targetVoice = getTutorVoice(langKey, gender) || voiceFor(langKey);
+      const targetLang = (targetVoice && targetVoice.lang) || SPEECH[langKey].tts;
 
       const u = new SpeechSynthesisUtterance(cleaned);
       if (targetVoice) u.voice = targetVoice;
@@ -1925,8 +1924,13 @@ function updateAvatar(){
   const seal=$("#sealMedallion");
 
   if(avatarImg){
-    const targetSrc=(activeTutor.id==="tariq")?"tariq.png":"yasmine.png";
-    if(avatarImg.getAttribute("src")!==targetSrc){
+    const isTariq=(activeTutor.id==="tariq");
+    const targetSrc=isTariq?"assets/tariq.png":"assets/yasmine.png";
+    const fallbackSrc=isTariq
+      ?"https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=512&h=512&q=80"
+      :"https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=512&h=512&q=80";
+    if(avatarImg.getAttribute("src")!==targetSrc && avatarImg.getAttribute("src")!==fallbackSrc){
+      avatarImg.onerror=function(){ this.onerror=null; this.src=fallbackSrc; };
       avatarImg.src=targetSrc;
       avatarImg.alt="Portrait de "+activeTutor.name;
     }
@@ -2624,8 +2628,10 @@ function startTutor(){
   /* Message d'accueil du professeur actif */
   const welcome=el("div","msg t");
   const welcomeText = isAr
-    ? "Marhaban ! Je suis " + t.name + ", votre " + (t.id === "yasmine" ? "professeure" : "professeur") + " d'arabe. Posez-moi n'importe quelle question linguistique (en arabe ou en français). Écrivez ou touchez le micro ci-dessous pour parler."
-    : "Bonjour ! Je suis " + t.name + ", votre tuteur en " + LANGS[S.lang].name + ". Posez-moi n'importe quelle question linguistique (en français ou en " + LANGS[S.lang].label + "). Écrivez ou touchez le micro ci-dessous pour parler.";
+    ? (t.id === "yasmine"
+        ? "مَرْحَبًا ! Je suis Yasmine, votre professeure d'arabe. Posez-moi vos questions !"
+        : "مَرْحَبًا ! Je suis Tariq, votre professeur d'arabe. Posez-moi vos questions !")
+    : "Bonjour ! Je suis " + t.name + ", votre tuteur en " + LANGS[S.lang].name + ". Posez-moi vos questions !";
   const wText=el("div",null,welcomeText);
   welcome.append(wText);
   $("#log").append(welcome);
