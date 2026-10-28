@@ -263,22 +263,15 @@ ul.clean{margin:0;padding-inline-start:18px;display:flex;flex-direction:column;g
 }
 /* --- NOUVEAU STYLE APPLICATION MODERNE (Bottom Nav & Ecran Immersif) --- */
 
-/* REGLE ABSOLUE ANTI-BLOCAGE DES CLICS & GESTION STRICTE DU MASQUAGE */
-[hidden],
-[hidden] *,
-#chat[hidden],
-[hidden],
-.hidden,
-#chat.chat-immersive[hidden],
-section[hidden],
-main[hidden],
-div[hidden],
-.tab-view[hidden],
-.tab-content[hidden],
-.modal-backdrop[hidden],
-.modal-backdrop:not(.active),
+/* Règle impérative pour toutes les sections / modales masquées */
+.view:not(.active),
+.modal:not(.active),
+.tab-content:not(.active),
+.tab-view:not(.active),
 .overlay:not(.active),
+.modal-backdrop:not(.active),
 .loader:not(.active),
+#chat:not(.active),
 .composer-drawer[hidden],
 #composerDrawer[hidden],
 .status:empty,
@@ -287,7 +280,10 @@ div[hidden],
 #live:empty,
 .targets:empty,
 #targets:empty,
-#goalsBox:empty {
+#goalsBox:empty,
+[style*="display: none"],
+[style*="display:none"],
+[hidden] {
   display: none !important;
   pointer-events: none !important;
   visibility: hidden !important;
@@ -308,30 +304,39 @@ audio,
   z-index: -9999;
 }
 
-/* Interactivité garantie sur tous les éléments cliquables et navigation */
-.bottom-nav,
-.bnav-btn,
-.nav-tab,
-.nav-item,
-.btn,
-.btn-primary,
-.mic-hero-btn,
-.action-round-btn,
-.icon-circle-btn,
-.tutor-card,
-.tutor-select-btn {
+/* S'assurer que la barre de navigation et le contenu visible sont cliquables */
+.bottom-nav, nav#bottomNav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 9999 !important;
   pointer-events: auto !important;
-  cursor: pointer;
+  display: flex !important;
+  justify-content: space-around;
+  align-items: center;
+  height: 64px;
+  background: var(--card);
+  border-top: 1px solid var(--line);
+  box-shadow: 0 -4px 18px rgba(0,0,0,0.06);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  backdrop-filter: blur(8px);
+}
+
+.bottom-nav .nav-item,
+.bottom-nav .bnav-btn,
+.bottom-nav .nav-tab {
+  pointer-events: auto !important;
+  z-index: 10000 !important;
+  cursor: pointer !important;
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Onglets de la vue principale */
-.tab-view, .tab-content {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-  min-width: 0;
-  pointer-events: auto;
+.tab-content.active, .view.active, .tab-view.active {
+  position: relative;
+  z-index: 10 !important;
+  pointer-events: auto !important;
+  display: block;
 }
 .tab-view[hidden], .tab-content[hidden] {
   display: none !important;
@@ -834,9 +839,9 @@ audio,
   <div id="srNote" class="notice" hidden>Ce navigateur ne propose pas la reconnaissance vocale. Utilisez Chrome ou Edge sur ordinateur, ou Chrome sur Android. Le mode écrit reste disponible.</div>
   <div id="flash" class="okmsg" hidden role="status"></div>
 
-    <section id="home" class="col">
+    <section id="home" class="col active">
     <!-- Onglet 1 : Lecons & Parcours -->
-    <div id="tabLessonsView" class="tab-view tab-content">
+    <div id="tabLessonsView" class="tab-view tab-content view active">
       <div class="panel informal-hero-card" id="informalCard">
         <div class="row spread" style="align-items:center;margin-bottom:6px">
           <span class="label" style="color:var(--accent);margin:0;font-weight:700">&#9889; Pratique directe</span>
@@ -853,7 +858,7 @@ audio,
     </div>
 
     <!-- Onglet 2 : Jeux de role & Situations -->
-    <div id="tabRoleplayView" class="tab-view tab-content" hidden>
+    <div id="tabRoleplayView" class="tab-view tab-content view" hidden>
       <div class="panel">
         <div class="row spread" style="align-items:center">
           <h2 style="font-size:18px;display:flex;align-items:center;gap:8px">&#127917; Situations &amp; Jeux de r&ocirc;le</h2>
@@ -871,7 +876,7 @@ audio,
     </div>
 
     <!-- Onglet 4 : Profil & Reglages (Rangement du panneau technique) -->
-    <div id="tabProfileView" class="tab-view tab-content" hidden>
+    <div id="tabProfileView" class="tab-view tab-content view" hidden>
       <!-- Section Choix du Tuteur -->
       <div class="panel" id="tutorProfileBox">
         <div class="row spread" style="align-items:center;margin-bottom:6px">
@@ -899,8 +904,8 @@ audio,
               <select id="voiceYasmine" class="field" style="display:none"></select>
             </div>
             <div class="row" style="margin-top:auto;gap:6px">
-              <button class="mini ghost" type="button" data-test-voice="yasmine" style="font-size:11px;padding:3px 8px">&#128266; Tester</button>
-              <button class="btn sm tutor-select-btn" id="selectYasmineBtn" data-select-tutor="yasmine" type="button" style="flex:1;font-size:11px;padding:4px 8px">&check; S&eacute;lectionn&eacute;e</button>
+              <button class="mini ghost" type="button" data-test-voice="yasmine" onclick="testTutorVoice('yasmine')" style="font-size:11px;padding:3px 8px">&#128266; Tester</button>
+              <button class="btn sm tutor-select-btn" id="selectYasmineBtn" data-select-tutor="yasmine" onclick="selectTutor('yasmine')" type="button" style="flex:1;font-size:11px;padding:4px 8px">&check; S&eacute;lectionn&eacute;e</button>
             </div>
           </div>
 
@@ -922,8 +927,8 @@ audio,
               <select id="voiceTariq" class="field" style="display:none"></select>
             </div>
             <div class="row" style="margin-top:auto;gap:6px">
-              <button class="mini ghost" type="button" data-test-voice="tariq" style="font-size:11px;padding:3px 8px">&#128266; Tester</button>
-              <button class="btn sm ghost tutor-select-btn" id="selectTariqBtn" data-select-tutor="tariq" type="button" style="flex:1;font-size:11px;padding:4px 8px">S&eacute;lectionner</button>
+              <button class="mini ghost" type="button" data-test-voice="tariq" onclick="testTutorVoice('tariq')" style="font-size:11px;padding:3px 8px">&#128266; Tester</button>
+              <button class="btn sm ghost tutor-select-btn" id="selectTariqBtn" data-select-tutor="tariq" onclick="selectTutor('tariq')" type="button" style="flex:1;font-size:11px;padding:4px 8px">S&eacute;lectionner</button>
             </div>
           </div>
         </div>
@@ -1130,19 +1135,19 @@ audio,
 
   <!-- Barre de navigation inferieure fixe (4 onglets natifs) -->
   <nav id="bottomNav" class="bottom-nav" aria-label="Navigation principale">
-    <button class="bnav-btn nav-tab active" data-tab="lessons" id="navLessonsBtn" aria-label="Leçons" aria-selected="true">
+    <button class="bnav-btn nav-tab nav-item active" data-tab="lessons" id="navLessonsBtn" onclick="switchTab('lessons')" aria-label="Leçons" aria-selected="true">
       <span class="bnav-icon">&#128506;&#65039;</span>
       <span class="bnav-label">Le&ccedil;ons</span>
     </button>
-    <button class="bnav-btn nav-tab" data-tab="roleplay" id="navRoleplayBtn" aria-label="Jeux de rôle" aria-selected="false">
+    <button class="bnav-btn nav-tab nav-item" data-tab="roles" id="navRoleplayBtn" onclick="switchTab('roles')" aria-label="Jeux de rôle" aria-selected="false">
       <span class="bnav-icon">&#127917;</span>
       <span class="bnav-label">Jeux de r&ocirc;le</span>
     </button>
-    <button class="bnav-btn nav-tab" data-tab="tutor" id="navTutorBtn" aria-label="Tuteur Libre" aria-selected="false">
+    <button class="bnav-btn nav-tab nav-item" data-tab="tutor" id="navTutorBtn" onclick="switchTab('tutor')" aria-label="Tuteur Libre" aria-selected="false">
       <span class="bnav-icon">&#128172;</span>
       <span class="bnav-label">Tuteur Libre</span>
     </button>
-    <button class="bnav-btn nav-tab" data-tab="profile" id="navProfileBtn" aria-label="Profil &amp; Réglages" aria-selected="false">
+    <button class="bnav-btn nav-tab nav-item" data-tab="profile" id="navProfileBtn" onclick="switchTab('profile')" aria-label="Profil &amp; Réglages" aria-selected="false">
       <span class="bnav-icon">&#9881;&#65039;</span>
       <span class="bnav-label">Profil</span>
     </button>
@@ -1197,39 +1202,62 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 
 function switchMainTab(tabName){
   try {
+    if(tabName === "roles") tabName = "roleplay";
+
     if(tabName === "tutor"){
       if(typeof startTutor === "function") startTutor();
       return;
     }
-    if(typeof show === "function"){
-      show("home");
-    } else {
-      const hm = document.getElementById("home");
-      if(hm){ hm.hidden = false; hm.style.display = "flex"; hm.style.pointerEvents = "auto"; }
-      const ch = document.getElementById("chat");
-      if(ch){ ch.hidden = true; ch.style.display = "none"; ch.style.pointerEvents = "none"; }
+
+    // Désactivation stricte de l'écran immersif de chat
+    const ch = document.getElementById("chat");
+    if(ch){
+      ch.hidden = true;
+      ch.classList.remove("active");
+      ch.style.display = "none";
+      ch.style.pointerEvents = "none";
     }
 
+    // Activation de l'accueil
+    const hm = document.getElementById("home");
+    if(hm){
+      hm.hidden = false;
+      hm.classList.add("active");
+      hm.style.display = "flex";
+      hm.style.pointerEvents = "auto";
+    }
+
+    // Mise à jour visuelle des onglets de navigation
     document.querySelectorAll(".bnav-btn, .nav-tab, .nav-item").forEach(tab => {
-      const active = (tab.dataset.tab === tabName);
+      const target = tab.dataset.tab || tab.getAttribute("data-tab");
+      const active = (target === tabName || (tabName === "roleplay" && target === "roles") || (tabName === "roles" && target === "roleplay"));
       tab.classList.toggle("active", active);
       tab.setAttribute("aria-selected", active ? "true" : "false");
     });
 
+    // Mappage précis des vues
     const tabMap = {
       lessons: document.getElementById("tabLessonsView"),
       roleplay: document.getElementById("tabRoleplayView"),
+      roles: document.getElementById("tabRoleplayView"),
       profile: document.getElementById("tabProfileView")
     };
 
-    Object.keys(tabMap).forEach(key => {
-      const elem = tabMap[key];
-      if(!elem) return;
-      const isTarget = (key === tabName);
-      elem.hidden = !isTarget;
-      elem.style.display = isTarget ? "flex" : "none";
-      elem.style.pointerEvents = isTarget ? "auto" : "none";
+    // Toutes les vues .tab-view / .tab-content
+    document.querySelectorAll(".tab-view, .tab-content").forEach(el => {
+      el.classList.remove("active");
+      el.hidden = true;
+      el.style.display = "none";
+      el.style.pointerEvents = "none";
     });
+
+    const activeView = tabMap[tabName];
+    if(activeView){
+      activeView.classList.add("active");
+      activeView.hidden = false;
+      activeView.style.display = "block";
+      activeView.style.pointerEvents = "auto";
+    }
 
     const bNav = document.getElementById("bottomNav");
     if(bNav){
@@ -1238,7 +1266,7 @@ function switchMainTab(tabName){
       bNav.style.pointerEvents = "auto";
     }
   } catch(e) {
-    console.error("switchMainTab error:", e);
+    console.error("switchTab error:", e);
   }
 }
 window.switchMainTab = switchMainTab;
@@ -3472,6 +3500,7 @@ function show(id){
     if(elem){
       const isTarget = (x === id);
       elem.hidden = !isTarget;
+      elem.classList.toggle("active", isTarget);
       elem.style.display = isTarget ? (x === "chat" ? "flex" : (x === "home" ? "flex" : "block")) : "none";
       elem.style.pointerEvents = isTarget ? "auto" : "none";
     }
