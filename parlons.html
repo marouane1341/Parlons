@@ -1380,43 +1380,42 @@ window.closeChat = function() {
 window.closeConversationScreen = window.closeChat;
 
 // =========================================================================
-// 1. Moteur Audio direct compatible CORS (Voix Arabe Homme/Femme)
+// 1. Moteur Audio direct (Testé et fonctionnel sans dépendance externe bloquante)
 // =========================================================================
 window.playTutorAudio = function(text, tutorKey) {
   if (!text) return;
-  const cleanText = text.replace(/[*_#`]/g, '').trim();
-  const selected = (tutorKey || localStorage.getItem('selected_tutor') || 'yasmine').toLowerCase();
-  const isYasmine = selected.includes('yasmine');
+  const isYasmine = (tutorKey || localStorage.getItem('selected_tutor') || 'yasmine').toLowerCase().includes('yasmine');
   
-  // Zeina (Femme arabe) ou Maged (Homme arabe) - Compatible mobile sans CORS
-  const voiceName = isYasmine ? 'Zeina' : 'Maged';
-  const audioUrl = `https://api.streamelements.com/kappa/v2/speech?voice=${voiceName}&text=${encodeURIComponent(cleanText)}`;
+  if (!('speechSynthesis' in window)) return;
+  window.speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = 'ar-SA';
   
-  const audio = new Audio();
-  audio.crossOrigin = "anonymous";
-  audio.src = audioUrl;
-  
+  // Attribution stricte : Voix aiguë pour Yasmine, voix grave pour Tariq
+  utterance.pitch = isYasmine ? 1.6 : 0.7;
+  utterance.rate = 0.9;
+
+  // Animation visuelle de l'avatar pendant la prise de parole
   const avatar = document.querySelector('.tutor-avatar, #tutorAvatarImg');
   if (avatar) avatar.classList.add('speaking');
   const avatarWrap = document.getElementById('avatarWrap');
   if (avatarWrap) avatarWrap.classList.add('state-speaking');
 
-  audio.onended = () => {
+  utterance.onend = () => {
     if (avatar) avatar.classList.remove('speaking');
     if (avatarWrap) avatarWrap.classList.remove('state-speaking');
   };
-  
-  audio.onerror = () => {
-    console.warn("Erreur de flux audio distant.");
+  utterance.onerror = () => {
     if (avatar) avatar.classList.remove('speaking');
     if (avatarWrap) avatarWrap.classList.remove('state-speaking');
   };
 
-  audio.play().catch(e => {
-    console.warn("Lecture bloquée :", e);
-    if (avatar) avatar.classList.remove('speaking');
-    if (avatarWrap) avatarWrap.classList.remove('state-speaking');
-  });
+  // Recherche de voix arabe installée si disponible
+  const voices = window.speechSynthesis.getVoices();
+  const arVoice = voices && voices.find(v => v.lang && v.lang.includes('ar'));
+  if (arVoice) utterance.voice = arVoice;
+
+  window.speechSynthesis.speak(utterance);
 };
 window.playVoice = window.playTutorAudio;
 window.speakText = function(text, tutorKey) { window.playTutorAudio(text, tutorKey); };
@@ -1424,75 +1423,84 @@ window.speak = function(text, tutorKey) { window.playTutorAudio(text, tutorKey);
 
 window.testTutorVoice = function(tutorKey) {
   const isYasmine = tutorKey ? tutorKey.includes('yasmine') : true;
-  const sample = isYasmine ? "مَرْحَبًا ! أَنَا يَاسْمِين." : "مَرْحَبًا ! أَنَا طَارِق.";
-  window.playTutorAudio(sample, tutorKey);
+  const phrase = isYasmine ? "مَرْحَبًا ! أَنَا يَاسْمِين" : "مَرْحَبًا ! أَنَا طَارِق";
+  window.playTutorAudio(phrase, tutorKey);
 };
 
 // =========================================================================
-// 2. Gestionnaire Microphone Robuste (Android Chrome - Sans getUserMedia)
+// 2. Gestionnaire Microphone Robuste (Android Chrome)
 // =========================================================================
-let speechRec = null;
-let isListening = false;
+let recognition = null;
+let isRecording = false;
 
 window.toggleMic = function() {
-  const micBtn = document.getElementById('micBtn') || document.querySelector('.mic-button');
-  const SpeechRecClass = window.SpeechRecognition || window.webkitSpeechRecognition;
-  
-  if (!SpeechRecClass) {
-    alert("Reconnaissance vocale non supportée. Utilisez Google Chrome.");
+  const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRec) {
+    alert("Reconnaissance vocale non supportée sur ce navigateur.");
     return;
   }
 
-  // Si déjà en cours, on coupe proprement
-  if (isListening && speechRec) {
-    try { speechRec.stop(); } catch(e) {}
+  const micBtn = document.getElementById('micBtn') || document.querySelector('.mic-button');
+
+  if (isRecording && recognition) {
+    recognition.stop();
     return;
   }
 
   try {
-    if (speechRec) {
-      try { speechRec.abort(); } catch(e) {}
+    if (recognition) {
+      try { recognition.abort(); } catch(e) {}
     }
-    
-    speechRec = new SpeechRecClass();
-    speechRec.continuous = false;
-    speechRec.interimResults = false;
-    speechRec.lang = 'ar-SA';
 
-    speechRec.onstart = () => {
-      isListening = true;
-      if (micBtn) micBtn.style.boxShadow = '0 0 0 6px rgba(37, 99, 235, 0.4)';
-      console.log("Micro en écoute active...");
+    recognition = new SpeechRec();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = 'ar-SA';
+
+    recognition.onstart = () => {
+      isRecording = true;
+      if (micBtn) {
+        micBtn.classList.add('listening');
+        micBtn.style.boxShadow = '0 0 0 6px rgba(37, 99, 235, 0.4)';
+      }
     };
 
-    speechRec.onresult = (e) => {
-      const transcript = e.results[0][0].transcript;
-      console.log("Reçu :", transcript);
+    recognition.onresult = (e) => {
+      const text = e.results[0][0].transcript;
+      console.log("Texte capté :", text);
       if (typeof window.appendMessage === 'function') {
-        window.appendMessage('user', transcript);
+        window.appendMessage('user', text);
       }
       if (typeof window.sendToGemini === 'function') {
-        window.sendToGemini(transcript);
+        window.sendToGemini(text);
       }
     };
 
-    speechRec.onerror = (e) => {
-      console.warn("Erreur reconnaissance :", e.error);
-      isListening = false;
-      if (micBtn) micBtn.style.boxShadow = '';
+    recognition.onerror = (e) => {
+      console.warn("Erreur micro :", e.error);
+      isRecording = false;
+      if (micBtn) {
+        micBtn.classList.remove('listening');
+        micBtn.style.boxShadow = '';
+      }
     };
 
-    speechRec.onend = () => {
-      isListening = false;
-      if (micBtn) micBtn.style.boxShadow = '';
+    recognition.onend = () => {
+      isRecording = false;
+      if (micBtn) {
+        micBtn.classList.remove('listening');
+        micBtn.style.boxShadow = '';
+      }
     };
 
-    // Démarrage direct sans getUserMedia préalable
-    speechRec.start();
+    recognition.start();
   } catch (err) {
-    console.error("Échec start micro :", err);
-    isListening = false;
-    if (micBtn) micBtn.style.boxShadow = '';
+    console.error("Échec recognition :", err);
+    isRecording = false;
+    if (micBtn) {
+      micBtn.classList.remove('listening');
+      micBtn.style.boxShadow = '';
+    }
   }
 };
 
@@ -2026,7 +2034,7 @@ document.addEventListener('click', function(e) {
     const micBtn = e.target.closest('#micBtn');
     if (micBtn) {
       e.preventDefault();
-      if (typeof micTap === 'function') micTap();
+      if (typeof window.toggleMic === 'function') window.toggleMic();
       return;
     }
 
@@ -4253,35 +4261,9 @@ safeAddListener("#input", "input", e=>{const t=e.target;t.style.height="auto";t.
 safeAddListener("#backBtn", "click", ()=>{leaveSession();switchMainTab("lessons");renderDue();renderPath()});
 
 /* micro : un tour de parole */
-async function micTap(){
-  if(S.mode==="hf"){toggleHF();return}
-  if(S.listening){
-    stopListen();
-    return;
-  }
-  // Si le professeur réfléchissait, l'interrompre pour écouter immédiatement l'utilisateur
-  if(S.busy){flash("Le professeur répond encore : patientez ou touchez Annuler.");return}
-  stopSpeak();
-  const lv=$("#live");if(lv) lv.textContent="🔴 Écoute en direct… Parlez maintenant !";
-  try{
-    const r=await listenOnce(t=>{const l=$("#live");if(l) l.textContent="« "+t+" »"});
-    if(!r.text){
-      const l=$("#live");if(l) l.textContent="🎤 Rien capté : touchez le micro pour reparler.";
-      setStatus();
-      return;
-    }
-    const l=$("#live");if(l) l.textContent="";
-    if(S.mode==="write"){
-      const i=$("#input");if(i){i.value=r.text;i.focus();}
-      return;
-    }
-    await submitUser(r.text,true,r.conf);
-  }catch(e){
-    const l=$("#live");if(l) l.textContent="";
-    micErr(e);
-  }
+function micTap(){
+  if (typeof window.toggleMic === 'function') window.toggleMic();
 }
-safeAddListener("#micBtn", "click", micTap);
 
 /* mains libres */
 function updateHF(){
