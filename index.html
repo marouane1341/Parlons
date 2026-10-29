@@ -1475,6 +1475,9 @@ window.isGeneratingAudio = false;
 window.isProcessingMessage = false;
 
 window.stopAllAudios = function() {
+  if (window.isRecordingVoice && typeof window.stopVoiceRecording === 'function') {
+    window.stopVoiceRecording();
+  }
   // 1. Couper l'audio HTML5
   if (window.currentAudio) {
     try {
@@ -1731,182 +1734,159 @@ window.toggleTranslation = async function(btn) {
 window.translateMessage = window.toggleTranslation;
 
 // =========================================================================
-// 2. Gestionnaire Microphone Robuste & Anti-Hésitation (Silence 3 secondes)
+// 2. Dictée Vocale 100% Manuelle (Zéro Envoi Automatique & Anti-Bégaiement)
 // =========================================================================
-let recognition = null;
-let isRecording = false;
-let speechSilenceTimer = null;
-let currentFinalTranscript = '';
-let currentInterimTranscript = '';
+window.isRecordingVoice = false;
 
+// Nettoyer toute instance précédente pour éviter d'empiler plusieurs listeners
+if (window.recognitionInstance) {
+  try { window.recognitionInstance.abort(); } catch(e){}
+  window.recognitionInstance = null;
+}
+
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+let recognition = null;
+if (SpeechRecognition) {
+  try {
+    recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = 'ar-SA';
+    window.recognitionInstance = recognition;
+  } catch(e) {
+    console.warn("SpeechRecognition init error:", e);
+  }
+}
+
+if (recognition) {
+  recognition.onresult = (event) => {
+    let finalTranscript = '';
+    let interimTranscript = '';
+
+    // Reconstruction propre depuis l'index 0 sans accumulation infinie
+    for (let i = 0; i < event.results.length; ++i) {
+      if (event.results[i].isFinal) {
+        finalTranscript += event.results[i][0].transcript + ' ';
+      } else {
+        interimTranscript += event.results[i][0].transcript;
+      }
+    }
+
+    const fullText = (finalTranscript + interimTranscript).trim();
+
+    // Affichage direct dans le champ de saisie
+    const inputField = document.querySelector('#input, #chatInput, #userMessageInput, textarea');
+    if (inputField) {
+      inputField.value = fullText;
+      inputField.dispatchEvent(new Event('input')); // Met à jour la hauteur si textarea
+      // Ouvrir le tiroir de composition pour que l'utilisateur puisse vérifier et cliquer sur Envoyer
+      const drawer = document.getElementById('composerDrawer');
+      if (drawer && drawer.hidden) {
+        drawer.hidden = false;
+        drawer.style.display = 'flex';
+      }
+    }
+
+    // Affichage de secours dans speechPreview
+    const preview = document.getElementById('speechPreview');
+    if (preview) {
+      if (fullText) {
+        preview.innerText = fullText;
+        preview.style.display = 'block';
+      } else {
+        preview.innerText = '';
+        preview.style.display = 'none';
+      }
+    }
+  };
+
+  recognition.onerror = (e) => {
+    console.warn("Speech recognition error:", e.error);
+    if (e.error !== 'no-speech') {
+      window.stopVoiceRecording();
+    }
+  };
+
+  recognition.onend = () => {
+    if (window.isRecordingVoice) {
+      // Relance douce si l'utilisateur n'a pas appuyé sur stop
+      try { recognition.start(); } catch(e){}
+    } else {
+      window.updateMicUI(false);
+    }
+  };
+}
+
+window.updateMicUI = function(isActive) {
+  const micBtn = document.querySelector('#micBtn, .btn-mic, #micButton, .voice-btn, .mic-button, .mic-hero-btn');
+  if (!micBtn) return;
+  if (isActive) {
+    micBtn.classList.add('recording', 'listening');
+    micBtn.style.backgroundColor = '#e53935'; // Rouge = écoute en cours
+  } else {
+    micBtn.classList.remove('recording', 'listening');
+    micBtn.style.backgroundColor = ''; // Rétablit la couleur par défaut
+  }
+};
+
+window.toggleVoiceRecording = function() {
+  if (window.isRecordingVoice) {
+    window.stopVoiceRecording();
+  } else {
+    window.startVoiceRecording();
+  }
+};
+
+window.startVoiceRecording = function() {
+  if (!recognition) {
+    alert("Reconnaissance vocale non supportée sur ce navigateur.");
+    return;
+  }
+  // Couper tout son en cours
+  if (typeof window.stopAllAudios === 'function') {
+    window.stopAllAudios();
+  }
+  window.isRecordingVoice = true;
+  window.updateMicUI(true);
+
+  // Ouvrir le tiroir pour que le champ texte et le bouton Envoyer soient visibles
+  const drawer = document.getElementById('composerDrawer');
+  if (drawer) {
+    drawer.hidden = false;
+    drawer.style.display = 'flex';
+  }
+
+  const isFr = (typeof S !== "undefined" && S.tutorStt === "fr");
+  recognition.lang = isFr ? 'fr-FR' : 'ar-SA';
+
+  try {
+    recognition.start();
+  } catch(e) {
+    console.warn("Start mic error:", e);
+  }
+};
+
+window.stopVoiceRecording = function() {
+  window.isRecordingVoice = false;
+  window.updateMicUI(false);
+  if (recognition) {
+    try {
+      recognition.stop();
+    } catch(e){}
+  }
+};
+
+// Alias pour compatibilité
+window.toggleMic = window.toggleVoiceRecording;
 window.sendMessageToTutor = function(text) {
   if (!text || !text.trim()) return;
   const finalText = text.trim();
-  
-  // Vider les champs temporaires
   const inp = document.getElementById('input');
   if (inp) { inp.value = ''; inp.style.height = 'auto'; }
   const preview = document.getElementById('speechPreview');
   if (preview) { preview.innerText = ''; preview.style.display = 'none'; }
-  const live = document.getElementById('live');
-  if (live) live.innerText = '';
-  
-  if (typeof window.appendMessage === 'function') {
-    window.appendMessage('user', finalText);
-  }
-  if (typeof window.sendToGemini === 'function') {
-    window.sendToGemini(finalText);
-  }
-};
-
-window.toggleMic = function() {
-  const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SpeechRec) {
-    alert("Reconnaissance vocale non supportée sur ce navigateur.");
-    return;
-  }
-
-  const micBtn = document.getElementById('micBtn') || document.querySelector('.mic-button');
-
-  // Si déjà en train d'enregistrer : 2e clic = coupure manuelle immédiate et validation directe !
-  if (isRecording && recognition) {
-    clearTimeout(speechSilenceTimer);
-    try { recognition.stop(); } catch(e) {}
-    
-    const textToSend = (currentFinalTranscript + ' ' + currentInterimTranscript).trim();
-    if (textToSend.length > 0) {
-      window.sendMessageToTutor(textToSend);
-    }
-    currentFinalTranscript = '';
-    currentInterimTranscript = '';
-    isRecording = false;
-    
-    if (micBtn) {
-      micBtn.classList.remove('listening', 'recording', 'on');
-      micBtn.style.boxShadow = '';
-    }
-    const preview = document.getElementById('speechPreview');
-    if (preview) { preview.innerText = ''; preview.style.display = 'none'; }
-    return;
-  }
-
-  try {
-    if (recognition) {
-      try { recognition.abort(); } catch(e) {}
-    }
-
-    // Couper tout audio en cours lors de la prise de parole
-    if (typeof window.stopAllAudios === 'function') {
-      window.stopAllAudios();
-    }
-
-    currentFinalTranscript = '';
-    currentInterimTranscript = '';
-    clearTimeout(speechSilenceTimer);
-
-    recognition = new SpeechRec();
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    const isFr = (typeof S !== "undefined" && S.tutorStt === "fr");
-    recognition.lang = isFr ? 'fr-FR' : 'ar-SA';
-
-    recognition.onstart = () => {
-      isRecording = true;
-      if (micBtn) {
-        micBtn.classList.add('listening', 'recording');
-      }
-      const preview = document.getElementById('speechPreview');
-      if (preview) {
-        preview.innerText = "Écoute en cours… Prenez votre temps pour parler.";
-        preview.style.display = 'block';
-      }
-    };
-
-    recognition.onresult = (event) => {
-      currentInterimTranscript = '';
-      for (let i = event.resultIndex; i < event.results.length; ++i) {
-        if (event.results[i].isFinal) {
-          currentFinalTranscript += event.results[i][0].transcript + ' ';
-        } else {
-          currentInterimTranscript += event.results[i][0].transcript;
-        }
-      }
-
-      // Affiche ce qui est capté en direct dans le champ pour rassurer l'utilisateur
-      const displayText = (currentFinalTranscript + currentInterimTranscript).trim();
-      const preview = document.getElementById('speechPreview');
-      if (preview && displayText) {
-        preview.innerText = displayText;
-        preview.style.display = 'block';
-      }
-      const inp = document.getElementById('input');
-      if (inp && displayText) {
-        inp.value = displayText;
-      }
-
-      // Réinitialise le délai à chaque mot prononcé
-      clearTimeout(speechSilenceTimer);
-
-      // Ne déclenche l'envoi qu'après 3 secondes de silence réel ET si du texte existe
-      speechSilenceTimer = setTimeout(() => {
-        const finalTextToSend = (currentFinalTranscript + currentInterimTranscript).trim();
-        if (finalTextToSend.length > 0) {
-          try { recognition.stop(); } catch(e) {}
-          window.sendMessageToTutor(finalTextToSend);
-          currentFinalTranscript = '';
-          currentInterimTranscript = '';
-          isRecording = false;
-          if (micBtn) {
-            micBtn.classList.remove('listening', 'recording', 'on');
-            micBtn.style.boxShadow = '';
-          }
-        }
-      }, 3000); // 3 secondes de battement pour chercher ses mots
-    };
-
-    recognition.onerror = (e) => {
-      console.warn("Erreur micro :", e.error);
-      if (e.error !== 'no-speech') {
-        clearTimeout(speechSilenceTimer);
-        isRecording = false;
-        if (micBtn) {
-          micBtn.classList.remove('listening', 'recording', 'on');
-          micBtn.style.boxShadow = '';
-        }
-        const preview = document.getElementById('speechPreview');
-        if (preview) preview.style.display = 'none';
-      }
-    };
-
-    recognition.onend = () => {
-      if (isRecording) {
-        const finalTextToSend = (currentFinalTranscript + currentInterimTranscript).trim();
-        if (finalTextToSend.length > 0 && !window.isProcessingMessage) {
-          clearTimeout(speechSilenceTimer);
-          window.sendMessageToTutor(finalTextToSend);
-          currentFinalTranscript = '';
-          currentInterimTranscript = '';
-        }
-      }
-      isRecording = false;
-      if (micBtn) {
-        micBtn.classList.remove('listening', 'recording', 'on');
-        micBtn.style.boxShadow = '';
-      }
-      const preview = document.getElementById('speechPreview');
-      if (preview) preview.style.display = 'none';
-    };
-
-    recognition.start();
-  } catch (err) {
-    console.error("Échec recognition :", err);
-    clearTimeout(speechSilenceTimer);
-    isRecording = false;
-    if (micBtn) {
-      micBtn.classList.remove('listening', 'recording', 'on');
-      micBtn.style.boxShadow = '';
-    }
-  }
+  if (typeof window.appendMessage === 'function') window.appendMessage('user', finalText);
+  if (typeof window.sendToGemini === 'function') window.sendToGemini(finalText);
 };
 
 window.chooseTutor = function(tutor) {
@@ -2288,6 +2268,10 @@ window.sendToGemini = sendToGemini;
 window.callGeminiApi = sendToGemini;
 
 async function handleSend() {
+  // Si le micro est encore actif, le couper immédiatement
+  if (window.isRecordingVoice && typeof window.stopVoiceRecording === 'function') {
+    window.stopVoiceRecording();
+  }
   if (window.isProcessingMessage) return;
   const inp = document.getElementById("input");
   if (!inp) return;
@@ -2302,6 +2286,8 @@ async function handleSend() {
   window.isProcessingMessage = true;
   inp.value = "";
   inp.style.height = "auto";
+  const preview = document.getElementById('speechPreview');
+  if (preview) { preview.innerText = ''; preview.style.display = 'none'; }
   
   const errBox = document.querySelector('.error-banner') || document.getElementById('chatErrorMessage');
   if (errBox) errBox.style.display = 'none';
