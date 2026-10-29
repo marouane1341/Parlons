@@ -1444,34 +1444,44 @@ window.closeConversationScreen = window.closeChat;
 // =========================================================================
 window.activeAudio = null;
 
+window.showAudioStatus = function(msg, isError = false) {
+  let box = document.getElementById('audioStatusToast');
+  if (!box) {
+    box = document.createElement('div');
+    box.id = 'audioStatusToast';
+    box.style.cssText = 'position:fixed;top:10px;left:50%;transform:translateX(-50%);padding:8px 16px;border-radius:20px;font-size:12px;z-index:99999;transition:all 0.3s;max-width:90%;text-align:center;box-shadow:0 2px 10px rgba(0,0,0,0.2);';
+    document.body.appendChild(box);
+  }
+  box.style.background = isError ? '#ffebee' : '#e8f5e9';
+  box.style.color = isError ? '#c62828' : '#2e7d32';
+  box.style.border = isError ? '1px solid #ef9a9a' : '1px solid #a5d6a7';
+  box.innerText = msg;
+  box.style.display = 'block';
+  if (window._audioToastTimeout) clearTimeout(window._audioToastTimeout);
+  window._audioToastTimeout = setTimeout(() => { if (box) box.style.display = 'none'; }, 4000);
+};
+
 window.playTutorAudio = async function(text, tutorKey) {
   if (!text) return;
-
-  // 1. Stopper et libérer tout son en cours
+  
+  // Stopper l'audio en cours
   if (window.activeAudio) {
-    try {
-      window.activeAudio.pause();
-      window.activeAudio.src = '';
-    } catch(e) {}
+    try { window.activeAudio.pause(); window.activeAudio.currentTime = 0; } catch(e){}
     window.activeAudio = null;
   }
   if (window.currentAudioInstance) {
-    try {
-      window.currentAudioInstance.pause();
-      window.currentAudioInstance.src = '';
-    } catch(e) {}
+    try { window.currentAudioInstance.pause(); window.currentAudioInstance.currentTime = 0; } catch(e){}
     window.currentAudioInstance = null;
   }
 
-  const apiKey = localStorage.getItem('gemini_api_key') || localStorage.getItem('apiKey') || localStorage.getItem('gemini_key') || (typeof curKey === 'function' ? curKey() : '') || (typeof S !== 'undefined' && S.cfg && S.cfg.keys && S.cfg.keys.gemini) || '';
-  if (!apiKey) {
-    console.warn("Clé API absente pour TTS");
-    return;
-  }
-
-  // Nettoyage strict du texte (retrait des émojis et symboles markdown)
   const cleanText = text.replace(/[*_#`~]/g, '').trim();
   if (!cleanText) return;
+
+  const apiKey = localStorage.getItem('gemini_api_key') || localStorage.getItem('apiKey') || localStorage.getItem('gemini_key') || (typeof curKey === 'function' ? curKey() : '') || (typeof S !== 'undefined' && S.cfg && S.cfg.keys && S.cfg.keys.gemini) || '';
+  if (!apiKey) {
+    window.showAudioStatus("Erreur: Clé API Gemini manquante", true);
+    return;
+  }
 
   const isYasmine = (tutorKey || localStorage.getItem('selected_tutor') || 'yasmine').toLowerCase().includes('yasmine');
   const voiceName = isYasmine ? 'Aoede' : 'Puck';
@@ -1481,9 +1491,10 @@ window.playTutorAudio = async function(text, tutorKey) {
   const avatarWrap = document.getElementById('avatarWrap');
   if (avatarWrap) avatarWrap.classList.add('state-speaking');
 
-  const ttsModel = localStorage.getItem('gemini_tts_model') || 'gemini-3.8-flash-lite-tts';
-  const cleanModel = ttsModel.replace(/^models\//, '').trim() || 'gemini-3.8-flash-lite-tts';
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${cleanModel}:generateContent?key=${apiKey}`;
+  window.showAudioStatus("Génération de la voix en cours...");
+
+  const ttsModel = (localStorage.getItem('gemini_tts_model') || 'gemini-3.8-flash-lite-tts').replace(/^models\//, '').trim();
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${ttsModel}:generateContent?key=${apiKey}`;
 
   try {
     const resp = await fetch(url, {
@@ -1501,31 +1512,46 @@ window.playTutorAudio = async function(text, tutorKey) {
     });
 
     const data = await resp.json();
+
+    if (!resp.ok) {
+      const errMsg = data?.error?.message || `Erreur HTTP ${resp.status}`;
+      window.showAudioStatus(`API TTS: ${errMsg}`, true);
+      if (avatar) avatar.classList.remove('speaking');
+      if (avatarWrap) avatarWrap.classList.remove('state-speaking');
+      return;
+    }
+
     const audioCandidate = data?.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
 
-    if (audioCandidate && audioCandidate.inlineData && audioCandidate.inlineData.data) {
+    if (audioCandidate?.inlineData?.data) {
       const mimeType = audioCandidate.inlineData.mimeType || 'audio/wav';
       const audio = new Audio(`data:${mimeType};base64,${audioCandidate.inlineData.data}`);
       window.activeAudio = audio;
       window.currentAudioInstance = audio;
 
-      const resetUi = () => {
+      audio.onended = () => {
         if (avatar) avatar.classList.remove('speaking');
         if (avatarWrap) avatarWrap.classList.remove('state-speaking');
-        if (window.activeAudio === audio) window.activeAudio = null;
-        if (window.currentAudioInstance === audio) window.currentAudioInstance = null;
+        window.activeAudio = null;
+        window.currentAudioInstance = null;
+      };
+      audio.onerror = (e) => {
+        window.showAudioStatus("Erreur lecture flux audio sur le mobile", true);
+        if (avatar) avatar.classList.remove('speaking');
+        if (avatarWrap) avatarWrap.classList.remove('state-speaking');
+        window.activeAudio = null;
+        window.currentAudioInstance = null;
       };
 
-      audio.onended = resetUi;
-      audio.onerror = resetUi;
-
       await audio.play();
+      window.showAudioStatus("Lecture audio...");
     } else {
+      window.showAudioStatus("Aucun flux audio retourné par le modèle", true);
       if (avatar) avatar.classList.remove('speaking');
       if (avatarWrap) avatarWrap.classList.remove('state-speaking');
     }
   } catch (err) {
-    console.error("Erreur lecture TTS:", err);
+    window.showAudioStatus(`Erreur réseau: ${err.message}`, true);
     if (avatar) avatar.classList.remove('speaking');
     if (avatarWrap) avatarWrap.classList.remove('state-speaking');
     window.activeAudio = null;
