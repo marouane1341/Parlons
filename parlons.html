@@ -371,11 +371,15 @@ audio,
   background: var(--paper);
   pointer-events: auto;
 }
+#chatScreen.chat-immersive:not(.active),
+#chat.chat-immersive:not(.active),
 #chatScreen.chat-immersive[hidden],
 #chat.chat-immersive[hidden] {
   display: none !important;
   pointer-events: none !important;
   visibility: hidden !important;
+  opacity: 0 !important;
+  z-index: -9999 !important;
 }
 
 /* Barre de navigation inferieure */
@@ -1384,54 +1388,45 @@ window.closeConversationScreen = window.closeChat;
 // =========================================================================
 let currentTutorAudio = null;
 
-window.playTutorAudio = async function(text, tutorKey) {
+window.playTutorAudio = function(text, tutorKey) {
   if (!text) return;
-  
-  if (currentTutorAudio) {
-    try {
-      currentTutorAudio.pause();
-      currentTutorAudio.currentTime = 0;
-    } catch(e){}
-    currentTutorAudio = null;
-  }
-
-  const cleanText = text.replace(/[*_#`]/g, '').trim();
-  const isYasmine = (tutorKey || localStorage.getItem('selected_tutor') || 'yasmine').toLowerCase().includes('yasmine');
-  
-  // Les identifiants exacts des voix Microsoft Azure
-  const voiceName = isYasmine ? 'ar-EG-SalmaNeural' : 'ar-EG-ShakirNeural';
-  
-  const avatar = document.querySelector('.tutor-avatar, #tutorAvatarImg');
-  if (avatar) avatar.classList.add('speaking');
-  const avatarWrap = document.getElementById('avatarWrap');
-  if (avatarWrap) avatarWrap.classList.add('state-speaking');
-
   try {
-    // Appel direct à la passerelle Edge-TTS publique renvoyant le flux MP3 officiel
-    const directUrl = `https://edge-tts.azurewebsites.net/api/synthesize?voice=${voiceName}&text=${encodeURIComponent(cleanText)}`;
+    if (currentTutorAudio) {
+      try {
+        currentTutorAudio.pause();
+        currentTutorAudio.currentTime = 0;
+      } catch(e){}
+      currentTutorAudio = null;
+    }
+
+    const cleanText = text.replace(/[*_#`]/g, '').trim();
+    const isYasmine = (tutorKey || localStorage.getItem('selected_tutor') || 'yasmine').toLowerCase().includes('yasmine');
+    const voice = isYasmine ? 'ar-EG-SalmaNeural' : 'ar-EG-ShakirNeural';
     
-    const audio = new Audio(directUrl);
+    const avatar = document.querySelector('.tutor-avatar, #tutorAvatarImg');
+    if (avatar) avatar.classList.add('speaking');
+    const avatarWrap = document.getElementById('avatarWrap');
+    if (avatarWrap) avatarWrap.classList.add('state-speaking');
+
+    const audioUrl = `https://edge-tts.azurewebsites.net/api/synthesize?voice=${voice}&text=${encodeURIComponent(cleanText)}`;
+    const audio = new Audio(audioUrl);
     currentTutorAudio = audio;
-    
-    audio.onended = () => {
+
+    const stopAnim = function() {
       if (avatar) avatar.classList.remove('speaking');
       if (avatarWrap) avatarWrap.classList.remove('state-speaking');
       if (currentTutorAudio === audio) currentTutorAudio = null;
     };
+
+    audio.onended = stopAnim;
+    audio.onerror = stopAnim;
     
-    audio.onerror = () => {
-      console.error("Erreur de récupération du flux Azure.");
-      if (avatar) avatar.classList.remove('speaking');
-      if (avatarWrap) avatarWrap.classList.remove('state-speaking');
-      if (currentTutorAudio === audio) currentTutorAudio = null;
-    };
-    
-    await audio.play();
-  } catch (err) {
-    console.error("Échec lecture audio Azure :", err);
-    if (avatar) avatar.classList.remove('speaking');
-    if (avatarWrap) avatarWrap.classList.remove('state-speaking');
-    if (currentTutorAudio === audio) currentTutorAudio = null;
+    audio.play().catch(function(err) {
+      console.warn("Audio non lu :", err);
+      stopAnim();
+    });
+  } catch (e) {
+    console.error("Erreur lecture audio :", e);
   }
 };
 
@@ -1441,7 +1436,7 @@ window.speak = function(text, tutorKey) { window.playTutorAudio(text, tutorKey);
 
 window.testTutorVoice = function(tutorKey) {
   const isYasmine = (tutorKey || '').toLowerCase().includes('yasmine');
-  const phrase = isYasmine ? "مَرْحَبًا، أَنَا يَاسْمِين. كَيْفَ حَالُكَ اليَوْم؟" : "مَرْحَبًا، أَنَا طَارِق. هَلْ أَنْتَ جَاهِزٌ لِلتَّدْرِيب؟";
+  const phrase = isYasmine ? "مَرْحَبًا، أَنَا يَاسْمِين." : "مَرْحَبًا، أَنَا طَارِق.";
   window.playTutorAudio(phrase, tutorKey);
 };
 
@@ -2865,7 +2860,6 @@ function loadVoices() {
 }
 
 const fillVoiceSelect = loadVoices;
-const refreshVoices = loadVoices;
 const refreshVoices = loadVoices;
 
 function extractArabicOnly(text){
