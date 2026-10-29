@@ -1302,6 +1302,9 @@ window.addEventListener("unhandledrejection", function(evt){
 // Navigation de secours ultra-simple & infaillible (disponible immédiatement)
 window.switchTab = function(tabName) {
   try {
+    if (typeof window.stopAllAudios === 'function') {
+      window.stopAllAudios();
+    }
     console.log('Changement vers onglet :', tabName);
     if(tabName === "roles") tabName = "roleplay";
 
@@ -1378,6 +1381,9 @@ window.switchTab = function(tabName) {
 window.switchMainTab = window.switchTab;
 
 window.closeChat = function() {
+  if (typeof window.stopAllAudios === 'function') {
+    window.stopAllAudios();
+  }
   // 1. Couper les écoutes / flux
   if (window.recognitionInstance) {
     try { window.recognitionInstance.abort(); } catch(e) {}
@@ -1449,9 +1455,46 @@ window.closeChat = function() {
 window.closeConversationScreen = window.closeChat;
 
 // =========================================================================
-// 1. Moteur Audio direct (Gemini TTS natif haute fidélité avec verrou unique)
+// 1. Verrou Audio Global Absolu (Singleton & Kill Switch) & Anti-Rebond
 // =========================================================================
+window.currentAudio = null;
 window.activeAudio = null;
+window.isGeneratingAudio = false;
+window.isProcessingMessage = false;
+
+window.stopAllAudios = function() {
+  // 1. Couper l'audio HTML5
+  if (window.currentAudio) {
+    try {
+      window.currentAudio.pause();
+      window.currentAudio.currentTime = 0;
+      window.currentAudio.src = '';
+    } catch(e) {}
+    window.currentAudio = null;
+  }
+  if (window.activeAudio) {
+    try {
+      window.activeAudio.pause();
+      window.activeAudio.currentTime = 0;
+      window.activeAudio.src = '';
+    } catch(e) {}
+    window.activeAudio = null;
+  }
+  // 2. Couper toute synthèse vocale système
+  if ('speechSynthesis' in window) {
+    try {
+      window.speechSynthesis.cancel();
+    } catch(e) {}
+  }
+  // 3. Retirer l'état visuel avatar
+  const avatar = document.querySelector('.tutor-avatar, #tutorAvatarImg');
+  if (avatar) avatar.classList.remove('speaking');
+  const avatarWrap = document.getElementById('avatarWrap');
+  if (avatarWrap) avatarWrap.classList.remove('state-speaking');
+};
+
+window.stopCurrentAudio = window.stopAllAudios;
+window.stopSpeak = window.stopAllAudios;
 
 window.showAudioStatus = function(msg, isError = false) {
   let box = document.getElementById('audioStatusToast');
@@ -1473,52 +1516,53 @@ window.showAudioStatus = function(msg, isError = false) {
 window.playTutorAudio = async function(text, tutorKey) {
   if (!text) return;
 
-  // 1. Couper tout son en cours
-  if (window.activeAudio) {
-    try { window.activeAudio.pause(); window.activeAudio.currentTime = 0; } catch(e){}
-    window.activeAudio = null;
+  // Coupe tout immédiatement
+  window.stopAllAudios();
+
+  if (window.isGeneratingAudio) {
+    console.warn("Génération audio déjà en cours, requête ignorée.");
+    return;
   }
-  if (window.currentAudioInstance) {
-    try { window.currentAudioInstance.pause(); window.currentAudioInstance.currentTime = 0; } catch(e){}
-    window.currentAudioInstance = null;
-  }
-  if ('speechSynthesis' in window) {
-    window.speechSynthesis.cancel();
-  }
+
+  window.isGeneratingAudio = true;
 
   const cleanText = text.replace(/[*_#`~]/g, '').trim();
-  if (!cleanText) return;
+  if (!cleanText) {
+    window.isGeneratingAudio = false;
+    return;
+  }
 
+  const engineMode = localStorage.getItem('audio_engine_mode') || 'gemini_hd';
   const isYasmine = (tutorKey || localStorage.getItem('selected_tutor') || 'yasmine').toLowerCase().includes('yasmine');
+  const voiceName = isYasmine ? 'Aoede' : 'Puck';
+  const ttsModel = (localStorage.getItem('gemini_tts_model') || 'gemini-3.8-flash-lite-tts').replace(/^models\//, '').trim();
+
   const avatar = document.querySelector('.tutor-avatar, #tutorAvatarImg');
   if (avatar) avatar.classList.add('speaking');
   const avatarWrap = document.getElementById('avatarWrap');
   if (avatarWrap) avatarWrap.classList.add('state-speaking');
-
-  const stopSpeaking = () => {
-    if (avatar) avatar.classList.remove('speaking');
-    if (avatarWrap) avatarWrap.classList.remove('state-speaking');
-    window.activeAudio = null;
-    window.currentAudioInstance = null;
-  };
-
-  const engineMode = localStorage.getItem('audio_engine_mode') || 'gemini_hd';
 
   // ==========================================
   // OPTION A : MOTEUR STANDARD GRATUIT ILLIMITÉ
   // ==========================================
   if (engineMode === 'standard_free') {
     if (!('speechSynthesis' in window)) {
-      stopSpeaking();
+      window.stopAllAudios();
+      window.isGeneratingAudio = false;
       return;
     }
     const utterance = new SpeechSynthesisUtterance(cleanText);
     utterance.lang = 'ar-SA';
-    utterance.rate = 0.95; // Légèrement ralenti pour une meilleure diction
+    utterance.rate = 0.95;
     utterance.pitch = isYasmine ? 1.15 : 0.95;
-    
-    utterance.onend = stopSpeaking;
-    utterance.onerror = stopSpeaking;
+    utterance.onend = () => {
+      window.stopAllAudios();
+      window.isGeneratingAudio = false;
+    };
+    utterance.onerror = () => {
+      window.stopAllAudios();
+      window.isGeneratingAudio = false;
+    };
     window.speechSynthesis.speak(utterance);
     return;
   }
@@ -1531,80 +1575,71 @@ window.playTutorAudio = async function(text, tutorKey) {
     if (typeof window.showAudioStatus === 'function') {
       window.showAudioStatus("Clé API manquante pour la voix HD", true);
     }
-    stopSpeaking();
+    window.stopAllAudios();
+    window.isGeneratingAudio = false;
     return;
   }
 
-  // Voix naturelles Google : Aoede (féminin chaleureux), Puck (masculin fluide et clair)
-  const voiceName = isYasmine ? 'Aoede' : 'Puck';
-  const ttsModel = (localStorage.getItem('gemini_tts_model') || 'gemini-3.8-flash-lite-tts').replace(/^models\//, '').trim();
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${ttsModel}:generateContent?key=${apiKey}`;
-
   try {
-    const resp = await fetch(url, {
+    const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${ttsModel}:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        contents: [{
-          parts: [{
-            // Consigne de vocalisation naturelle avec voyelles arabes (Tashkeel)
-            text: `Prononce ce texte en arabe avec une diction fluide, naturelle, expressive et chaleureuse :\n${cleanText}`
-          }]
-        }],
+        contents: [{ parts: [{ text: cleanText }] }],
         generationConfig: {
           responseModalities: ["AUDIO"],
-          speechConfig: {
-            voiceConfig: {
-              prebuiltVoiceConfig: { voiceName: voiceName }
-            }
-          }
+          speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voiceName } } }
         }
       })
     });
 
-    const data = await resp.json();
-
-    // Si quota dépassé (erreur 429), bascule automatique transparente sur la voix standard !
     if (!resp.ok) {
-      console.warn("Quota Gemini TTS atteint, repli automatique sur le moteur standard.");
-      if (typeof window.showAudioStatus === 'function') {
-        window.showAudioStatus("Quota HD atteint : passage sur la voix standard", false);
-      }
+      console.warn("API TTS en erreur, bascule standard.");
       const utterance = new SpeechSynthesisUtterance(cleanText);
       utterance.lang = 'ar-SA';
       utterance.rate = 0.95;
       utterance.pitch = isYasmine ? 1.15 : 0.95;
-      utterance.onend = stopSpeaking;
-      utterance.onerror = stopSpeaking;
+      utterance.onend = () => {
+        window.stopAllAudios();
+        window.isGeneratingAudio = false;
+      };
+      utterance.onerror = () => {
+        window.stopAllAudios();
+        window.isGeneratingAudio = false;
+      };
       window.speechSynthesis.speak(utterance);
       return;
     }
 
+    const data = await resp.json();
     const audioCandidate = data?.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
+
     if (audioCandidate?.inlineData?.data) {
+      // Re-vérifier et couper tout son qui aurait pu démarrer entre-temps
+      window.stopAllAudios();
+
       const mimeType = audioCandidate.inlineData.mimeType || 'audio/wav';
       const audio = new Audio(`data:${mimeType};base64,${audioCandidate.inlineData.data}`);
+      window.currentAudio = audio;
       window.activeAudio = audio;
-      window.currentAudioInstance = audio;
-      audio.onended = stopSpeaking;
-      audio.onerror = stopSpeaking;
+
+      audio.onended = () => {
+        window.stopAllAudios();
+        window.isGeneratingAudio = false;
+      };
+      audio.onerror = () => {
+        window.stopAllAudios();
+        window.isGeneratingAudio = false;
+      };
+
       await audio.play();
     } else {
-      stopSpeaking();
+      window.stopAllAudios();
+      window.isGeneratingAudio = false;
     }
-  } catch (err) {
-    console.error("Erreur TTS:", err);
-    try {
-      const utterance = new SpeechSynthesisUtterance(cleanText);
-      utterance.lang = 'ar-SA';
-      utterance.rate = 0.95;
-      utterance.pitch = isYasmine ? 1.15 : 0.95;
-      utterance.onend = stopSpeaking;
-      utterance.onerror = stopSpeaking;
-      window.speechSynthesis.speak(utterance);
-    } catch(e) {
-      stopSpeaking();
-    }
+  } catch (e) {
+    window.stopAllAudios();
+    window.isGeneratingAudio = false;
   }
 };
 
@@ -1728,7 +1763,11 @@ window.toggleMic = function() {
     };
 
     recognition.onresult = (e) => {
-      const text = e.results[0][0].transcript;
+      if (window.isProcessingMessage) return;
+      const text = e.results && e.results[0] && e.results[0][0] && e.results[0][0].transcript;
+      if (!text || !text.trim()) return;
+      window.isProcessingMessage = true;
+      try { recognition.stop(); } catch(err) {}
       console.log("Texte capté :", text);
       if (typeof window.appendMessage === 'function') {
         window.appendMessage('user', text);
@@ -2138,12 +2177,14 @@ async function sendToGemini(userMessage) {
   } finally {
     const ind = document.getElementById("geminiTypingIndicator");
     if (ind) ind.remove();
+    window.isProcessingMessage = false;
   }
 }
 window.sendToGemini = sendToGemini;
 window.callGeminiApi = sendToGemini;
 
 async function handleSend() {
+  if (window.isProcessingMessage) return;
   const inp = document.getElementById("input");
   if (!inp) return;
   const v = inp.value.trim();
@@ -2154,6 +2195,7 @@ async function handleSend() {
     return;
   }
   
+  window.isProcessingMessage = true;
   inp.value = "";
   inp.style.height = "auto";
   
@@ -2184,6 +2226,7 @@ async function handleSend() {
   } finally {
     const ind = document.getElementById("geminiTypingIndicator");
     if (ind) ind.remove();
+    window.isProcessingMessage = false;
     if (typeof S !== "undefined") {
       S.busy = false;
       if (typeof setStatus === "function") setStatus();
@@ -4158,6 +4201,9 @@ function rules(){
 
 /* ---------- navigation ---------- */
 function show(id){
+  if (typeof window.stopAllAudios === "function") {
+    window.stopAllAudios();
+  }
   ["home","chat","listen","repeat","alpha","recap"].forEach(x=>{
     const elem = $("#"+x);
     if(elem){
