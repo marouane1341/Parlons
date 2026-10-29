@@ -1440,14 +1440,33 @@ window.closeChat = function() {
 window.closeConversationScreen = window.closeChat;
 
 // =========================================================================
-// 1. Moteur Audio direct (Gemini TTS natif haute fidélité)
+// 1. Moteur Audio direct (Gemini TTS natif haute fidélité avec verrou unique)
 // =========================================================================
+window.currentAudioInstance = null;
+
+window.stopCurrentAudio = function() {
+  if (window.currentAudioInstance) {
+    try {
+      window.currentAudioInstance.pause();
+      window.currentAudioInstance.currentTime = 0;
+    } catch(e){}
+    window.currentAudioInstance = null;
+  }
+  const avatar = document.querySelector('.tutor-avatar, #tutorAvatarImg');
+  if (avatar) avatar.classList.remove('speaking');
+  const avatarWrap = document.getElementById('avatarWrap');
+  if (avatarWrap) avatarWrap.classList.remove('state-speaking');
+};
+
 let currentTutorAudio = null;
 
 window.playTutorAudio = async function(text, tutorKey) {
   if (!text) return;
 
-  const apiKey = localStorage.getItem('gemini_api_key') || localStorage.getItem('apiKey') || localStorage.getItem('gemini_key') || '';
+  // Verrouillage audio unique : couper immédiatement tout son en cours
+  window.stopCurrentAudio();
+
+  const apiKey = localStorage.getItem('gemini_api_key') || localStorage.getItem('apiKey') || localStorage.getItem('gemini_key') || (typeof curKey === 'function' ? curKey() : '') || (typeof S !== 'undefined' && S.cfg && S.cfg.keys && S.cfg.keys.gemini) || '';
   if (!apiKey) {
     console.error("Clé API Gemini manquante.");
     return;
@@ -1466,18 +1485,10 @@ window.playTutorAudio = async function(text, tutorKey) {
   const avatarWrap = document.getElementById('avatarWrap');
   if (avatarWrap) avatarWrap.classList.add('state-speaking');
 
-  // Couper l'audio précédent si en cours
-  if (currentTutorAudio) {
-    try {
-      currentTutorAudio.pause();
-      currentTutorAudio.currentTime = 0;
-    } catch(e){}
-    currentTutorAudio = null;
-  }
-
   const stopSpeaking = () => {
     if (avatar) avatar.classList.remove('speaking');
     if (avatarWrap) avatarWrap.classList.remove('state-speaking');
+    if (window.currentAudioInstance === audio) window.currentAudioInstance = null;
     if (currentTutorAudio === audio) currentTutorAudio = null;
   };
 
@@ -1518,33 +1529,33 @@ window.playTutorAudio = async function(text, tutorKey) {
     const audioPart = data?.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
 
     if (audioPart && audioPart.inlineData && audioPart.inlineData.data) {
+      // Couper à nouveau si un autre appel a été fait pendant la requête réseau
+      window.stopCurrentAudio();
+      if (avatar) avatar.classList.add('speaking');
+      if (avatarWrap) avatarWrap.classList.add('state-speaking');
+
       const mimeType = audioPart.inlineData.mimeType || 'audio/wav';
       const audioSrc = `data:${mimeType};base64,${audioPart.inlineData.data}`;
       const audio = new Audio(audioSrc);
+      
+      // Stockage dans l'instance unique
+      window.currentAudioInstance = audio;
       currentTutorAudio = audio;
 
-      audio.onended = () => {
-        if (avatar) avatar.classList.remove('speaking');
-        if (avatarWrap) avatarWrap.classList.remove('state-speaking');
-        if (currentTutorAudio === audio) currentTutorAudio = null;
-      };
+      audio.onended = stopSpeaking;
       audio.onerror = (e) => {
         console.error("Erreur de décodage audio :", e);
-        if (avatar) avatar.classList.remove('speaking');
-        if (avatarWrap) avatarWrap.classList.remove('state-speaking');
-        if (currentTutorAudio === audio) currentTutorAudio = null;
+        stopSpeaking();
       };
 
       await audio.play();
     } else {
       console.warn("Aucun flux binaire audio dans la réponse :", data);
-      if (avatar) avatar.classList.remove('speaking');
-      if (avatarWrap) avatarWrap.classList.remove('state-speaking');
+      stopSpeaking();
     }
   } catch (err) {
     console.error("Échec lors de l'appel Gemini TTS :", err);
-    if (avatar) avatar.classList.remove('speaking');
-    if (avatarWrap) avatarWrap.classList.remove('state-speaking');
+    stopSpeaking();
   }
 };
 
@@ -1583,10 +1594,16 @@ window.toggleMic = function() {
       try { recognition.abort(); } catch(e) {}
     }
 
+    // Couper tout audio en cours lors de la prise de parole
+    if (typeof window.stopCurrentAudio === 'function') {
+      window.stopCurrentAudio();
+    }
+
     recognition = new SpeechRec();
     recognition.continuous = false;
     recognition.interimResults = false;
-    recognition.lang = 'ar-SA';
+    const isFr = (typeof S !== "undefined" && S.tutorStt === "fr");
+    recognition.lang = isFr ? 'fr-FR' : 'ar-SA';
 
     recognition.onstart = () => {
       isRecording = true;
@@ -1698,7 +1715,8 @@ window.initTutorGreeting = function() {
       S.lastUserEl = null;
       S.busy = false;
       S.hf = false;
-      S.tutorStt = "fr";
+      S.tutorStt = isAr ? "ar" : "fr";
+      window.currentMicLang = isAr ? "ar" : "fr";
     }
     if (typeof renderTargets === "function") renderTargets();
     if (typeof renderGoals === "function") renderGoals();
@@ -1874,29 +1892,43 @@ function appendMessage(role, text) {
 window.appendMessage = appendMessage;
 
 async function sendToGemini(userMessage) {
-  const apiKey = localStorage.getItem('gemini_api_key') || localStorage.getItem('apiKey');
+  const apiKey = localStorage.getItem('gemini_api_key') || localStorage.getItem('apiKey') || localStorage.getItem('gemini_key') || (typeof curKey === 'function' ? curKey() : '') || (typeof S !== 'undefined' && S.cfg && S.cfg.keys && S.cfg.keys.gemini) || '';
   if (!apiKey) {
     alert("Clé API absente. Veuillez la renseigner dans Profil.");
     return;
   }
 
   // 1. Récupération robuste du tuteur (Sécurisation totale)
-  const tutorId = localStorage.getItem('selected_tutor') || 'yasmine';
+  const tutorId = localStorage.getItem('selected_tutor') || localStorage.getItem('parlons.tutor') || 'tariq';
+  const isYasmine = tutorId.toLowerCase().includes('yasmine');
   const currentTutor = (window.TUTORS && window.TUTORS[tutorId]) ? window.TUTORS[tutorId] : {
-    name: "Yasmine",
-    prompt: "Tu es Yasmine, professeure d'arabe bienveillante."
+    name: isYasmine ? "Yasmine" : "Tariq",
+    prompt: isYasmine 
+      ? "Tu es Yasmine, professeure d'arabe bienveillante et encourageante. Réponds de façon concise et pédagogique, principalement en arabe avec transcription et traduction française si nécessaire."
+      : "Tu es Tariq, professeur d'arabe pragmatique et dynamique. Réponds de façon vivante et concrète, principalement en arabe parlé."
   };
 
   const systemInstruction = currentTutor.prompt || currentTutor.promptText || (
-    tutorId.toLowerCase().includes('yasmine')
+    isYasmine
       ? "Tu es Yasmine, professeure d'arabe bienveillante et encourageante. Réponds de façon concise et pédagogique, principalement en arabe avec transcription et traduction française si nécessaire."
       : "Tu es Tariq, professeur d'arabe pragmatique et dynamique. Réponds de façon vivante et concrète, principalement en arabe parlé."
   );
 
-  // 2. Appel direct et dynamique à Gemini
+  // 2. Appel direct et dynamique à Gemini avec gemini-3.5-flash-lite
   const storedModel = localStorage.getItem('gemini_chat_model') || 'gemini-3.5-flash-lite';
   const modelName = storedModel.replace(/^models\//, '').trim() || 'gemini-3.5-flash-lite';
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+
+  // Indicateur de réflexion dans le chat
+  const log = document.getElementById("log");
+  const typingInd = document.createElement("div");
+  typingInd.id = "geminiTypingIndicator";
+  typingInd.className = "msg t typing";
+  typingInd.textContent = "…";
+  if (log) {
+    log.appendChild(typingInd);
+    typingInd.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }
 
   const payload = {
     contents: [
@@ -1917,22 +1949,30 @@ async function sendToGemini(userMessage) {
       body: JSON.stringify(payload)
     });
 
+    if (!response.ok) {
+      const errJson = await response.json().catch(() => ({}));
+      const msg = errJson?.error?.message || `Erreur API HTTP ${response.status}`;
+      throw new Error(msg);
+    }
+
     const data = await response.json();
 
     if (data.error) {
       throw new Error(data.error.message || "Erreur renvoyée par l'API Gemini");
     }
 
-    // Extraction sécurisée de la réponse (sans jamais lire .id)
+    // Extraction sécurisée de la réponse
     const botReply = data?.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!botReply) {
       throw new Error("Réponse textuelle vide reçue de Gemini.");
     }
 
     // 3. Afficher la réponse dans le chat
-    appendMessage('assistant', botReply);
+    if (typeof appendMessage === 'function') {
+      appendMessage('assistant', botReply);
+    }
 
-    // 4. Lecture vocale garantie (Salma / Shakir via Edge TTS)
+    // 4. Lecture vocale garantie immédiate (Gemini TTS)
     if (typeof window.playTutorAudio === 'function') {
       window.playTutorAudio(botReply, tutorId);
     } else if (typeof window.playVoice === 'function') {
@@ -1941,13 +1981,24 @@ async function sendToGemini(userMessage) {
 
   } catch (error) {
     console.error("Erreur Gemini détaillée :", error);
+    if (log) {
+      const errBubble = document.createElement("div");
+      errBubble.className = "msg t";
+      errBubble.style.color = "var(--bad)";
+      errBubble.style.background = "#fee2e2";
+      errBubble.style.border = "1px solid #f87171";
+      errBubble.textContent = `⚠️ Erreur : ${error.message || "Impossible d'obtenir une réponse de Gemini."}`;
+      log.appendChild(errBubble);
+      errBubble.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }
     const errorContainer = document.querySelector('.error-banner') || document.getElementById('chatErrorMessage');
     if (errorContainer) {
       errorContainer.textContent = `Erreur : ${error.message}`;
       errorContainer.style.display = 'block';
-    } else {
-      alert(`Erreur : ${error.message}`);
     }
+  } finally {
+    const ind = document.getElementById("geminiTypingIndicator");
+    if (ind) ind.remove();
   }
 }
 window.sendToGemini = sendToGemini;
@@ -3151,6 +3202,9 @@ function updateAvatarSpeaking(isSpeaking){
 window.updateAvatarSpeaking = updateAvatarSpeaking;
 
 function stopSpeak(){
+  if (typeof window.stopCurrentAudio === 'function') {
+    window.stopCurrentAudio();
+  }
   try {
     if (currentTutorAudio) {
       try {
@@ -4033,9 +4087,11 @@ function updateTutorSttUI(){
   bar.hidden=false;
   const b=$("#tutorSttBtn");
   if(b){
-    const cur=S.tutorStt||"fr";
-    const targetLabel=LANGS[S.lang].label;
-    b.textContent=cur==="fr"?"🎤 Micro : Français (toucher pour "+targetLabel+")":"🎤 Micro : "+targetLabel+" (toucher pour Français)";
+    const cur=S.tutorStt||(S.lang==="ar"?"ar":"fr");
+    const targetLabel=(typeof LANGS !== "undefined" && LANGS[S.lang]) ? LANGS[S.lang].label : "Arabe";
+    const isTarget = (cur === "ar" || cur === S.lang);
+    b.textContent = isTarget ? `🎤 Micro : ${targetLabel}` : `🎤 Micro : Français (toucher pour ${targetLabel})`;
+    b.style.fontWeight = isTarget ? "700" : "normal";
   }
 }
 
@@ -4053,7 +4109,8 @@ function startTutor(){
   S.lastUserEl=null;
   S.busy=false;
   S.hf=false;
-  S.tutorStt="fr";
+  S.tutorStt = isAr ? "ar" : "fr";
+  window.currentMicLang = isAr ? "ar" : "fr";
   renderTargets();
   renderGoals();
   $("#log").textContent="";
@@ -4344,7 +4401,12 @@ function alignWords(target,heard){
   return ok;
 }
 safeAddListener("#tutorBtn", "click", ()=>startTutor());
-safeAddListener("#tutorSttBtn", "click", ()=>{S.tutorStt=(S.tutorStt==="fr"?S.lang:"fr");window.currentMicLang=S.tutorStt;updateTutorSttUI();});
+safeAddListener("#tutorSttBtn", "click", ()=>{
+  S.tutorStt = (S.tutorStt === "fr" ? S.lang : "fr");
+  window.currentMicLang = S.tutorStt;
+  updateTutorSttUI();
+  if(typeof flash === "function") flash("Micro réglé sur : " + (S.tutorStt === "fr" ? "Français" : ((typeof LANGS !== "undefined" && LANGS[S.lang]) ? LANGS[S.lang].label : "Arabe")));
+});
 safeAddListener("#repeatBtn", "click", () => openRepeat());
 safeAddListener("#repeatBack", "click", () => {leaveSession();show("home")});
 async function openRepeat(){
