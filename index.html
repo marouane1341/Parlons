@@ -1382,48 +1382,66 @@ window.closeConversationScreen = window.closeChat;
 // =========================================================================
 // 1. Moteur Audio direct (Testé et fonctionnel sans dépendance externe bloquante)
 // =========================================================================
-window.playTutorAudio = function(text, tutorKey) {
+let currentTutorAudio = null;
+
+window.playTutorAudio = async function(text, tutorKey) {
   if (!text) return;
+  
+  if (currentTutorAudio) {
+    try {
+      currentTutorAudio.pause();
+      currentTutorAudio.currentTime = 0;
+    } catch(e){}
+    currentTutorAudio = null;
+  }
+
+  const cleanText = text.replace(/[*_#`]/g, '').trim();
   const isYasmine = (tutorKey || localStorage.getItem('selected_tutor') || 'yasmine').toLowerCase().includes('yasmine');
   
-  if (!('speechSynthesis' in window)) return;
-  window.speechSynthesis.cancel();
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = 'ar-SA';
+  // Les identifiants exacts des voix Microsoft Azure
+  const voiceName = isYasmine ? 'ar-EG-SalmaNeural' : 'ar-EG-ShakirNeural';
   
-  // Attribution stricte : Voix aiguë pour Yasmine, voix grave pour Tariq
-  utterance.pitch = isYasmine ? 1.6 : 0.7;
-  utterance.rate = 0.9;
-
-  // Animation visuelle de l'avatar pendant la prise de parole
   const avatar = document.querySelector('.tutor-avatar, #tutorAvatarImg');
   if (avatar) avatar.classList.add('speaking');
   const avatarWrap = document.getElementById('avatarWrap');
   if (avatarWrap) avatarWrap.classList.add('state-speaking');
 
-  utterance.onend = () => {
+  try {
+    // Appel direct à la passerelle Edge-TTS publique renvoyant le flux MP3 officiel
+    const directUrl = `https://edge-tts.azurewebsites.net/api/synthesize?voice=${voiceName}&text=${encodeURIComponent(cleanText)}`;
+    
+    const audio = new Audio(directUrl);
+    currentTutorAudio = audio;
+    
+    audio.onended = () => {
+      if (avatar) avatar.classList.remove('speaking');
+      if (avatarWrap) avatarWrap.classList.remove('state-speaking');
+      if (currentTutorAudio === audio) currentTutorAudio = null;
+    };
+    
+    audio.onerror = () => {
+      console.error("Erreur de récupération du flux Azure.");
+      if (avatar) avatar.classList.remove('speaking');
+      if (avatarWrap) avatarWrap.classList.remove('state-speaking');
+      if (currentTutorAudio === audio) currentTutorAudio = null;
+    };
+    
+    await audio.play();
+  } catch (err) {
+    console.error("Échec lecture audio Azure :", err);
     if (avatar) avatar.classList.remove('speaking');
     if (avatarWrap) avatarWrap.classList.remove('state-speaking');
-  };
-  utterance.onerror = () => {
-    if (avatar) avatar.classList.remove('speaking');
-    if (avatarWrap) avatarWrap.classList.remove('state-speaking');
-  };
-
-  // Recherche de voix arabe installée si disponible
-  const voices = window.speechSynthesis.getVoices();
-  const arVoice = voices && voices.find(v => v.lang && v.lang.includes('ar'));
-  if (arVoice) utterance.voice = arVoice;
-
-  window.speechSynthesis.speak(utterance);
+    if (currentTutorAudio === audio) currentTutorAudio = null;
+  }
 };
+
 window.playVoice = window.playTutorAudio;
 window.speakText = function(text, tutorKey) { window.playTutorAudio(text, tutorKey); };
 window.speak = function(text, tutorKey) { window.playTutorAudio(text, tutorKey); };
 
 window.testTutorVoice = function(tutorKey) {
-  const isYasmine = tutorKey ? tutorKey.includes('yasmine') : true;
-  const phrase = isYasmine ? "مَرْحَبًا ! أَنَا يَاسْمِين" : "مَرْحَبًا ! أَنَا طَارِق";
+  const isYasmine = (tutorKey || '').toLowerCase().includes('yasmine');
+  const phrase = isYasmine ? "مَرْحَبًا، أَنَا يَاسْمِين. كَيْفَ حَالُكَ اليَوْم؟" : "مَرْحَبًا، أَنَا طَارِق. هَلْ أَنْتَ جَاهِزٌ لِلتَّدْرِيب؟";
   window.playTutorAudio(phrase, tutorKey);
 };
 
@@ -2842,39 +2860,12 @@ function errText(e){
 let VOICES = [];
 
 function loadVoices() {
-  if (!("speechSynthesis" in window)) return;
-  const voices = window.speechSynthesis.getVoices() || [];
-  VOICES = voices;
-  const voiceSelect = document.getElementById('voiceSel');
-  if (voiceSelect && voices.length > 0) {
-    voiceSelect.innerHTML = '';
-    // Prioriser les voix arabes
-    const arabicVoices = voices.filter(v => v.lang && (v.lang.startsWith('ar') || v.lang.includes('ar-XA') || v.lang.includes('ar-SA')));
-    const listToDisplay = arabicVoices.length > 0 ? arabicVoices : voices;
-    const saved = S.cfg && S.cfg.voice && S.cfg.voice[S.lang];
-
-    listToDisplay.forEach(v => {
-      const opt = document.createElement('option');
-      opt.value = v.name;
-      opt.textContent = `${v.name} (${v.lang})`;
-      if (saved && (saved === v.name || saved === v.voiceURI)) {
-        opt.selected = true;
-      } else if (v.lang && (v.lang.startsWith('ar') || v.lang.includes('ar-XA') || v.lang.includes('ar-SA'))) {
-        opt.selected = true;
-      }
-      voiceSelect.appendChild(opt);
-    });
-  }
+  VOICES = [];
   populateTutorVoiceSelects();
 }
 
-// Ecouter l'evenement indispensable sur mobile
-if (typeof window !== "undefined" && "speechSynthesis" in window) {
-  window.speechSynthesis.onvoiceschanged = loadVoices;
-  loadVoices();
-}
-
 const fillVoiceSelect = loadVoices;
+const refreshVoices = loadVoices;
 const refreshVoices = loadVoices;
 
 function extractArabicOnly(text){
@@ -2893,25 +2884,11 @@ function extractFrenchExplanation(text){
 }
 
 function voicesFor(lang){
-  const p = SPEECH[lang].tts.slice(0,2).toLowerCase();
-  const list = VOICES.length ? VOICES : ((window.speechSynthesis && window.speechSynthesis.getVoices()) || []);
-  return list.filter(v => v.lang && v.lang.toLowerCase().indexOf(p) === 0);
+  return VOICES;
 }
 
 function voiceFor(lang){
-  const voices = (window.speechSynthesis && window.speechSynthesis.getVoices()) || VOICES || [];
-  const p = SPEECH[lang].tts.slice(0,2).toLowerCase();
-  const list = voices.filter(v => v.lang && v.lang.toLowerCase().indexOf(p) === 0);
-  const saved = S.cfg && S.cfg.voice && S.cfg.voice[lang];
-  if(saved){
-    const f = voices.find(v => v.name === saved || v.voiceURI === saved);
-    if(f) return f;
-  }
-  if(lang === "ar"){
-    const arabicVoice = voices.find(v => v.lang && v.lang.startsWith("ar"));
-    if(arabicVoice) return arabicVoice;
-  }
-  return list.find(v => v.lang && v.lang.toLowerCase() === SPEECH[lang].tts.toLowerCase()) || list[0] || null;
+  return null;
 }
 
 /* ---------- GESTION MULTI-TUTEURS (Yasmine & Tariq) ---------- */
@@ -2980,73 +2957,9 @@ function getSavedTutorVoice(tid) {
 window.getSavedTutorVoice = getSavedTutorVoice;
 
 function populateTutorVoices() {
-  try {
-    const voices = (typeof window !== "undefined" && window.speechSynthesis && window.speechSynthesis.getVoices()) || VOICES || [];
-    if (!voices || voices.length === 0) return;
-
-    // Déterminer le préfixe selon la langue active en haut (ar, en, nl)
-    const currentLangCode = (typeof S !== 'undefined' && S.lang) ? S.lang : 'ar';
-    const langPrefix = (typeof currentLanguage !== 'undefined' && currentLanguage === 'anglais') ? 'en' :
-                       ((typeof currentLanguage !== 'undefined' && currentLanguage === 'neerlandais') ? 'nl' :
-                       ((currentLangCode === 'en' || currentLangCode === 'nl') ? currentLangCode : 'ar'));
-
-    // Filtrer STRICTEMENT les voix de la langue sélectionnée
-    let available = voices.filter(v => v.lang && v.lang.toLowerCase().replace('_', '-').startsWith(langPrefix));
-    
-    // Fallback de sécurité si le format du tag système diffère
-    if (available.length === 0) {
-      available = voices.filter(v => (v.lang && v.lang.toLowerCase().includes(langPrefix)) || (v.name && v.name.toLowerCase().includes(langPrefix)));
-    }
-
-    const selects = [
-      { el: document.getElementById('voiceYasmine') || document.getElementById('voiceSelYasmine'), key: 'tutor_voice_yasmine', defaultIdx: 0, pitch: 1.2 },
-      { el: document.getElementById('voiceTariq') || document.getElementById('voiceSelTariq'), key: 'tutor_voice_tariq', defaultIdx: Math.min(1, available.length - 1), pitch: 0.85 }
-    ];
-
-    selects.forEach(({ el, key, defaultIdx, pitch }) => {
-      if (!el) return;
-      let savedVoice = "";
-      try { savedVoice = localStorage.getItem(key); } catch(x){}
-      el.innerHTML = '';
-
-      if (available.length === 0) {
-        const opt = document.createElement('option');
-        opt.value = '';
-        opt.textContent = `Voix système ${langPrefix} par défaut`;
-        el.appendChild(opt);
-        return;
-      }
-
-      available.forEach((v, idx) => {
-        const opt = document.createElement('option');
-        opt.value = v.name;
-        opt.textContent = `${v.name} (${v.lang})`;
-        if (savedVoice ? v.name === savedVoice : idx === defaultIdx) {
-          opt.selected = true;
-        }
-        el.appendChild(opt);
-      });
-
-      el.onchange = (e) => {
-        try { localStorage.setItem(key, e.target.value); } catch(x){}
-      };
-    });
-  } catch(e) {
-    console.error("populateTutorVoices safe error:", e);
-  }
+  // Les voix Azure cloud Salma et Shakir sont fixes
 }
 
-// Déclencher à l'initialisation ET dès que le moteur Android injecte les voix
-try {
-  if (typeof window !== "undefined" && "speechSynthesis" in window) {
-    window.speechSynthesis.onvoiceschanged = () => {
-      try {
-        if (typeof loadVoices === "function") loadVoices();
-        populateTutorVoices();
-      } catch(x){ console.error(x); }
-    };
-  }
-} catch(e){ console.error("speechSynthesis init error:", e); }
 document.addEventListener('DOMContentLoaded', () => {
   try { populateTutorVoices(); } catch(e){ console.error(e); }
 });
@@ -3090,46 +3003,12 @@ function renderMarkdownVisual(text) {
 }
 
 function getTutorVoice(langPrefix, gender, tid) {
-  const voices = (window.speechSynthesis && window.speechSynthesis.getVoices()) || VOICES || [];
-  if (!tid) {
-    const active = (typeof getActiveTutor === "function") ? getActiveTutor() : null;
-    tid = active ? active.id : (gender === 'female' ? 'yasmine' : 'tariq');
-  }
-
-  // 1. Verifier si une voix dediee a ete choisie par l'utilisateur
-  const savedName = (typeof getSavedTutorVoice === "function") ? getSavedTutorVoice(tid) : "";
-  if (savedName) {
-    const savedVoice = voices.find(v => v.name === savedName || v.voiceURI === savedName);
-    if (savedVoice) {
-      if (!langPrefix || (savedVoice.lang && savedVoice.lang.toLowerCase().startsWith(langPrefix.toLowerCase()))) {
-        return savedVoice;
-      }
-    }
-  }
-
-  // 2. Filtrer les voix de la langue demandee (ex: 'ar' ou 'fr')
-  let available = voices.filter(v => v.lang && (v.lang.startsWith(langPrefix) || v.lang.toLowerCase().startsWith(langPrefix.toLowerCase())));
-  
-  // Pour le francais, exclure formellement le Canada (fr-CA ou contenant 'Canada')
-  if (langPrefix === 'fr') {
-    available = available.filter(v => !v.lang.includes('CA') && !v.name.includes('Canada') && !v.name.toLowerCase().includes('canadien'));
-  }
-  
-  if (available.length === 0) return null;
-  
-  // 3. Sur Android Google TTS : voix 1 / A = femme (Yasmine), voix 2 / B = homme (Tariq)
-  if (gender === 'female') {
-    return available.find(v => v.name.toLowerCase().includes('female') || v.name.includes('1') || v.name.includes('A')) || available[0];
-  } else {
-    return available.find(v => v.name.toLowerCase().includes('male') || v.name.includes('2') || v.name.includes('B')) || available[Math.min(1, available.length - 1)];
-  }
+  return null;
 }
 
 // =========================================================================
 // 2. MODULE AUDIO ROBUSTE & FALLBACK UNIVERSEL (ZÉRO BLOCAGE)
 // =========================================================================
-
-let currentTutorAudio = null;
 
 function updateAvatarSpeaking(isSpeaking){
   try {
@@ -3158,13 +3037,6 @@ function stopSpeak(){
     }
   } catch(e){
     console.error("stopSpeak error:", e);
-  }
-  try {
-    if(typeof window !== "undefined" && window.speechSynthesis){
-      window.speechSynthesis.cancel();
-    }
-  } catch(e){
-    console.error("speechSynthesis cancel error:", e);
   }
   updateAvatarSpeaking(false);
 }
@@ -5015,17 +4887,6 @@ try {
   load();
 } catch(e){ console.error("load error:", e); }
 
-try {
-  if("speechSynthesis" in window){
-    speechSynthesis.onvoiceschanged = () => {
-      try {
-        if(typeof refreshVoices === "function") refreshVoices();
-        if(typeof populateTutorVoices === "function") populateTutorVoices();
-      } catch(x){ console.error(x); }
-    };
-    if(typeof refreshVoices === "function") refreshVoices();
-  }
-} catch(e){ console.error("speechSynthesis init error:", e); }
 
 try {
   if(!SR||navigator.brave){
