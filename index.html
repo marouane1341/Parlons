@@ -976,7 +976,7 @@ audio,
               <select id="voiceYasmine" class="field" style="display:none"></select>
             </div>
             <div class="row" style="margin-top:auto;gap:6px">
-              <button class="mini ghost" type="button" data-test-voice="yasmine" onclick="window.playTutorAudio('مَرْحَبًا، أَنَا يَاسْمِين. كَيْفَ حَالُكَ اليَوْم؟', 'yasmine')" style="font-size:11px;padding:3px 8px">&#128266; Tester</button>
+              <button class="mini ghost" type="button" onclick="event.stopPropagation(); window.playTutorAudio('مَرْحَبًا، أَنَا يَاسْمِين. كَيْفَ حَالُكَ اليَوْم؟', 'yasmine')" style="font-size:11px;padding:3px 8px">&#128266; Tester</button>
               <button type="button" class="btn sm tutor-select-btn" id="btnSelectYasmine" onclick="chooseTutor('yasmine')" style="flex:1;font-size:11px;padding:4px 8px">S&eacute;lectionner</button>
             </div>
           </div>
@@ -999,7 +999,7 @@ audio,
               <select id="voiceTariq" class="field" style="display:none"></select>
             </div>
             <div class="row" style="margin-top:auto;gap:6px">
-              <button class="mini ghost" type="button" data-test-voice="tariq" onclick="window.playTutorAudio('مَرْحَبًا، أَنَا طَارِق. هَلْ أَنْتَ جَاهِزٌ لِلتَّدْرِيب؟', 'tariq')" style="font-size:11px;padding:3px 8px">&#128266; Tester</button>
+              <button class="mini ghost" type="button" onclick="event.stopPropagation(); window.playTutorAudio('مَرْحَبًا، أَنَا طَارِق. هَلْ أَنْتَ جَاهِزٌ لِلتَّدْرِيب؟', 'tariq')" style="font-size:11px;padding:3px 8px">&#128266; Tester</button>
               <button type="button" class="btn sm ghost tutor-select-btn" id="btnSelectTariq" onclick="chooseTutor('tariq')" style="flex:1;font-size:11px;padding:4px 8px">S&eacute;lectionner</button>
             </div>
           </div>
@@ -1442,42 +1442,38 @@ window.closeConversationScreen = window.closeChat;
 // =========================================================================
 // 1. Moteur Audio direct (Gemini TTS natif haute fidélité avec verrou unique)
 // =========================================================================
-window.currentAudioInstance = null;
-
-window.stopCurrentAudio = function() {
-  if (window.currentAudioInstance) {
-    try {
-      window.currentAudioInstance.pause();
-      window.currentAudioInstance.currentTime = 0;
-    } catch(e){}
-    window.currentAudioInstance = null;
-  }
-  const avatar = document.querySelector('.tutor-avatar, #tutorAvatarImg');
-  if (avatar) avatar.classList.remove('speaking');
-  const avatarWrap = document.getElementById('avatarWrap');
-  if (avatarWrap) avatarWrap.classList.remove('state-speaking');
-};
-
-let currentTutorAudio = null;
+window.activeAudio = null;
 
 window.playTutorAudio = async function(text, tutorKey) {
   if (!text) return;
 
-  // Verrouillage audio unique : couper immédiatement tout son en cours
-  window.stopCurrentAudio();
+  // 1. Stopper et libérer tout son en cours
+  if (window.activeAudio) {
+    try {
+      window.activeAudio.pause();
+      window.activeAudio.src = '';
+    } catch(e) {}
+    window.activeAudio = null;
+  }
+  if (window.currentAudioInstance) {
+    try {
+      window.currentAudioInstance.pause();
+      window.currentAudioInstance.src = '';
+    } catch(e) {}
+    window.currentAudioInstance = null;
+  }
 
   const apiKey = localStorage.getItem('gemini_api_key') || localStorage.getItem('apiKey') || localStorage.getItem('gemini_key') || (typeof curKey === 'function' ? curKey() : '') || (typeof S !== 'undefined' && S.cfg && S.cfg.keys && S.cfg.keys.gemini) || '';
   if (!apiKey) {
-    console.error("Clé API Gemini manquante.");
+    console.warn("Clé API absente pour TTS");
     return;
   }
 
-  // Nettoyage des balises Markdown, caractères spéciaux et émojis
+  // Nettoyage strict du texte (retrait des émojis et symboles markdown)
   const cleanText = text.replace(/[*_#`~]/g, '').trim();
   if (!cleanText) return;
 
   const isYasmine = (tutorKey || localStorage.getItem('selected_tutor') || 'yasmine').toLowerCase().includes('yasmine');
-  // Voix natives Google : Féminine (Aoede) pour Yasmine, Masculine (Puck) pour Tariq
   const voiceName = isYasmine ? 'Aoede' : 'Puck';
 
   const avatar = document.querySelector('.tutor-avatar, #tutorAvatarImg');
@@ -1485,78 +1481,77 @@ window.playTutorAudio = async function(text, tutorKey) {
   const avatarWrap = document.getElementById('avatarWrap');
   if (avatarWrap) avatarWrap.classList.add('state-speaking');
 
-  const stopSpeaking = () => {
-    if (avatar) avatar.classList.remove('speaking');
-    if (avatarWrap) avatarWrap.classList.remove('state-speaking');
-    if (window.currentAudioInstance === audio) window.currentAudioInstance = null;
-    if (currentTutorAudio === audio) currentTutorAudio = null;
-  };
-
   const ttsModel = localStorage.getItem('gemini_tts_model') || 'gemini-3.8-flash-lite-tts';
-  const cleanModel = ttsModel.replace(/^models\//, '').trim();
+  const cleanModel = ttsModel.replace(/^models\//, '').trim() || 'gemini-3.8-flash-lite-tts';
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${cleanModel}:generateContent?key=${apiKey}`;
 
-  const payload = {
-    contents: [{
-      parts: [{
-        text: `Prononce le texte suivant en arabe avec une diction naturelle, chaleureuse et fluide :\n${cleanText}`
-      }]
-    }],
-    generationConfig: {
-      responseModalities: ["AUDIO"],
-      speechConfig: {
-        voiceConfig: {
-          prebuiltVoiceConfig: {
-            voiceName: voiceName
-          }
-        }
-      }
-    }
-  };
-
   try {
-    const response = await fetch(url, {
+    const resp = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: cleanText }] }],
+        generationConfig: {
+          responseModalities: ["AUDIO"],
+          speechConfig: {
+            voiceConfig: { prebuiltVoiceConfig: { voiceName: voiceName } }
+          }
+        }
+      })
     });
 
-    if (!response.ok) {
-      throw new Error(`Erreur API TTS HTTP: ${response.status}`);
-    }
+    const data = await resp.json();
+    const audioCandidate = data?.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
 
-    const data = await response.json();
-    const audioPart = data?.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
-
-    if (audioPart && audioPart.inlineData && audioPart.inlineData.data) {
-      // Couper à nouveau si un autre appel a été fait pendant la requête réseau
-      window.stopCurrentAudio();
-      if (avatar) avatar.classList.add('speaking');
-      if (avatarWrap) avatarWrap.classList.add('state-speaking');
-
-      const mimeType = audioPart.inlineData.mimeType || 'audio/wav';
-      const audioSrc = `data:${mimeType};base64,${audioPart.inlineData.data}`;
-      const audio = new Audio(audioSrc);
-      
-      // Stockage dans l'instance unique
+    if (audioCandidate && audioCandidate.inlineData && audioCandidate.inlineData.data) {
+      const mimeType = audioCandidate.inlineData.mimeType || 'audio/wav';
+      const audio = new Audio(`data:${mimeType};base64,${audioCandidate.inlineData.data}`);
+      window.activeAudio = audio;
       window.currentAudioInstance = audio;
-      currentTutorAudio = audio;
 
-      audio.onended = stopSpeaking;
-      audio.onerror = (e) => {
-        console.error("Erreur de décodage audio :", e);
-        stopSpeaking();
+      const resetUi = () => {
+        if (avatar) avatar.classList.remove('speaking');
+        if (avatarWrap) avatarWrap.classList.remove('state-speaking');
+        if (window.activeAudio === audio) window.activeAudio = null;
+        if (window.currentAudioInstance === audio) window.currentAudioInstance = null;
       };
+
+      audio.onended = resetUi;
+      audio.onerror = resetUi;
 
       await audio.play();
     } else {
-      console.warn("Aucun flux binaire audio dans la réponse :", data);
-      stopSpeaking();
+      if (avatar) avatar.classList.remove('speaking');
+      if (avatarWrap) avatarWrap.classList.remove('state-speaking');
     }
   } catch (err) {
-    console.error("Échec lors de l'appel Gemini TTS :", err);
-    stopSpeaking();
+    console.error("Erreur lecture TTS:", err);
+    if (avatar) avatar.classList.remove('speaking');
+    if (avatarWrap) avatarWrap.classList.remove('state-speaking');
+    window.activeAudio = null;
+    window.currentAudioInstance = null;
   }
+};
+
+window.stopCurrentAudio = function() {
+  if (window.activeAudio) {
+    try {
+      window.activeAudio.pause();
+      window.activeAudio.src = '';
+    } catch(e) {}
+    window.activeAudio = null;
+  }
+  if (window.currentAudioInstance) {
+    try {
+      window.currentAudioInstance.pause();
+      window.currentAudioInstance.src = '';
+    } catch(e) {}
+    window.currentAudioInstance = null;
+  }
+  const avatar = document.querySelector('.tutor-avatar, #tutorAvatarImg');
+  if (avatar) avatar.classList.remove('speaking');
+  const avatarWrap = document.getElementById('avatarWrap');
+  if (avatarWrap) avatarWrap.classList.remove('state-speaking');
 };
 
 window.playVoice = window.playTutorAudio;
@@ -1572,51 +1567,46 @@ window.testTutorVoice = function(tutorKey) {
 // =========================================================================
 // Traduction instantanée des messages (Bouton planète)
 // =========================================================================
-window.translateMessage = async function(buttonElement, arabicText) {
-  const messageCard = (buttonElement && buttonElement.closest) 
-    ? (buttonElement.closest('.msg, .tutor-message-card') || buttonElement.parentElement)
-    : (buttonElement ? buttonElement.parentElement : null);
-  if (!messageCard) return;
+window.toggleTranslation = async function(btn) {
+  const card = btn.closest('.chat-bubble') || btn.closest('.tutor-message-card') || btn.closest('.msg') || btn.parentElement;
+  if (!card) return;
+  let box = card.querySelector('.translation-box');
 
-  let transContainer = messageCard.querySelector('.message-translation');
-  
-  // Si déjà affiché, toggle (afficher/masquer)
-  if (transContainer) {
-    transContainer.style.display = transContainer.style.display === 'none' ? 'block' : 'none';
+  if (box) {
+    box.style.display = box.style.display === 'none' ? 'block' : 'none';
     return;
   }
-  
-  // Créer le conteneur de traduction
-  transContainer = document.createElement('div');
-  transContainer.className = 'message-translation';
-  transContainer.style.fontSize = '0.9em';
-  transContainer.style.color = '#555';
-  transContainer.style.marginTop = '6px';
-  transContainer.style.borderTop = '1px dashed #ddd';
-  transContainer.style.paddingTop = '4px';
-  transContainer.innerText = "Traduction en cours...";
-  messageCard.appendChild(transContainer);
-  
+
+  const arabicText = btn.getAttribute('data-text') || card.querySelector('.message-text')?.innerText || card.querySelector('.ar-msg')?.innerText || card.querySelector('.ar')?.innerText || '';
+  if (!arabicText) return;
+
+  box = document.createElement('div');
+  box.className = 'translation-box';
+  box.style.cssText = 'margin-top:6px; padding-top:4px; border-top:1px dashed #ccc; font-size:0.85em; color:#444; font-style:italic;';
+  box.innerText = 'Traduction en cours...';
+  card.appendChild(box);
+
   const apiKey = localStorage.getItem('gemini_api_key') || localStorage.getItem('apiKey') || localStorage.getItem('gemini_key') || (typeof curKey === 'function' ? curKey() : '') || (typeof S !== 'undefined' && S.cfg && S.cfg.keys && S.cfg.keys.gemini) || '';
   const storedModel = localStorage.getItem('gemini_chat_model') || 'gemini-3.5-flash-lite';
   const modelName = storedModel.replace(/^models\//, '').trim() || 'gemini-3.5-flash-lite';
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
-  
+
   try {
-    const resp = await fetch(url, {
+    const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: `Donne uniquement la traduction française directe et naturelle de ce texte arabe :\n"${arabicText}"` }] }]
+        contents: [{ parts: [{ text: `Traduis ce texte arabe en français sans aucun commentaire ni guillemets :\n${arabicText}` }] }]
       })
     });
-    const data = await resp.json();
+    const data = await res.json();
     const trad = data?.candidates?.[0]?.content?.parts?.[0]?.text || "Traduction indisponible.";
-    transContainer.innerText = trad.trim();
+    box.innerText = trad.trim();
   } catch(e) {
-    transContainer.innerText = "Erreur de traduction.";
+    box.innerText = "Erreur de traduction.";
   }
 };
+window.translateMessage = window.toggleTranslation;
 
 // =========================================================================
 // 2. Gestionnaire Microphone Robuste (Android Chrome)
@@ -1946,12 +1936,14 @@ function appendMessage(role, text) {
         window.playTutorAudio(text, curTutor);
       };
       const trad = document.createElement("button");
-      trad.className = "bubble-round-btn";
-      trad.textContent = "\uD83C\uDF10";
+      trad.className = "btn-translate bubble-round-btn";
+      trad.textContent = "\uD83C\uDF0D";
       trad.setAttribute("title", "Traduire en français");
-      trad.onclick = (e) => {
+      trad.setAttribute("aria-label", "Traduire");
+      trad.setAttribute("data-text", text);
+      trad.onclick = function(e) {
         if (e && e.preventDefault) e.preventDefault();
-        window.translateMessage(trad, text);
+        window.toggleTranslation(this);
       };
       tools.appendChild(say);
       tools.appendChild(trad);
@@ -2045,13 +2037,10 @@ async function sendToGemini(userMessage) {
       appendMessage('assistant', botReply);
     }
 
-    // 4. Lecture vocale garantie immédiate (Gemini TTS)
-    const tutorTextToSpeak = botReply;
+    // Immédiatement après l'insertion du message du professeur dans le chat :
     if (typeof window.playTutorAudio === 'function') {
-      const currentTutor = window.currentTutorKey || localStorage.getItem('selected_tutor') || tutorId || 'tariq';
-      window.playTutorAudio(tutorTextToSpeak, currentTutor);
-    } else if (typeof window.playVoice === 'function') {
-      window.playVoice(tutorTextToSpeak, tutorId);
+      const activeTutor = window.currentTutorKey || localStorage.getItem('selected_tutor') || 'tariq';
+      window.playTutorAudio(botReply, activeTutor);
     }
 
   } catch (error) {
@@ -4260,7 +4249,7 @@ function bubbleT(d){
   if(d.tr&&typeof d.tr==="string"&&d.tr.trim()){trEl=el("div","tr",d.tr);trEl.dir="ltr";b.append(trEl)}
   if(d.fr&&typeof d.fr==="string"&&d.fr.trim()&&S.imm<2&&(!S.scn||S.scn.id!=="check")){glossEl=el("div","gloss",d.fr);b.append(glossEl)}
 
-  // Sous la bulle, deux boutons ronds discrets : 🔊 Réécouter et 🌐 Traduire
+  // Sous la bulle, deux boutons ronds discrets : 🔊 Réécouter et 🌍 Traduire
   const tools=el("div","bubble-actions-row");
   const say=el("button","bubble-round-btn","\uD83D\uDD0A");
   say.setAttribute("title","Réécouter la phrase");
@@ -4271,12 +4260,13 @@ function bubbleT(d){
     window.playTutorAudio(d.reply, curTutor);
   };
 
-  const trad=el("button","bubble-round-btn","\uD83C\uDF10");
+  const trad=el("button","btn-translate bubble-round-btn","\uD83C\uDF0D");
   trad.setAttribute("title","Traduire en français");
   trad.setAttribute("aria-label","Traduire");
-  trad.onclick=(e)=>{
+  trad.setAttribute("data-text", d.reply);
+  trad.onclick=function(e){
     if(e && e.preventDefault) e.preventDefault();
-    window.translateMessage(trad, d.reply);
+    window.toggleTranslation(this);
   };
   tools.append(say,trad);
   b.append(tools);
@@ -4357,7 +4347,12 @@ async function ask(){
     if(d.tip&&typeof d.tip==="string")log.append(el("div","tip",d.tip));
     if(d.end&&(!S.scn||S.scn.id!=="tutor"))log.append(el("p","typing","La séance est terminée. Touchez « Bilan » pour voir le résultat."));
     b.scrollIntoView({block:"nearest",behavior:"smooth"});
-    if(S.mode!=="write")spoke=speak(d.reply,null);
+    if (typeof window.playTutorAudio === 'function') {
+      const activeTutor = window.currentTutorKey || localStorage.getItem('selected_tutor') || 'tariq';
+      window.playTutorAudio(d.reply, activeTutor);
+    } else if (S.mode!=="write") {
+      spoke=speak(d.reply,null);
+    }
   }catch(e){
     clearTimeout(globalTimeout);
     ty.remove();
