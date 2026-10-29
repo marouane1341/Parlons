@@ -607,6 +607,15 @@ audio,
   0%{box-shadow:0 0 0 6px rgba(16,185,129,0.35), 0 0 16px var(--good)}
   100%{box-shadow:0 0 0 14px rgba(16,185,129,0.1), 0 0 32px var(--good)}
 }
+.mic-hero-btn.listening, .mic-hero-btn.recording{
+  background:#dc2626 !important;
+  color:#fff !important;
+  animation:heroMicRecordingPulse 1.1s infinite alternate !important;
+}
+@keyframes heroMicRecordingPulse {
+  0% { transform: scale(0.96); box-shadow: 0 0 0 6px rgba(220, 38, 38, 0.45); }
+  100% { transform: scale(1.06); box-shadow: 0 0 0 16px rgba(220, 38, 38, 0.15); }
+}
 
 /* Boutons lateraux clavier & ampoule */
 .action-side-btn{
@@ -1172,6 +1181,9 @@ audio,
         <button class="btn sm" id="sendBtn">Envoyer</button>
       </div>
 
+      <!-- Prévisualisation en direct de la voix captée -->
+      <div id="speechPreview" class="speech-preview" style="display:none; text-align:center; font-size:13px; color:var(--accent); padding:4px 12px; margin-bottom:6px; font-style:italic; border-radius:12px; background:var(--tint);"></div>
+
       <!-- Barre des 3 boutons principaux -->
       <div class="chat-action-bar">
         <!-- Bouton Clavier a gauche -->
@@ -1719,10 +1731,33 @@ window.toggleTranslation = async function(btn) {
 window.translateMessage = window.toggleTranslation;
 
 // =========================================================================
-// 2. Gestionnaire Microphone Robuste (Android Chrome)
+// 2. Gestionnaire Microphone Robuste & Anti-Hésitation (Silence 3 secondes)
 // =========================================================================
 let recognition = null;
 let isRecording = false;
+let speechSilenceTimer = null;
+let currentFinalTranscript = '';
+let currentInterimTranscript = '';
+
+window.sendMessageToTutor = function(text) {
+  if (!text || !text.trim()) return;
+  const finalText = text.trim();
+  
+  // Vider les champs temporaires
+  const inp = document.getElementById('input');
+  if (inp) { inp.value = ''; inp.style.height = 'auto'; }
+  const preview = document.getElementById('speechPreview');
+  if (preview) { preview.innerText = ''; preview.style.display = 'none'; }
+  const live = document.getElementById('live');
+  if (live) live.innerText = '';
+  
+  if (typeof window.appendMessage === 'function') {
+    window.appendMessage('user', finalText);
+  }
+  if (typeof window.sendToGemini === 'function') {
+    window.sendToGemini(finalText);
+  }
+};
 
 window.toggleMic = function() {
   const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -1733,8 +1768,25 @@ window.toggleMic = function() {
 
   const micBtn = document.getElementById('micBtn') || document.querySelector('.mic-button');
 
+  // Si déjà en train d'enregistrer : 2e clic = coupure manuelle immédiate et validation directe !
   if (isRecording && recognition) {
-    recognition.stop();
+    clearTimeout(speechSilenceTimer);
+    try { recognition.stop(); } catch(e) {}
+    
+    const textToSend = (currentFinalTranscript + ' ' + currentInterimTranscript).trim();
+    if (textToSend.length > 0) {
+      window.sendMessageToTutor(textToSend);
+    }
+    currentFinalTranscript = '';
+    currentInterimTranscript = '';
+    isRecording = false;
+    
+    if (micBtn) {
+      micBtn.classList.remove('listening', 'recording', 'on');
+      micBtn.style.boxShadow = '';
+    }
+    const preview = document.getElementById('speechPreview');
+    if (preview) { preview.innerText = ''; preview.style.display = 'none'; }
     return;
   }
 
@@ -1744,62 +1796,114 @@ window.toggleMic = function() {
     }
 
     // Couper tout audio en cours lors de la prise de parole
-    if (typeof window.stopCurrentAudio === 'function') {
-      window.stopCurrentAudio();
+    if (typeof window.stopAllAudios === 'function') {
+      window.stopAllAudios();
     }
 
+    currentFinalTranscript = '';
+    currentInterimTranscript = '';
+    clearTimeout(speechSilenceTimer);
+
     recognition = new SpeechRec();
-    recognition.continuous = false;
-    recognition.interimResults = false;
+    recognition.continuous = true;
+    recognition.interimResults = true;
     const isFr = (typeof S !== "undefined" && S.tutorStt === "fr");
     recognition.lang = isFr ? 'fr-FR' : 'ar-SA';
 
     recognition.onstart = () => {
       isRecording = true;
       if (micBtn) {
-        micBtn.classList.add('listening');
-        micBtn.style.boxShadow = '0 0 0 6px rgba(37, 99, 235, 0.4)';
+        micBtn.classList.add('listening', 'recording');
+      }
+      const preview = document.getElementById('speechPreview');
+      if (preview) {
+        preview.innerText = "Écoute en cours… Prenez votre temps pour parler.";
+        preview.style.display = 'block';
       }
     };
 
-    recognition.onresult = (e) => {
-      if (window.isProcessingMessage) return;
-      const text = e.results && e.results[0] && e.results[0][0] && e.results[0][0].transcript;
-      if (!text || !text.trim()) return;
-      window.isProcessingMessage = true;
-      try { recognition.stop(); } catch(err) {}
-      console.log("Texte capté :", text);
-      if (typeof window.appendMessage === 'function') {
-        window.appendMessage('user', text);
+    recognition.onresult = (event) => {
+      currentInterimTranscript = '';
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        if (event.results[i].isFinal) {
+          currentFinalTranscript += event.results[i][0].transcript + ' ';
+        } else {
+          currentInterimTranscript += event.results[i][0].transcript;
+        }
       }
-      if (typeof window.sendToGemini === 'function') {
-        window.sendToGemini(text);
+
+      // Affiche ce qui est capté en direct dans le champ pour rassurer l'utilisateur
+      const displayText = (currentFinalTranscript + currentInterimTranscript).trim();
+      const preview = document.getElementById('speechPreview');
+      if (preview && displayText) {
+        preview.innerText = displayText;
+        preview.style.display = 'block';
       }
+      const inp = document.getElementById('input');
+      if (inp && displayText) {
+        inp.value = displayText;
+      }
+
+      // Réinitialise le délai à chaque mot prononcé
+      clearTimeout(speechSilenceTimer);
+
+      // Ne déclenche l'envoi qu'après 3 secondes de silence réel ET si du texte existe
+      speechSilenceTimer = setTimeout(() => {
+        const finalTextToSend = (currentFinalTranscript + currentInterimTranscript).trim();
+        if (finalTextToSend.length > 0) {
+          try { recognition.stop(); } catch(e) {}
+          window.sendMessageToTutor(finalTextToSend);
+          currentFinalTranscript = '';
+          currentInterimTranscript = '';
+          isRecording = false;
+          if (micBtn) {
+            micBtn.classList.remove('listening', 'recording', 'on');
+            micBtn.style.boxShadow = '';
+          }
+        }
+      }, 3000); // 3 secondes de battement pour chercher ses mots
     };
 
     recognition.onerror = (e) => {
       console.warn("Erreur micro :", e.error);
-      isRecording = false;
-      if (micBtn) {
-        micBtn.classList.remove('listening');
-        micBtn.style.boxShadow = '';
+      if (e.error !== 'no-speech') {
+        clearTimeout(speechSilenceTimer);
+        isRecording = false;
+        if (micBtn) {
+          micBtn.classList.remove('listening', 'recording', 'on');
+          micBtn.style.boxShadow = '';
+        }
+        const preview = document.getElementById('speechPreview');
+        if (preview) preview.style.display = 'none';
       }
     };
 
     recognition.onend = () => {
+      if (isRecording) {
+        const finalTextToSend = (currentFinalTranscript + currentInterimTranscript).trim();
+        if (finalTextToSend.length > 0 && !window.isProcessingMessage) {
+          clearTimeout(speechSilenceTimer);
+          window.sendMessageToTutor(finalTextToSend);
+          currentFinalTranscript = '';
+          currentInterimTranscript = '';
+        }
+      }
       isRecording = false;
       if (micBtn) {
-        micBtn.classList.remove('listening');
+        micBtn.classList.remove('listening', 'recording', 'on');
         micBtn.style.boxShadow = '';
       }
+      const preview = document.getElementById('speechPreview');
+      if (preview) preview.style.display = 'none';
     };
 
     recognition.start();
   } catch (err) {
     console.error("Échec recognition :", err);
+    clearTimeout(speechSilenceTimer);
     isRecording = false;
     if (micBtn) {
-      micBtn.classList.remove('listening');
+      micBtn.classList.remove('listening', 'recording', 'on');
       micBtn.style.boxShadow = '';
     }
   }
