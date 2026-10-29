@@ -1004,6 +1004,15 @@ audio,
             </div>
           </div>
         </div>
+
+        <div class="setting-group" style="margin-top: 15px; border-top: 1px solid var(--line); padding-top: 12px;">
+          <label style="font-weight: 600; font-size: 0.9em; display:block; margin-bottom: 5px;" for="audioEngineSelect">&#127897;&#65039; Moteur vocal :</label>
+          <select id="audioEngineSelect" class="form-select field" onchange="localStorage.setItem('audio_engine_mode', this.value)">
+            <option value="gemini_hd">Voix Studio HD (Gemini TTS API)</option>
+            <option value="standard_free">Voix Standard Illimitée (Gratuit sans quota)</option>
+          </select>
+          <p class="small muted" style="margin-top:4px;font-size:11px">Mode Studio HD : voix neurales expressives. Mode Standard : synth&egrave;se locale sans quota.</p>
+        </div>
       </div>
       <div class="panel">
         <h2 style="font-size:18px;display:flex;align-items:center;gap:8px">&#128100; Profil &amp; Pr&eacute;f&eacute;rences</h2>
@@ -1463,8 +1472,8 @@ window.showAudioStatus = function(msg, isError = false) {
 
 window.playTutorAudio = async function(text, tutorKey) {
   if (!text) return;
-  
-  // Stopper l'audio en cours
+
+  // 1. Couper tout son en cours
   if (window.activeAudio) {
     try { window.activeAudio.pause(); window.activeAudio.currentTime = 0; } catch(e){}
     window.activeAudio = null;
@@ -1473,26 +1482,61 @@ window.playTutorAudio = async function(text, tutorKey) {
     try { window.currentAudioInstance.pause(); window.currentAudioInstance.currentTime = 0; } catch(e){}
     window.currentAudioInstance = null;
   }
+  if ('speechSynthesis' in window) {
+    window.speechSynthesis.cancel();
+  }
 
   const cleanText = text.replace(/[*_#`~]/g, '').trim();
   if (!cleanText) return;
 
-  const apiKey = localStorage.getItem('gemini_api_key') || localStorage.getItem('apiKey') || localStorage.getItem('gemini_key') || (typeof curKey === 'function' ? curKey() : '') || (typeof S !== 'undefined' && S.cfg && S.cfg.keys && S.cfg.keys.gemini) || '';
-  if (!apiKey) {
-    window.showAudioStatus("Erreur: Clé API Gemini manquante", true);
-    return;
-  }
-
   const isYasmine = (tutorKey || localStorage.getItem('selected_tutor') || 'yasmine').toLowerCase().includes('yasmine');
-  const voiceName = isYasmine ? 'Aoede' : 'Puck';
-
   const avatar = document.querySelector('.tutor-avatar, #tutorAvatarImg');
   if (avatar) avatar.classList.add('speaking');
   const avatarWrap = document.getElementById('avatarWrap');
   if (avatarWrap) avatarWrap.classList.add('state-speaking');
 
-  window.showAudioStatus("Génération de la voix en cours...");
+  const stopSpeaking = () => {
+    if (avatar) avatar.classList.remove('speaking');
+    if (avatarWrap) avatarWrap.classList.remove('state-speaking');
+    window.activeAudio = null;
+    window.currentAudioInstance = null;
+  };
 
+  const engineMode = localStorage.getItem('audio_engine_mode') || 'gemini_hd';
+
+  // ==========================================
+  // OPTION A : MOTEUR STANDARD GRATUIT ILLIMITÉ
+  // ==========================================
+  if (engineMode === 'standard_free') {
+    if (!('speechSynthesis' in window)) {
+      stopSpeaking();
+      return;
+    }
+    const utterance = new SpeechSynthesisUtterance(cleanText);
+    utterance.lang = 'ar-SA';
+    utterance.rate = 0.95; // Légèrement ralenti pour une meilleure diction
+    utterance.pitch = isYasmine ? 1.15 : 0.95;
+    
+    utterance.onend = stopSpeaking;
+    utterance.onerror = stopSpeaking;
+    window.speechSynthesis.speak(utterance);
+    return;
+  }
+
+  // ==========================================
+  // OPTION B : MOTEUR STUDIO HD (GEMINI TTS)
+  // ==========================================
+  const apiKey = localStorage.getItem('gemini_api_key') || localStorage.getItem('apiKey') || localStorage.getItem('gemini_key') || (typeof curKey === 'function' ? curKey() : '') || (typeof S !== 'undefined' && S.cfg && S.cfg.keys && S.cfg.keys.gemini) || '';
+  if (!apiKey) {
+    if (typeof window.showAudioStatus === 'function') {
+      window.showAudioStatus("Clé API manquante pour la voix HD", true);
+    }
+    stopSpeaking();
+    return;
+  }
+
+  // Voix naturelles Google : Aoede (féminin chaleureux), Puck (masculin fluide et clair)
+  const voiceName = isYasmine ? 'Aoede' : 'Puck';
   const ttsModel = (localStorage.getItem('gemini_tts_model') || 'gemini-3.8-flash-lite-tts').replace(/^models\//, '').trim();
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${ttsModel}:generateContent?key=${apiKey}`;
 
@@ -1501,11 +1545,18 @@ window.playTutorAudio = async function(text, tutorKey) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: cleanText }] }],
+        contents: [{
+          parts: [{
+            // Consigne de vocalisation naturelle avec voyelles arabes (Tashkeel)
+            text: `Prononce ce texte en arabe avec une diction fluide, naturelle, expressive et chaleureuse :\n${cleanText}`
+          }]
+        }],
         generationConfig: {
           responseModalities: ["AUDIO"],
           speechConfig: {
-            voiceConfig: { prebuiltVoiceConfig: { voiceName: voiceName } }
+            voiceConfig: {
+              prebuiltVoiceConfig: { voiceName: voiceName }
+            }
           }
         }
       })
@@ -1513,49 +1564,47 @@ window.playTutorAudio = async function(text, tutorKey) {
 
     const data = await resp.json();
 
+    // Si quota dépassé (erreur 429), bascule automatique transparente sur la voix standard !
     if (!resp.ok) {
-      const errMsg = data?.error?.message || `Erreur HTTP ${resp.status}`;
-      window.showAudioStatus(`API TTS: ${errMsg}`, true);
-      if (avatar) avatar.classList.remove('speaking');
-      if (avatarWrap) avatarWrap.classList.remove('state-speaking');
+      console.warn("Quota Gemini TTS atteint, repli automatique sur le moteur standard.");
+      if (typeof window.showAudioStatus === 'function') {
+        window.showAudioStatus("Quota HD atteint : passage sur la voix standard", false);
+      }
+      const utterance = new SpeechSynthesisUtterance(cleanText);
+      utterance.lang = 'ar-SA';
+      utterance.rate = 0.95;
+      utterance.pitch = isYasmine ? 1.15 : 0.95;
+      utterance.onend = stopSpeaking;
+      utterance.onerror = stopSpeaking;
+      window.speechSynthesis.speak(utterance);
       return;
     }
 
     const audioCandidate = data?.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
-
     if (audioCandidate?.inlineData?.data) {
       const mimeType = audioCandidate.inlineData.mimeType || 'audio/wav';
       const audio = new Audio(`data:${mimeType};base64,${audioCandidate.inlineData.data}`);
       window.activeAudio = audio;
       window.currentAudioInstance = audio;
-
-      audio.onended = () => {
-        if (avatar) avatar.classList.remove('speaking');
-        if (avatarWrap) avatarWrap.classList.remove('state-speaking');
-        window.activeAudio = null;
-        window.currentAudioInstance = null;
-      };
-      audio.onerror = (e) => {
-        window.showAudioStatus("Erreur lecture flux audio sur le mobile", true);
-        if (avatar) avatar.classList.remove('speaking');
-        if (avatarWrap) avatarWrap.classList.remove('state-speaking');
-        window.activeAudio = null;
-        window.currentAudioInstance = null;
-      };
-
+      audio.onended = stopSpeaking;
+      audio.onerror = stopSpeaking;
       await audio.play();
-      window.showAudioStatus("Lecture audio...");
     } else {
-      window.showAudioStatus("Aucun flux audio retourné par le modèle", true);
-      if (avatar) avatar.classList.remove('speaking');
-      if (avatarWrap) avatarWrap.classList.remove('state-speaking');
+      stopSpeaking();
     }
   } catch (err) {
-    window.showAudioStatus(`Erreur réseau: ${err.message}`, true);
-    if (avatar) avatar.classList.remove('speaking');
-    if (avatarWrap) avatarWrap.classList.remove('state-speaking');
-    window.activeAudio = null;
-    window.currentAudioInstance = null;
+    console.error("Erreur TTS:", err);
+    try {
+      const utterance = new SpeechSynthesisUtterance(cleanText);
+      utterance.lang = 'ar-SA';
+      utterance.rate = 0.95;
+      utterance.pitch = isYasmine ? 1.15 : 0.95;
+      utterance.onend = stopSpeaking;
+      utterance.onerror = stopSpeaking;
+      window.speechSynthesis.speak(utterance);
+    } catch(e) {
+      stopSpeaking();
+    }
   }
 };
 
@@ -2457,6 +2506,10 @@ function initApiSettings() {
     if (ttsInput) {
       ttsInput.value = localStorage.getItem('gemini_tts_model') || 'gemini-3.8-flash-lite-tts';
     }
+    const aeInput = document.getElementById('audioEngineSelect');
+    if (aeInput) {
+      aeInput.value = localStorage.getItem('audio_engine_mode') || 'gemini_hd';
+    }
 
     // 3. Écouteur d'enregistrement robuste
     if (saveBtn) {
@@ -2476,6 +2529,8 @@ function initApiSettings() {
           const tModel = document.getElementById('mTTS') ? document.getElementById('mTTS').value.trim() : 'gemini-3.8-flash-lite-tts';
           localStorage.setItem('gemini_chat_model', cModel || 'gemini-3.5-flash-lite');
           localStorage.setItem('gemini_tts_model', tModel || 'gemini-3.8-flash-lite-tts');
+          const ae = document.getElementById('audioEngineSelect');
+          if (ae) localStorage.setItem('audio_engine_mode', ae.value);
         } catch(err){}
 
         if (typeof S !== "undefined" && S.cfg) {
@@ -3834,6 +3889,7 @@ function fillCfg(){
   if($("#mChat"))$("#mChat").value = (p === "gemini" && storedChatModel) ? storedChatModel : (m.chat || "gemini-3.5-flash-lite");
   if($("#mTTS"))$("#mTTS").value = (p === "gemini" && storedTtsModel) ? storedTtsModel : "gemini-3.8-flash-lite-tts";
   if($("#mHeavy"))$("#mHeavy").value = m.heavy || "gemini-3.5-flash-lite";
+  if($("#audioEngineSelect")) $("#audioEngineSelect").value = localStorage.getItem('audio_engine_mode') || 'gemini_hd';
   updateKeyDetectNote();
 }
 function updateKeyDetectNote(){
