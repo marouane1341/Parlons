@@ -1,5 +1,5 @@
-// Service Worker version v1.1.9 - Purge et désactivation forcée de tous les caches
-const SW_VERSION = 'v1.1.9';
+// Service Worker version v1.2.0 - Purge et désactivation forcée de tous les caches
+const SW_VERSION = 'v1.2.0';
 
 self.addEventListener('install', event => {
   self.skipWaiting();

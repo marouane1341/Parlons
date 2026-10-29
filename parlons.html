@@ -995,7 +995,7 @@ audio,
             </div>
             <p class="small muted" style="font-size:11px;margin:0">Mises en situation concr&egrave;tes et langage parl&eacute; direct.</p>
             <div style="margin-top:6px">
-              <span class="badge" style="font-size:11px;background:#dbeafe;color:#1e40af;padding:4px 8px;border-radius:8px;font-weight:600;display:block;text-align:center">&#128266; Voix Gemini : Fenrir (Masculine)</span>
+              <span class="badge" style="font-size:11px;background:#dbeafe;color:#1e40af;padding:4px 8px;border-radius:8px;font-weight:600;display:block;text-align:center">&#128266; Voix Gemini : Puck (Masculine)</span>
               <select id="voiceTariq" class="field" style="display:none"></select>
             </div>
             <div class="row" style="margin-top:auto;gap:6px">
@@ -1477,8 +1477,8 @@ window.playTutorAudio = async function(text, tutorKey) {
   if (!cleanText) return;
 
   const isYasmine = (tutorKey || localStorage.getItem('selected_tutor') || 'yasmine').toLowerCase().includes('yasmine');
-  // Voix natives Google : Féminine (Aoede) pour Yasmine, Masculine (Fenrir) pour Tariq
-  const voiceName = isYasmine ? 'Aoede' : 'Fenrir';
+  // Voix natives Google : Féminine (Aoede) pour Yasmine, Masculine (Puck) pour Tariq
+  const voiceName = isYasmine ? 'Aoede' : 'Puck';
 
   const avatar = document.querySelector('.tutor-avatar, #tutorAvatarImg');
   if (avatar) avatar.classList.add('speaking');
@@ -1567,6 +1567,55 @@ window.testTutorVoice = function(tutorKey) {
   const isYasmine = (tutorKey || '').toLowerCase().includes('yasmine');
   const phrase = isYasmine ? "مَرْحَبًا، أَنَا يَاسْمِين. كَيْفَ حَالُكَ اليَوْم؟" : "مَرْحَبًا، أَنَا طَارِق. هَلْ أَنْتَ جَاهِزٌ لِلتَّدْرِيب؟";
   window.playTutorAudio(phrase, tutorKey);
+};
+
+// =========================================================================
+// Traduction instantanée des messages (Bouton planète)
+// =========================================================================
+window.translateMessage = async function(buttonElement, arabicText) {
+  const messageCard = (buttonElement && buttonElement.closest) 
+    ? (buttonElement.closest('.msg, .tutor-message-card') || buttonElement.parentElement)
+    : (buttonElement ? buttonElement.parentElement : null);
+  if (!messageCard) return;
+
+  let transContainer = messageCard.querySelector('.message-translation');
+  
+  // Si déjà affiché, toggle (afficher/masquer)
+  if (transContainer) {
+    transContainer.style.display = transContainer.style.display === 'none' ? 'block' : 'none';
+    return;
+  }
+  
+  // Créer le conteneur de traduction
+  transContainer = document.createElement('div');
+  transContainer.className = 'message-translation';
+  transContainer.style.fontSize = '0.9em';
+  transContainer.style.color = '#555';
+  transContainer.style.marginTop = '6px';
+  transContainer.style.borderTop = '1px dashed #ddd';
+  transContainer.style.paddingTop = '4px';
+  transContainer.innerText = "Traduction en cours...";
+  messageCard.appendChild(transContainer);
+  
+  const apiKey = localStorage.getItem('gemini_api_key') || localStorage.getItem('apiKey') || localStorage.getItem('gemini_key') || (typeof curKey === 'function' ? curKey() : '') || (typeof S !== 'undefined' && S.cfg && S.cfg.keys && S.cfg.keys.gemini) || '';
+  const storedModel = localStorage.getItem('gemini_chat_model') || 'gemini-3.5-flash-lite';
+  const modelName = storedModel.replace(/^models\//, '').trim() || 'gemini-3.5-flash-lite';
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+  
+  try {
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: `Donne uniquement la traduction française directe et naturelle de ce texte arabe :\n"${arabicText}"` }] }]
+      })
+    });
+    const data = await resp.json();
+    const trad = data?.candidates?.[0]?.content?.parts?.[0]?.text || "Traduction indisponible.";
+    transContainer.innerText = trad.trim();
+  } catch(e) {
+    transContainer.innerText = "Erreur de traduction.";
+  }
 };
 
 // =========================================================================
@@ -1878,12 +1927,36 @@ function appendMessage(role, text) {
       b.scrollIntoView({ block: "nearest", behavior: "smooth" });
     } else {
       const b = document.createElement("div");
-      b.className = "msg t";
+      b.className = "msg t tutor-message-card";
       const main = document.createElement("div");
       main.className = "ar-msg";
       main.textContent = text;
       main.dir = "auto";
       b.appendChild(main);
+
+      const tools = document.createElement("div");
+      tools.className = "bubble-actions-row";
+      const say = document.createElement("button");
+      say.className = "bubble-round-btn";
+      say.textContent = "\uD83D\uDD0A";
+      say.setAttribute("title", "Réécouter la phrase");
+      say.onclick = (e) => {
+        if (e && e.preventDefault) e.preventDefault();
+        const curTutor = window.currentTutorKey || localStorage.getItem('selected_tutor') || 'tariq';
+        window.playTutorAudio(text, curTutor);
+      };
+      const trad = document.createElement("button");
+      trad.className = "bubble-round-btn";
+      trad.textContent = "\uD83C\uDF10";
+      trad.setAttribute("title", "Traduire en français");
+      trad.onclick = (e) => {
+        if (e && e.preventDefault) e.preventDefault();
+        window.translateMessage(trad, text);
+      };
+      tools.appendChild(say);
+      tools.appendChild(trad);
+      b.appendChild(tools);
+
       log.appendChild(b);
       b.scrollIntoView({ block: "nearest", behavior: "smooth" });
     }
@@ -1973,10 +2046,12 @@ async function sendToGemini(userMessage) {
     }
 
     // 4. Lecture vocale garantie immédiate (Gemini TTS)
+    const tutorTextToSpeak = botReply;
     if (typeof window.playTutorAudio === 'function') {
-      window.playTutorAudio(botReply, tutorId);
+      const currentTutor = window.currentTutorKey || localStorage.getItem('selected_tutor') || tutorId || 'tariq';
+      window.playTutorAudio(tutorTextToSpeak, currentTutor);
     } else if (typeof window.playVoice === 'function') {
-      window.playVoice(botReply, tutorId);
+      window.playVoice(tutorTextToSpeak, tutorId);
     }
 
   } catch (error) {
@@ -4174,38 +4249,34 @@ function markUsed(list){
   S.targets.forEach(t=>{const n=norm(t.expr);if(n&&u.some(x=>x&&(x===n||x.indexOf(n)>=0||n.indexOf(x)>=0)))t.used=true});
 }
 function bubbleT(d){
-  const b=el("div","msg t");
+  const b=el("div","msg t tutor-message-card");
   const isTutor=S.scn&&S.scn.id==="tutor";
-  const main=el("div",LANGS[S.lang].rtl&&!isTutor?"ar":"ar-msg");main.innerHTML=renderMarkdownVisual(d.reply);main.dir="auto";
+  const main=el("div",LANGS[S.lang].rtl&&!isTutor?"ar":"ar-msg");
+  main.innerHTML=renderMarkdownVisual(d.reply);
+  main.dir="auto";
   b.append(main);
 
   let trEl=null, glossEl=null;
   if(d.tr&&typeof d.tr==="string"&&d.tr.trim()){trEl=el("div","tr",d.tr);trEl.dir="ltr";b.append(trEl)}
   if(d.fr&&typeof d.fr==="string"&&d.fr.trim()&&S.imm<2&&(!S.scn||S.scn.id!=="check")){glossEl=el("div","gloss",d.fr);b.append(glossEl)}
 
-  // Sous la bulle, deux boutons ronds discrets : \uD83D\uDD0A Reecouter et \uD83C\uDF10 Traduire
+  // Sous la bulle, deux boutons ronds discrets : 🔊 Réécouter et 🌐 Traduire
   const tools=el("div","bubble-actions-row");
   const say=el("button","bubble-round-btn","\uD83D\uDD0A");
-  say.setAttribute("title","Reecouter la phrase");
-  say.setAttribute("aria-label","Reecouter");
-  say.onclick=()=>speak(d.reply,null);
+  say.setAttribute("title","Réécouter la phrase");
+  say.setAttribute("aria-label","Réécouter");
+  say.onclick=(e)=>{
+    if(e && e.preventDefault) e.preventDefault();
+    const curTutor = window.currentTutorKey || localStorage.getItem('selected_tutor') || localStorage.getItem('parlons.tutor') || 'tariq';
+    window.playTutorAudio(d.reply, curTutor);
+  };
 
   const trad=el("button","bubble-round-btn","\uD83C\uDF10");
-  trad.setAttribute("title","Traduire / Afficher l'aide");
+  trad.setAttribute("title","Traduire en français");
   trad.setAttribute("aria-label","Traduire");
-  trad.onclick=()=>{
-    let toggled=false;
-    if(glossEl){glossEl.hidden=!glossEl.hidden;toggled=true}
-    if(trEl){trEl.hidden=!trEl.hidden;toggled=true}
-    if(!toggled&&d.reply){
-      let extra=b.querySelector(".extra-gloss");
-      if(!extra){
-        extra=el("div","gloss extra-gloss",extractFrenchExplanation(d.reply)||"Explication ci-dessus.");
-        b.append(extra);
-      }else{
-        extra.hidden=!extra.hidden;
-      }
-    }
+  trad.onclick=(e)=>{
+    if(e && e.preventDefault) e.preventDefault();
+    window.translateMessage(trad, d.reply);
   };
   tools.append(say,trad);
   b.append(tools);
