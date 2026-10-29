@@ -1390,44 +1390,80 @@ let currentTutorAudio = null;
 
 window.playTutorAudio = function(text, tutorKey) {
   if (!text) return;
-  try {
-    if (currentTutorAudio) {
-      try {
-        currentTutorAudio.pause();
-        currentTutorAudio.currentTime = 0;
-      } catch(e){}
-      currentTutorAudio = null;
-    }
+  
+  // 1. Nettoyer le texte (enlever le markdown, emojis, asterisques)
+  const cleanText = text.replace(/[*_#`~]/g, '').trim();
+  if (!cleanText) return;
 
-    const cleanText = text.replace(/[*_#`]/g, '').trim();
-    const isYasmine = (tutorKey || localStorage.getItem('selected_tutor') || 'yasmine').toLowerCase().includes('yasmine');
-    const voice = isYasmine ? 'ar-EG-SalmaNeural' : 'ar-EG-ShakirNeural';
-    
-    const avatar = document.querySelector('.tutor-avatar, #tutorAvatarImg');
-    if (avatar) avatar.classList.add('speaking');
-    const avatarWrap = document.getElementById('avatarWrap');
-    if (avatarWrap) avatarWrap.classList.add('state-speaking');
+  const isYasmine = (tutorKey || localStorage.getItem('selected_tutor') || 'yasmine').toLowerCase().includes('yasmine');
+  
+  // Attribution des identités vocales
+  // Yasmine = Voix féminine arabe / Tariq = Voix masculine arabe
+  const voiceAzure = isYasmine ? 'ar-EG-SalmaNeural' : 'ar-EG-ShakirNeural';
+  const voiceFallback = isYasmine ? 'Zeina' : 'Maged';
 
-    const audioUrl = `https://edge-tts.azurewebsites.net/api/synthesize?voice=${voice}&text=${encodeURIComponent(cleanText)}`;
-    const audio = new Audio(audioUrl);
-    currentTutorAudio = audio;
+  const avatar = document.querySelector('.tutor-avatar, #tutorAvatarImg');
+  if (avatar) avatar.classList.add('speaking');
+  const avatarWrap = document.getElementById('avatarWrap');
+  if (avatarWrap) avatarWrap.classList.add('state-speaking');
 
-    const stopAnim = function() {
-      if (avatar) avatar.classList.remove('speaking');
-      if (avatarWrap) avatarWrap.classList.remove('state-speaking');
-      if (currentTutorAudio === audio) currentTutorAudio = null;
-    };
-
-    audio.onended = stopAnim;
-    audio.onerror = stopAnim;
-    
-    audio.play().catch(function(err) {
-      console.warn("Audio non lu :", err);
-      stopAnim();
-    });
-  } catch (e) {
-    console.error("Erreur lecture audio :", e);
+  // Couper l'audio précédent si en cours
+  if (currentTutorAudio) {
+    try {
+      currentTutorAudio.pause();
+      currentTutorAudio.currentTime = 0;
+    } catch(e){}
+    currentTutorAudio = null;
   }
+  try {
+    if (typeof window !== "undefined" && window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+    }
+  } catch(e){}
+
+  const stopSpeaking = () => {
+    if (avatar) avatar.classList.remove('speaking');
+    if (avatarWrap) avatarWrap.classList.remove('state-speaking');
+    if (currentTutorAudio === audio) currentTutorAudio = null;
+  };
+
+  // 2. Première tentative : Passerelle compatible CORS
+  const primaryUrl = `https://api.streamelements.com/kappa/v2/speech?voice=${voiceFallback}&text=${encodeURIComponent(cleanText)}`;
+  
+  const audio = new Audio();
+  audio.crossOrigin = "anonymous";
+  audio.src = primaryUrl;
+  currentTutorAudio = audio;
+
+  audio.onended = stopSpeaking;
+
+  // 3. Fallback immédiat si le flux primaire échoue
+  audio.onerror = () => {
+    console.warn("Échec premier flux audio, bascule sur la synthèse locale de secours...");
+    try {
+      if (typeof window !== "undefined" && window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+        const utt = new SpeechSynthesisUtterance(cleanText);
+        utt.lang = 'ar-SA';
+        utt.pitch = isYasmine ? 1.3 : 0.8;
+        utt.rate = 0.95;
+        utt.onend = stopSpeaking;
+        utt.onerror = stopSpeaking;
+        window.speechSynthesis.speak(utt);
+      } else {
+        stopSpeaking();
+      }
+    } catch(e) {
+      console.error("Échec total audio :", e);
+      stopSpeaking();
+    }
+  };
+
+  // Déclencher la lecture
+  audio.play().catch(err => {
+    console.warn("Lecture audio bloquée (interaction requise) :", err);
+    stopSpeaking();
+  });
 };
 
 window.playVoice = window.playTutorAudio;
@@ -3032,6 +3068,11 @@ function stopSpeak(){
   } catch(e){
     console.error("stopSpeak error:", e);
   }
+  try {
+    if (typeof window !== "undefined" && window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+    }
+  } catch(e){}
   updateAvatarSpeaking(false);
 }
 window.stopSpeak = stopSpeak;
