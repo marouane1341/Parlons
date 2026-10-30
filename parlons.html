@@ -1181,8 +1181,8 @@ audio,
         <button class="btn sm" id="sendBtn">Envoyer</button>
       </div>
 
-      <!-- Prévisualisation en direct de la voix captée -->
-      <div id="speechPreview" class="speech-preview" style="display:none; text-align:center; font-size:13px; color:var(--accent); padding:4px 12px; margin-bottom:6px; font-style:italic; border-radius:12px; background:var(--tint);"></div>
+      <!-- Prévisualisation en direct de la voix captée (cliquable pour insérer dans le champ de saisie) -->
+      <div id="speechPreview" class="speech-preview" onclick="if(typeof window.transferPreviewToInput==='function')window.transferPreviewToInput();" style="display:none; text-align:center; font-size:13px; color:var(--accent); padding:4px 12px; margin-bottom:6px; font-style:italic; border-radius:12px; background:var(--tint); cursor:pointer;" title="Toucher pour insérer dans le champ de saisie"></div>
 
       <!-- Barre des 3 boutons principaux -->
       <div class="chat-action-bar">
@@ -1809,28 +1809,26 @@ if (SpeechAPI) {
     for (let i = 0; i < event.results.length; ++i) {
       fullText += event.results[i][0].transcript;
     }
+    const cleanResult = fullText.trim();
 
-    const inputElem = document.querySelector('#input, #chatInput, #userMessageInput, textarea, input[type="text"]');
-    if (inputElem) {
-      inputElem.value = fullText.trim();
-      inputElem.dispatchEvent(new Event('input', { bubbles: true }));
-      const drawer = document.getElementById('composerDrawer');
-      if (drawer && drawer.hidden) {
-        drawer.hidden = false;
-        drawer.style.display = 'flex';
-      }
+    // 1. Mise à jour de la bulle d'aperçu bleue
+    const previewElem = document.querySelector('#speechPreview, .speech-preview, [id*="preview"], .voice-transcript');
+    if (previewElem) {
+      previewElem.innerText = cleanResult;
+      previewElem.style.display = cleanResult ? 'block' : 'none';
     }
 
-    const preview = document.getElementById('speechPreview');
-    if (preview) {
-      const trimmed = fullText.trim();
-      if (trimmed) {
-        preview.innerText = trimmed;
-        preview.style.display = 'block';
-      } else {
-        preview.innerText = '';
-        preview.style.display = 'none';
-      }
+    // 2. Transfert direct dans le champ d'écriture blanc (#input en priorité absolue)
+    const inputElem = document.querySelector('#input, .chat-input, #chatInput, #userMessageInput, #composerDrawer textarea');
+    if (inputElem) {
+      inputElem.value = cleanResult;
+      inputElem.dispatchEvent(new Event('input', { bubbles: true }));
+      inputElem.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    const drawer = document.getElementById('composerDrawer');
+    if (drawer && drawer.hidden) {
+      drawer.hidden = false;
+      drawer.style.display = 'flex';
     }
   };
 
@@ -1843,6 +1841,23 @@ if (SpeechAPI) {
     window.stopVoiceRecording();
   };
 }
+
+// Fonction utilitaire de transfert du texte d'aperçu vers le champ d'écriture
+window.transferPreviewToInput = function() {
+  const previewElem = document.querySelector('#speechPreview, .speech-preview, [id*="preview"], .voice-transcript');
+  const inputElem = document.querySelector('#input, .chat-input, #chatInput, #userMessageInput, #composerDrawer textarea');
+  if (previewElem && inputElem && previewElem.innerText.trim()) {
+    inputElem.value = previewElem.innerText.trim();
+    inputElem.dispatchEvent(new Event('input', { bubbles: true }));
+    inputElem.dispatchEvent(new Event('change', { bubbles: true }));
+    const drawer = document.getElementById('composerDrawer');
+    if (drawer && drawer.hidden) {
+      drawer.hidden = false;
+      drawer.style.display = 'flex';
+    }
+    inputElem.focus();
+  }
+};
 
 window.updateMicUI = function(isActive) {
   const micBtn = document.querySelector('#micBtn, .btn-mic, #micButton, .voice-btn, .mic-button, .mic-hero-btn');
@@ -1867,10 +1882,15 @@ window.startVoiceRecording = function() {
   }
 
   // Vide impérativement le champ avant d'enregistrer pour éviter les collisions
-  const inputElem = document.querySelector('#input, #chatInput, #userMessageInput, textarea, input[type="text"]');
+  const inputElem = document.querySelector('#input, .chat-input, #chatInput, #userMessageInput, #composerDrawer textarea');
   if (inputElem) {
     inputElem.value = '';
     inputElem.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+  const previewElem = document.querySelector('#speechPreview, .speech-preview, [id*="preview"], .voice-transcript');
+  if (previewElem) {
+    previewElem.innerText = '';
+    previewElem.style.display = 'none';
   }
 
   const drawer = document.getElementById('composerDrawer');
@@ -2315,9 +2335,9 @@ async function handleSend() {
     window.stopVoiceRecording();
   }
   if (window.isProcessingMessage) return;
-  const inp = document.getElementById("input");
-  if (!inp) return;
-  const v = inp.value.trim();
+  const inputElem = document.querySelector('#input, .chat-input, #chatInput, #userMessageInput, #composerDrawer textarea');
+  const previewElem = document.querySelector('#speechPreview, .speech-preview, [id*="preview"], .voice-transcript');
+  const v = (inputElem?.value || previewElem?.innerText || '').trim();
   if (!v) return;
   
   if (typeof S !== "undefined" && S.busy) {
@@ -2326,11 +2346,15 @@ async function handleSend() {
   }
   
   window.isProcessingMessage = true;
-  inp.value = "";
-  inp.style.height = "auto";
+  if (inputElem) {
+    inputElem.value = "";
+    inputElem.style.height = "auto";
+  }
   window.speechFinalText = "";
-  const preview = document.getElementById('speechPreview');
-  if (preview) { preview.innerText = ''; preview.style.display = 'none'; }
+  if (previewElem) {
+    previewElem.innerText = '';
+    previewElem.style.display = 'none';
+  }
   
   const errBox = document.querySelector('.error-banner') || document.getElementById('chatErrorMessage');
   if (errBox) errBox.style.display = 'none';
