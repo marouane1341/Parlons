@@ -1734,8 +1734,46 @@ window.toggleTranslation = async function(btn) {
 window.translateMessage = window.toggleTranslation;
 
 // =========================================================================
-// 2. Module Dictée Vocale Propre (Zéro Accumulation & Écouteur Unique)
+// 2. Module Dictée Vocale Propre (Zéro Accumulation & Langue Fiable)
 // =========================================================================
+window.currentSpeechLang = localStorage.getItem('tutor_speech_lang') || 'fr-FR';
+
+window.updateSpeechLangUI = function() {
+  const btn = document.querySelector('#tutorSttBtn, [id*="lang"], .btn-lang-toggle, #micLangBtn');
+  if (!btn) return;
+  if (window.currentSpeechLang === 'fr-FR') {
+    btn.innerText = "🎤 Micro : Français (toucher pour Arabe)";
+  } else {
+    btn.innerText = "🎤 Micro : Arabe (toucher pour Français)";
+  }
+};
+
+window.toggleSpeechLanguage = function() {
+  window.currentSpeechLang = window.currentSpeechLang === 'fr-FR' ? 'ar-SA' : 'fr-FR';
+  localStorage.setItem('tutor_speech_lang', window.currentSpeechLang);
+  window.updateSpeechLangUI();
+
+  if (typeof S !== "undefined") {
+    S.tutorStt = (window.currentSpeechLang === 'ar-SA' ? 'ar' : 'fr');
+    window.currentMicLang = S.tutorStt;
+  }
+
+  // Si le micro est en cours d'enregistrement, on le relance avec la nouvelle langue
+  if (window.isVoiceRecording) {
+    window.stopVoiceRecording();
+    setTimeout(() => window.startVoiceRecording(), 200);
+  }
+};
+
+const langBtn = document.querySelector('#tutorSttBtn, [id*="lang"], .btn-lang-toggle, #micLangBtn');
+if (langBtn) {
+  langBtn.onclick = function(e) {
+    e.preventDefault();
+    window.toggleSpeechLanguage();
+  };
+  window.updateSpeechLangUI();
+}
+
 // 1. Nettoyage et destruction stricte de toute instance antérieure
 if (window.activeSpeechRecognizer) {
   try {
@@ -1758,7 +1796,7 @@ if (SpeechAPI) {
 
   recognizer.continuous = false; // Arrêt propre sur pause, pas d'accumulation infinie
   recognizer.interimResults = true;
-  recognizer.lang = 'ar-SA'; // Adapté dynamiquement selon la langue choisie
+  recognizer.lang = window.currentSpeechLang || 'fr-FR';
 
   recognizer.onstart = function() {
     window.isVoiceRecording = true;
@@ -1841,10 +1879,8 @@ window.startVoiceRecording = function() {
     drawer.style.display = 'flex';
   }
 
-  // Détection de la langue sélectionnée sous le tuteur
-  const langToggle = document.querySelector('#tutorSttBtn, [id*="lang"], [class*="lang"]');
-  const isArabic = (typeof S !== "undefined" && S.tutorStt === "ar") || (langToggle && langToggle.innerText.toLowerCase().includes('arabe') && !langToggle.innerText.toLowerCase().includes('toucher pour arabe'));
-  window.activeSpeechRecognizer.lang = isArabic ? 'ar-SA' : 'fr-FR';
+  // Force la langue active sélectionnée
+  window.activeSpeechRecognizer.lang = window.currentSpeechLang || 'fr-FR';
 
   window.isVoiceRecording = true;
   window.updateMicUI(true);
@@ -4374,14 +4410,7 @@ function updateTutorSttUI(){
   const isTutor=S.scn&&S.scn.id==="tutor";
   if(!isTutor){bar.hidden=true;return}
   bar.hidden=false;
-  const b=$("#tutorSttBtn");
-  if(b){
-    const cur=S.tutorStt||(S.lang==="ar"?"ar":"fr");
-    const targetLabel=(typeof LANGS !== "undefined" && LANGS[S.lang]) ? LANGS[S.lang].label : "Arabe";
-    const isTarget = (cur === "ar" || cur === S.lang);
-    b.textContent = isTarget ? `🎤 Micro : ${targetLabel}` : `🎤 Micro : Français (toucher pour ${targetLabel})`;
-    b.style.fontWeight = isTarget ? "700" : "normal";
-  }
+  if(typeof window.updateSpeechLangUI === "function") window.updateSpeechLangUI();
 }
 
 function startTutor(){
@@ -4692,11 +4721,9 @@ function alignWords(target,heard){
   return ok;
 }
 safeAddListener("#tutorBtn", "click", ()=>startTutor());
-safeAddListener("#tutorSttBtn", "click", ()=>{
-  S.tutorStt = (S.tutorStt === "fr" ? S.lang : "fr");
-  window.currentMicLang = S.tutorStt;
-  updateTutorSttUI();
-  if(typeof flash === "function") flash("Micro réglé sur : " + (S.tutorStt === "fr" ? "Français" : ((typeof LANGS !== "undefined" && LANGS[S.lang]) ? LANGS[S.lang].label : "Arabe")));
+safeAddListener("#tutorSttBtn", "click", (e)=>{
+  if(e && e.preventDefault) e.preventDefault();
+  if(typeof window.toggleSpeechLanguage === "function") window.toggleSpeechLanguage();
 });
 safeAddListener("#repeatBtn", "click", () => openRepeat());
 safeAddListener("#repeatBack", "click", () => {leaveSession();show("home")});
