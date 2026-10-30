@@ -1734,54 +1734,48 @@ window.toggleTranslation = async function(btn) {
 window.translateMessage = window.toggleTranslation;
 
 // =========================================================================
-// 2. Dictée Vocale 100% Manuelle (Zéro Envoi Automatique & Anti-Bégaiement)
+// 2. Module Dictée Vocale Propre (Zéro Accumulation & Écouteur Unique)
 // =========================================================================
-// Variables d'état isolées
-window.speechFinalText = '';
-window.isSpeechActive = false;
-window.isRecordingVoice = false;
-
-const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-if (window.mySpeechRecognition) {
-  try { window.mySpeechRecognition.abort(); } catch(e){}
+// 1. Nettoyage et destruction stricte de toute instance antérieure
+if (window.activeSpeechRecognizer) {
+  try {
+    window.activeSpeechRecognizer.onresult = null;
+    window.activeSpeechRecognizer.onend = null;
+    window.activeSpeechRecognizer.onerror = null;
+    window.activeSpeechRecognizer.abort();
+  } catch(e) {}
+  window.activeSpeechRecognizer = null;
 }
 
-window.mySpeechRecognition = SpeechRecognition ? new SpeechRecognition() : null;
-const rec = window.mySpeechRecognition;
-window.recognitionInstance = rec;
+window.isVoiceRecording = false;
 
-if (rec) {
-  rec.continuous = true;
-  rec.interimResults = true;
-  rec.lang = 'ar-SA';
+// 2. Initialisation d'une instance unique
+const SpeechAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+if (SpeechAPI) {
+  const recognizer = new SpeechAPI();
+  window.activeSpeechRecognizer = recognizer;
+  window.recognitionInstance = recognizer;
 
-  rec.onstart = function() {
-    window.isSpeechActive = true;
-    window.isRecordingVoice = true;
+  recognizer.continuous = false; // Arrêt propre sur pause, pas d'accumulation infinie
+  recognizer.interimResults = true;
+  recognizer.lang = 'ar-SA'; // Adapté dynamiquement selon la langue choisie
+
+  recognizer.onstart = function() {
+    window.isVoiceRecording = true;
     window.updateMicUI(true);
   };
 
-  rec.onresult = function(event) {
-    let interimText = '';
-    
-    // Parcourir UNIQUEMENT les nouveaux index retournés par cet événement précis
-    for (let i = event.resultIndex; i < event.results.length; ++i) {
-      const piece = event.results[i][0].transcript;
-      if (event.results[i].isFinal) {
-        window.speechFinalText += piece + ' ';
-      } else {
-        interimText += piece;
-      }
+  recognizer.onresult = function(event) {
+    // Calcul strictement local : on reconstruit uniquement ce que renvoie la session active
+    let fullText = '';
+    for (let i = 0; i < event.results.length; ++i) {
+      fullText += event.results[i][0].transcript;
     }
 
-    // Assemblage propre : texte figé + texte en cours, sans duplication
-    const completeText = (window.speechFinalText + interimText).replace(/\s+/g, ' ').trim();
-    
-    const inputElem = document.querySelector('#chatInput, #userMessageInput, textarea, input[type="text"]');
+    const inputElem = document.querySelector('#input, #chatInput, #userMessageInput, textarea, input[type="text"]');
     if (inputElem) {
-      inputElem.value = completeText;
+      inputElem.value = fullText.trim();
       inputElem.dispatchEvent(new Event('input', { bubbles: true }));
-      // Ouvrir le tiroir de composition si besoin
       const drawer = document.getElementById('composerDrawer');
       if (drawer && drawer.hidden) {
         drawer.hidden = false;
@@ -1789,11 +1783,11 @@ if (rec) {
       }
     }
 
-    // Affichage dans speechPreview
     const preview = document.getElementById('speechPreview');
     if (preview) {
-      if (completeText) {
-        preview.innerText = completeText;
+      const trimmed = fullText.trim();
+      if (trimmed) {
+        preview.innerText = trimmed;
         preview.style.display = 'block';
       } else {
         preview.innerText = '';
@@ -1802,19 +1796,13 @@ if (rec) {
     }
   };
 
-  rec.onerror = function(e) {
-    console.warn("Speech error:", e.error);
-    if (e.error !== 'no-speech') {
-      window.stopVoiceInput();
-    }
+  recognizer.onerror = function(e) {
+    console.warn("Speech recognition error:", e.error);
+    window.stopVoiceRecording();
   };
 
-  rec.onend = function() {
-    if (window.isSpeechActive) {
-      try { rec.start(); } catch(e){}
-    } else {
-      window.updateMicUI(false);
-    }
+  recognizer.onend = function() {
+    window.stopVoiceRecording();
   };
 }
 
@@ -1823,65 +1811,78 @@ window.updateMicUI = function(isActive) {
   if (!micBtn) return;
   if (isActive) {
     micBtn.classList.add('recording', 'listening');
-    micBtn.style.backgroundColor = '#e53935'; // Rouge = écoute en cours
+    micBtn.style.backgroundColor = '#e53935';
   } else {
     micBtn.classList.remove('recording', 'listening');
-    micBtn.style.backgroundColor = ''; // Rétablit la couleur par défaut
+    micBtn.style.backgroundColor = '';
   }
 };
 
-window.startVoiceInput = function() {
-  if (!rec) {
+window.startVoiceRecording = function() {
+  if (!window.activeSpeechRecognizer) {
     alert("Reconnaissance vocale non supportée sur ce navigateur.");
     return;
   }
-  // Couper tout son en cours
+
   if (typeof window.stopAllAudios === 'function') {
     window.stopAllAudios();
   }
-  const inputElem = document.querySelector('#chatInput, #userMessageInput, textarea, input[type="text"]');
-  window.speechFinalText = inputElem ? inputElem.value : '';
-  if (window.speechFinalText && !window.speechFinalText.endsWith(' ')) {
-    window.speechFinalText += ' ';
-  }
-  window.isSpeechActive = true;
-  window.isRecordingVoice = true;
-  window.updateMicUI(true);
 
-  // Ouvrir le tiroir pour que le champ texte et le bouton Envoyer soient visibles
+  // Vide impérativement le champ avant d'enregistrer pour éviter les collisions
+  const inputElem = document.querySelector('#input, #chatInput, #userMessageInput, textarea, input[type="text"]');
+  if (inputElem) {
+    inputElem.value = '';
+    inputElem.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+
   const drawer = document.getElementById('composerDrawer');
   if (drawer && drawer.hidden) {
     drawer.hidden = false;
     drawer.style.display = 'flex';
   }
 
-  const isFr = (typeof S !== "undefined" && S.tutorStt === "fr");
-  rec.lang = isFr ? 'fr-FR' : 'ar-SA';
+  // Détection de la langue sélectionnée sous le tuteur
+  const langToggle = document.querySelector('#tutorSttBtn, [id*="lang"], [class*="lang"]');
+  const isArabic = (typeof S !== "undefined" && S.tutorStt === "ar") || (langToggle && langToggle.innerText.toLowerCase().includes('arabe') && !langToggle.innerText.toLowerCase().includes('toucher pour arabe'));
+  window.activeSpeechRecognizer.lang = isArabic ? 'ar-SA' : 'fr-FR';
 
-  try { rec.start(); } catch(e){}
+  window.isVoiceRecording = true;
+  window.updateMicUI(true);
+
+  try {
+    window.activeSpeechRecognizer.start();
+  } catch(e) {
+    console.warn("Speech already started:", e);
+  }
 };
 
-window.stopVoiceInput = function() {
-  window.isSpeechActive = false;
-  window.isRecordingVoice = false;
+window.stopVoiceRecording = function() {
+  window.isVoiceRecording = false;
   window.updateMicUI(false);
-  if (rec) {
-    try { rec.stop(); } catch(e){}
+
+  if (window.activeSpeechRecognizer) {
+    try { window.activeSpeechRecognizer.stop(); } catch(e) {}
   }
 };
 
 window.toggleVoiceRecording = function() {
-  if (window.isSpeechActive) {
-    window.stopVoiceInput();
+  if (window.isVoiceRecording) {
+    window.stopVoiceRecording();
   } else {
-    window.startVoiceInput();
+    window.startVoiceRecording();
   }
 };
 
-// Aliases pour compatibilité totale
+// Aliases pour compatibilité totale avec l'application
 window.toggleMic = window.toggleVoiceRecording;
-window.stopVoiceRecording = window.stopVoiceInput;
-window.startVoiceRecording = window.startVoiceInput;
+window.startVoiceInput = window.startVoiceRecording;
+window.stopVoiceInput = window.stopVoiceRecording;
+window.isSpeechActive = false;
+window.speechFinalText = '';
+Object.defineProperty(window, 'isRecordingVoice', {
+  get: () => window.isVoiceRecording,
+  set: (v) => { window.isVoiceRecording = v; }
+});
 
 window.sendMessageToTutor = function(text) {
   if (!text || !text.trim()) return;
