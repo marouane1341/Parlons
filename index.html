@@ -669,6 +669,55 @@ audio,
 .chat-header-zone .chat-title-text{color:#f8fafc!important}
 .chat-header-zone .avatar-status-pill{background:rgba(255,255,255,0.12)!important;color:#e2e8f0!important;border:1px solid rgba(255,255,255,0.18)!important}
 
+/* Volet d'historique des discussions */
+.conversations-drawer {
+  position: absolute;
+  inset: 0;
+  z-index: 10005;
+  display: flex;
+  overflow: hidden;
+}
+.conv-drawer-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  cursor: pointer;
+}
+.conv-drawer-panel {
+  position: relative;
+  z-index: 2;
+  width: min(340px, 86vw);
+  height: 100%;
+  background: var(--card, #ffffff);
+  border-right: 1px solid var(--line, #e2e8f0);
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  padding: 18px 16px;
+  box-sizing: border-box;
+  animation: slideDrawerIn 0.22s ease-out;
+}
+@keyframes slideDrawerIn {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+.conv-drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line, #e2e8f0);
+}
+.conv-card-item:hover {
+  filter: brightness(0.97);
+  transform: translateY(-1px);
+}
+.conv-card-item.active-conv {
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
 .scn-card{
   background:var(--card);
   border:1px solid var(--line);
@@ -1136,15 +1185,43 @@ audio,
   </section>
 
     <section id="chatScreen" class="chat-immersive conversation-view" data-view="chat" hidden>
+    <!-- Volet / Tiroir latéral d'historique des discussions -->
+    <aside id="conversationsDrawer" class="conversations-drawer" style="display:none;" aria-label="Historique des discussions">
+      <div class="conv-drawer-backdrop" onclick="window.toggleConversationDrawer(false)"></div>
+      <div class="conv-drawer-panel">
+        <div class="conv-drawer-header">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:18px">💬</span>
+            <h3 style="margin:0;font-size:16px;font-weight:700">Mes discussions</h3>
+          </div>
+          <button type="button" class="icon-circle-btn" onclick="window.toggleConversationDrawer(false)" aria-label="Fermer" style="width:32px;height:32px;cursor:pointer;">&#10005;</button>
+        </div>
+
+        <div style="margin-top:12px;margin-bottom:12px;">
+          <button type="button" class="btn sm btn-new-conv" onclick="window.startNewConversation()" style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;font-weight:600;padding:10px 14px;border-radius:12px;background:var(--accent,#2563eb);color:#fff;border:none;cursor:pointer;box-shadow:0 2px 8px rgba(37,99,235,0.3);">
+            <span>➕</span>
+            <span>Nouvelle discussion</span>
+          </button>
+        </div>
+
+        <div class="conv-list-container" id="conversationsList" style="flex:1;overflow-y:auto;padding-right:4px;display:flex;flex-direction:column;gap:8px;">
+          <!-- Rendu dynamique des discussions -->
+        </div>
+      </div>
+    </aside>
+
     <!-- 1. En-tete superieur (35% de la hauteur) -->
     <header class="chat-header-zone">
       <div class="chat-top-bar">
-        <button id="closeConversationBtn" class="icon-circle-btn" onclick="closeChat()" style="cursor: pointer; z-index: 10001;">&#10005;</button>
+        <button id="closeConversationBtn" class="icon-circle-btn" onclick="closeChat()" style="cursor: pointer; z-index: 10001;" aria-label="Fermer">&#10005;</button>
         <div class="chat-title-wrap">
           <span id="chatTitle" class="chat-title-text">Conversation</span>
           <span class="timer-pill" id="timer" hidden></span>
         </div>
-        <button class="icon-circle-btn" id="chatCfgBtn" aria-label="Parametres" title="Parametres">&#9881;&#65039;</button>
+        <div style="display:flex;align-items:center;gap:6px">
+          <button class="icon-circle-btn" id="chatHistoryBtn" onclick="window.toggleConversationDrawer()" aria-label="Historique des discussions" title="💬 Mes discussions" style="font-size:14px;cursor:pointer;">💬</button>
+          <button class="icon-circle-btn" id="chatCfgBtn" aria-label="Parametres" title="Parametres">&#9881;&#65039;</button>
+        </div>
       </div>
 
       <!-- Medaillon du professeur avec portrait studio et onde reactive -->
@@ -1541,7 +1618,12 @@ window.playTutorAudio = async function(text, tutorKey) {
 
   window.isGeneratingAudio = true;
 
-  const cleanText = text.replace(/[*_#`~]/g, '').trim();
+  // Nettoyage respectueux des balises Markdown sans couper ni concaténer les mots
+  const cleanText = String(text || '')
+    .replace(/[*_#`~>]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
   if (!cleanText) {
     window.isGeneratingAudio = false;
     return;
@@ -1557,28 +1639,54 @@ window.playTutorAudio = async function(text, tutorKey) {
   const avatarWrap = document.getElementById('avatarWrap');
   if (avatarWrap) avatarWrap.classList.add('state-speaking');
 
+  // Moteur vocal local bilingue : vocalise fidèlement l'arabe ET l'explication française sans omettre de partie
+  function speakLocalBilingual(fullTxt, onDone) {
+    if (!('speechSynthesis' in window)) {
+      if (onDone) onDone();
+      return;
+    }
+    const hasArabic = /[\u0600-\u06FF]/.test(fullTxt);
+    const hasLatin = /[a-zA-ZÀ-ÿ]/.test(fullTxt);
+
+    if (hasArabic && hasLatin) {
+      // Découper par phrases pour appliquer ar-SA aux fragments arabes et fr-FR aux explications françaises
+      const parts = fullTxt.split(/(?<=[.!?:\n])\s+/).map(p => p.trim()).filter(Boolean);
+      let pIdx = 0;
+      function speakNextChunk() {
+        if (pIdx >= parts.length) {
+          if (onDone) onDone();
+          return;
+        }
+        const chunk = parts[pIdx++];
+        const chunkIsAr = /[\u0600-\u06FF]/.test(chunk);
+        const utt = new SpeechSynthesisUtterance(chunk);
+        utt.lang = chunkIsAr ? 'ar-SA' : 'fr-FR';
+        utt.rate = 0.95;
+        utt.pitch = isYasmine ? 1.15 : 0.95;
+        utt.onend = () => speakNextChunk();
+        utt.onerror = () => speakNextChunk();
+        window.speechSynthesis.speak(utt);
+      }
+      speakNextChunk();
+    } else {
+      const utt = new SpeechSynthesisUtterance(fullTxt);
+      utt.lang = hasArabic ? 'ar-SA' : 'fr-FR';
+      utt.rate = 0.95;
+      utt.pitch = isYasmine ? 1.15 : 0.95;
+      utt.onend = () => { if (onDone) onDone(); };
+      utt.onerror = () => { if (onDone) onDone(); };
+      window.speechSynthesis.speak(utt);
+    }
+  }
+
   // ==========================================
   // OPTION A : MOTEUR STANDARD GRATUIT ILLIMITÉ
   // ==========================================
   if (engineMode === 'standard_free') {
-    if (!('speechSynthesis' in window)) {
+    speakLocalBilingual(cleanText, () => {
       window.stopAllAudios();
       window.isGeneratingAudio = false;
-      return;
-    }
-    const utterance = new SpeechSynthesisUtterance(cleanText);
-    utterance.lang = 'ar-SA';
-    utterance.rate = 0.95;
-    utterance.pitch = isYasmine ? 1.15 : 0.95;
-    utterance.onend = () => {
-      window.stopAllAudios();
-      window.isGeneratingAudio = false;
-    };
-    utterance.onerror = () => {
-      window.stopAllAudios();
-      window.isGeneratingAudio = false;
-    };
-    window.speechSynthesis.speak(utterance);
+    });
     return;
   }
 
@@ -1588,10 +1696,12 @@ window.playTutorAudio = async function(text, tutorKey) {
   const apiKey = localStorage.getItem('gemini_api_key') || localStorage.getItem('apiKey') || localStorage.getItem('gemini_key') || (typeof curKey === 'function' ? curKey() : '') || (typeof S !== 'undefined' && S.cfg && S.cfg.keys && S.cfg.keys.gemini) || '';
   if (!apiKey) {
     if (typeof window.showAudioStatus === 'function') {
-      window.showAudioStatus("Clé API manquante pour la voix HD", true);
+      window.showAudioStatus("Clé API manquante pour la voix HD (bascule standard)", true);
     }
-    window.stopAllAudios();
-    window.isGeneratingAudio = false;
+    speakLocalBilingual(cleanText, () => {
+      window.stopAllAudios();
+      window.isGeneratingAudio = false;
+    });
     return;
   }
 
@@ -1609,20 +1719,11 @@ window.playTutorAudio = async function(text, tutorKey) {
     });
 
     if (!resp.ok) {
-      console.warn("API TTS en erreur, bascule standard.");
-      const utterance = new SpeechSynthesisUtterance(cleanText);
-      utterance.lang = 'ar-SA';
-      utterance.rate = 0.95;
-      utterance.pitch = isYasmine ? 1.15 : 0.95;
-      utterance.onend = () => {
+      console.warn("API TTS en erreur, bascule standard bilingue.");
+      speakLocalBilingual(cleanText, () => {
         window.stopAllAudios();
         window.isGeneratingAudio = false;
-      };
-      utterance.onerror = () => {
-        window.stopAllAudios();
-        window.isGeneratingAudio = false;
-      };
-      window.speechSynthesis.speak(utterance);
+      });
       return;
     }
 
@@ -1649,12 +1750,17 @@ window.playTutorAudio = async function(text, tutorKey) {
 
       await audio.play();
     } else {
-      window.stopAllAudios();
-      window.isGeneratingAudio = false;
+      speakLocalBilingual(cleanText, () => {
+        window.stopAllAudios();
+        window.isGeneratingAudio = false;
+      });
     }
   } catch (e) {
-    window.stopAllAudios();
-    window.isGeneratingAudio = false;
+    console.warn("Exception audio TTS, secours local bilingue :", e);
+    speakLocalBilingual(cleanText, () => {
+      window.stopAllAudios();
+      window.isGeneratingAudio = false;
+    });
   }
 };
 
@@ -1998,6 +2104,279 @@ if (document.readyState === 'loading') {
   window.chooseTutor(current);
 }
 
+// ============================================================================
+// GESTIONNAIRE PERSISTANT DE CONVERSATIONS (HISTORIQUE PAR SESSION & CLASSEMENT)
+// ============================================================================
+window.CONV_STORAGE_KEY = 'tutor_conversations_v1';
+window.CONV_ACTIVE_ID_KEY = 'tutor_active_conv_id';
+window.activeConversationId = localStorage.getItem(window.CONV_ACTIVE_ID_KEY) || null;
+
+window.getTutorConversations = function() {
+  try {
+    const raw = localStorage.getItem(window.CONV_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch(e) {
+    console.warn("Erreur getTutorConversations:", e);
+    return [];
+  }
+};
+
+window.saveTutorConversations = function(list) {
+  try {
+    localStorage.setItem(window.CONV_STORAGE_KEY, JSON.stringify(list || []));
+  } catch(e) {
+    console.warn("Erreur saveTutorConversations:", e);
+  }
+};
+
+window.getActiveConversation = function() {
+  const list = window.getTutorConversations();
+  const activeId = window.activeConversationId || localStorage.getItem(window.CONV_ACTIVE_ID_KEY);
+  if (activeId) {
+    const found = list.find(c => c.id === activeId);
+    if (found) {
+      window.activeConversationId = found.id;
+      return found;
+    }
+  }
+  if (list.length > 0) {
+    window.activeConversationId = list[0].id;
+    localStorage.setItem(window.CONV_ACTIVE_ID_KEY, list[0].id);
+    return list[0];
+  }
+  return null;
+};
+
+window.createTutorConversation = function(tutorKey) {
+  const activeTutor = tutorKey || localStorage.getItem('selected_tutor') || 'yasmine';
+  const isYasmine = activeTutor.toLowerCase().includes('yasmine');
+  const tutorId = isYasmine ? 'yasmine' : 'tariq';
+  const welcomeText = isYasmine
+    ? "مَرْحَبًا ! Je suis Yasmine, votre professeure d'arabe. Posez-moi n'importe quelle question en arabe ou en français."
+    : "مَرْحَبًا ! Je suis Tariq, votre professeur d'arabe. Parlons ensemble de situations du quotidien !";
+
+  const newConv = {
+    id: "conv_" + Date.now(),
+    tutorId: tutorId,
+    title: "Discussion du " + new Date().toLocaleDateString('fr-FR'),
+    createdAt: Date.now(),
+    messages: [
+      { role: "assistant", text: welcomeText, timestamp: Date.now() }
+    ]
+  };
+
+  const list = window.getTutorConversations();
+  list.unshift(newConv);
+  window.saveTutorConversations(list);
+  window.activeConversationId = newConv.id;
+  localStorage.setItem(window.CONV_ACTIVE_ID_KEY, newConv.id);
+  return newConv;
+};
+
+window.addMessageToActiveConversation = function(role, text) {
+  if (!text || !String(text).trim()) return;
+  let conv = window.getActiveConversation();
+  if (!conv) {
+    conv = window.createTutorConversation();
+  }
+  conv.messages = conv.messages || [];
+  conv.messages.push({
+    role: role,
+    text: String(text).trim(),
+    timestamp: Date.now()
+  });
+
+  // Si premier message envoyé par l'utilisateur et titre par défaut, générer un titre automatique (30 car max)
+  if (role === 'user') {
+    const isDefaultTitle = !conv.title || conv.title.startsWith("Discussion du ");
+    if (isDefaultTitle) {
+      const clean = String(text).replace(/[*_#`~>]/g, ' ').replace(/\s+/g, ' ').trim();
+      if (clean) {
+        conv.title = clean.length > 30 ? (clean.slice(0, 30) + '…') : clean;
+      }
+    }
+  }
+
+  const list = window.getTutorConversations();
+  const idx = list.findIndex(c => c.id === conv.id);
+  if (idx !== -1) {
+    list[idx] = conv;
+  } else {
+    list.unshift(conv);
+  }
+  window.saveTutorConversations(list);
+  window.updateChatTitleUI(conv);
+};
+
+window.updateChatTitleUI = function(conv) {
+  const titleEl = document.getElementById("chatTitle");
+  if (!titleEl) return;
+  const isYasmine = (conv?.tutorId || localStorage.getItem('selected_tutor') || 'yasmine').toLowerCase().includes('yasmine');
+  const tutorName = isYasmine ? 'Yasmine' : 'Tariq';
+  const titleText = conv?.title || "Discussion libre";
+  titleEl.innerHTML = `<span style="font-weight:700;">💬 ${tutorName}</span> · <span style="font-weight:400;opacity:0.9;">${titleText}</span>`;
+};
+
+window.loadConversation = function(convId, speakLastMessage = false) {
+  const list = window.getTutorConversations();
+  const conv = list.find(c => c.id === convId);
+  if (!conv) return;
+
+  window.activeConversationId = conv.id;
+  localStorage.setItem(window.CONV_ACTIVE_ID_KEY, conv.id);
+
+  if (conv.tutorId) {
+    localStorage.setItem('selected_tutor', conv.tutorId);
+    if (typeof window.chooseTutor === 'function') {
+      window.chooseTutor(conv.tutorId);
+    }
+  }
+
+  const logEl = document.getElementById("log");
+  if (logEl) logEl.textContent = "";
+
+  window.updateChatTitleUI(conv);
+
+  if (conv.messages && Array.isArray(conv.messages)) {
+    conv.messages.forEach(msg => {
+      if (typeof window.appendMessage === 'function') {
+        window.appendMessage(msg.role, msg.text, true); // true = skipSave
+      }
+    });
+  }
+
+  window.toggleConversationDrawer(false);
+
+  if (logEl) {
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  if (speakLastMessage && conv.messages && conv.messages.length > 0) {
+    const last = conv.messages[conv.messages.length - 1];
+    if (last.role === 'assistant' && typeof window.playTutorAudio === 'function') {
+      window.playTutorAudio(last.text, conv.tutorId);
+    }
+  }
+};
+
+window.startNewConversation = function() {
+  const curTutor = localStorage.getItem('selected_tutor') || 'yasmine';
+  const newConv = window.createTutorConversation(curTutor);
+  window.loadConversation(newConv.id, false);
+  window.renderConversationsList();
+  const inp = document.getElementById("input");
+  if (inp) {
+    inp.value = "";
+    inp.focus();
+  }
+  if (newConv.messages && newConv.messages[0] && typeof window.playTutorAudio === 'function') {
+    window.playTutorAudio(newConv.messages[0].text, newConv.tutorId);
+  }
+};
+
+window.renameConversation = function(convId, e) {
+  if (e && e.stopPropagation) e.stopPropagation();
+  const list = window.getTutorConversations();
+  const conv = list.find(c => c.id === convId);
+  if (!conv) return;
+  const newTitle = prompt("Renommer la discussion :", conv.title || "");
+  if (newTitle && newTitle.trim()) {
+    conv.title = newTitle.trim();
+    window.saveTutorConversations(list);
+    window.renderConversationsList();
+    if (window.activeConversationId === conv.id) {
+      window.updateChatTitleUI(conv);
+    }
+  }
+};
+
+window.deleteConversation = function(convId, e) {
+  if (e && e.stopPropagation) e.stopPropagation();
+  if (!confirm("Voulez-vous vraiment supprimer cette discussion ?")) return;
+  let list = window.getTutorConversations();
+  list = list.filter(c => c.id !== convId);
+  window.saveTutorConversations(list);
+
+  if (window.activeConversationId === convId) {
+    if (list.length > 0) {
+      window.loadConversation(list[0].id, false);
+    } else {
+      window.startNewConversation();
+    }
+  }
+  window.renderConversationsList();
+};
+
+window.toggleConversationDrawer = function(forceState) {
+  const drawer = document.getElementById('conversationsDrawer');
+  if (!drawer) return;
+  const isVisible = drawer.style.display !== 'none';
+  const targetState = (typeof forceState === 'boolean') ? forceState : !isVisible;
+  drawer.style.display = targetState ? 'flex' : 'none';
+  if (targetState) {
+    window.renderConversationsList();
+  }
+};
+
+window.renderConversationsList = function() {
+  const container = document.getElementById('conversationsList');
+  if (!container) return;
+  const list = window.getTutorConversations();
+  const activeId = window.activeConversationId || localStorage.getItem(window.CONV_ACTIVE_ID_KEY);
+
+  if (!list || list.length === 0) {
+    container.innerHTML = `
+      <div style="text-align:center;padding:30px 15px;color:var(--muted,#64748b);font-size:13px;">
+        <span style="font-size:28px;display:block;margin-bottom:8px">💬</span>
+        Aucune discussion enregistrée.<br>Touchez « Nouvelle discussion » pour commencer !
+      </div>
+    `;
+    return;
+  }
+
+  function esc(s) {
+    return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  container.innerHTML = list.map(c => {
+    const isActive = (c.id === activeId);
+    const isYasmine = (c.tutorId || 'yasmine').toLowerCase().includes('yasmine');
+    const tutorBadge = isYasmine
+      ? `<span style="font-size:11px;font-weight:600;color:#9d174d;background:#fce7f3;padding:2px 8px;border-radius:10px;">👩‍🏫 Yasmine</span>`
+      : `<span style="font-size:11px;font-weight:600;color:#1e40af;background:#dbeafe;padding:2px 8px;border-radius:10px;">👨‍🏫 Tariq</span>`;
+    const dateStr = new Date(c.createdAt || Date.now()).toLocaleDateString('fr-FR', {
+      day: 'numeric',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    const msgCount = (c.messages && c.messages.length) || 0;
+
+    return `
+      <div class="conv-card-item ${isActive ? 'active-conv' : ''}" 
+           onclick="window.loadConversation('${c.id}')"
+           style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-radius:12px;background:${isActive ? 'var(--tint, #eff6ff)' : 'var(--card-sub, #f8fafc)'};border:${isActive ? '2px solid var(--accent, #2563eb)' : '1px solid var(--line, #e2e8f0)'};cursor:pointer;gap:8px;transition:all 0.15s ease;">
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+            ${tutorBadge}
+            <span style="font-size:11px;color:var(--muted,#64748b);">${dateStr}</span>
+          </div>
+          <div style="font-weight:${isActive ? '700' : '600'};font-size:13px;color:var(--ink,#0f172a);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+            ${esc(c.title || 'Discussion')}
+          </div>
+          <div style="font-size:11px;color:var(--muted,#64748b);margin-top:2px;">
+            💬 ${msgCount} message${msgCount > 1 ? 's' : ''}
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:4px;" onclick="event.stopPropagation()">
+          <button type="button" class="icon-circle-btn mini-tool" title="Renommer" onclick="window.renameConversation('${c.id}', event)" style="width:28px;height:28px;font-size:12px;background:transparent;border:1px solid var(--line,#cbd5e1);border-radius:50%;cursor:pointer;">✏️</button>
+          <button type="button" class="icon-circle-btn mini-tool" title="Supprimer" onclick="window.deleteConversation('${c.id}', event)" style="width:28px;height:28px;font-size:12px;background:transparent;border:1px solid var(--line,#cbd5e1);border-radius:50%;cursor:pointer;color:#e11d48;">🗑️</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+};
+
 // 1. Initialisation de la salutation du tuteur actif
 window.initTutorGreeting = function() {
   try {
@@ -2019,10 +2398,6 @@ window.initTutorGreeting = function() {
     }
     if (typeof renderTargets === "function") renderTargets();
     if (typeof renderGoals === "function") renderGoals();
-    const logEl = document.getElementById("log");
-    if (logEl) logEl.textContent = "";
-    const titleEl = document.getElementById("chatTitle");
-    if (titleEl) titleEl.textContent = "💬 Tuteur libre · " + t.name + (isAr ? " (Arabe)" : " (" + (typeof LANGS !== "undefined" && LANGS[S.lang] ? LANGS[S.lang].label : "") + ")");
     const liveEl = document.getElementById("live");
     if (liveEl) liveEl.textContent = "";
     const inp = document.getElementById("input");
@@ -2040,21 +2415,18 @@ window.initTutorGreeting = function() {
     if (typeof updateTutorSttUI === "function") updateTutorSttUI();
     if (typeof updateAvatar === "function") updateAvatar();
 
-    const welcome = document.createElement("div");
-    welcome.className = "msg t";
-    const welcomeText = isAr
-      ? (t.id === "yasmine"
-          ? "مَرْحَبًا ! Je suis Yasmine, votre professeure d'arabe. Posez-moi n'importe quelle question en arabe ou en français."
-          : "مَرْحَبًا ! Je suis Tariq, votre professeur d'arabe. Parlons ensemble de situations du quotidien !")
-      : ("Bonjour ! Je suis " + t.name + ", votre tuteur. Posez-moi vos questions !");
-    const wText = document.createElement("div");
-    wText.textContent = welcomeText;
-    welcome.appendChild(wText);
-    if (logEl) logEl.appendChild(welcome);
-    if (inp) inp.focus();
-    if (typeof S !== "undefined" && S.mode !== "write" && typeof window.playTutorAudio === "function") {
-      window.playTutorAudio(welcomeText, t.id);
+    // Persistance des conversations : restaurer la discussion active ou en initialiser une
+    let activeConv = window.getActiveConversation();
+    if (activeConv) {
+      window.loadConversation(activeConv.id, false);
+    } else {
+      activeConv = window.createTutorConversation(t.id);
+      window.loadConversation(activeConv.id, false);
+      if (typeof S !== "undefined" && S.mode !== "write" && typeof window.playTutorAudio === "function" && activeConv.messages?.[0]) {
+        window.playTutorAudio(activeConv.messages[0].text, activeConv.tutorId);
+      }
     }
+    if (inp) inp.focus();
   } catch(e) {
     console.error("initTutorGreeting error:", e);
   }
@@ -2157,7 +2529,7 @@ window.loadLessonData = function(lessonId) {
 };
 
 // --- GESTION ROBUSTE DE GEMINI & CHAT ---
-function appendMessage(role, text) {
+function appendMessage(role, text, skipSave) {
   const log = document.getElementById("log");
   if (!log) return;
   if (role === 'user') {
@@ -2213,6 +2585,11 @@ function appendMessage(role, text) {
       b.scrollIntoView({ block: "nearest", behavior: "smooth" });
     }
   }
+
+  // Sauvegarde automatique dans la conversation active si non skipSave
+  if (!skipSave && typeof window.addMessageToActiveConversation === 'function') {
+    window.addMessageToActiveConversation(role, text);
+  }
 }
 window.appendMessage = appendMessage;
 
@@ -2255,13 +2632,30 @@ async function sendToGemini(userMessage) {
     typingInd.scrollIntoView({ block: "nearest", behavior: "smooth" });
   }
 
+  // Construction de l'historique conversationnel pour contexte Gemini
+  const activeConv = (typeof window.getActiveConversation === 'function') ? window.getActiveConversation() : null;
+  const pastTurns = (activeConv && Array.isArray(activeConv.messages)) ? activeConv.messages.slice(-10) : [];
+  
+  const contents = [];
+  for (const turn of pastTurns) {
+    const r = (turn.role === 'user') ? 'user' : 'model';
+    if (contents.length > 0 && contents[contents.length - 1].role === r) {
+      contents[contents.length - 1].parts[0].text += "\n" + turn.text;
+    } else {
+      contents.push({ role: r, parts: [{ text: turn.text }] });
+    }
+  }
+  // S'assurer que le premier tour a le rôle 'user' (requis par l'API Gemini)
+  while (contents.length > 0 && contents[0].role !== 'user') {
+    contents.shift();
+  }
+  // S'assurer que le dernier tour contient le message actif
+  if (contents.length === 0 || contents[contents.length - 1].role !== 'user') {
+    contents.push({ role: 'user', parts: [{ text: userMessage }] });
+  }
+
   const payload = {
-    contents: [
-      {
-        role: "user",
-        parts: [{ text: userMessage }]
-      }
-    ],
+    contents: contents,
     systemInstruction: {
       parts: [{ text: systemInstruction }]
     }
@@ -2538,6 +2932,14 @@ document.addEventListener('click', function(e) {
       e.preventDefault();
       if (typeof openSettings === 'function') openSettings();
       else if (typeof switchTab === 'function') switchTab('profile');
+      return;
+    }
+
+    // 8b. Bouton Historique des discussions
+    const histBtn = e.target.closest('#chatHistoryBtn, .btn-history');
+    if (histBtn) {
+      e.preventDefault();
+      if (typeof window.toggleConversationDrawer === 'function') window.toggleConversationDrawer();
       return;
     }
 
@@ -4455,32 +4857,20 @@ function startTutor(){
   window.currentMicLang = isAr ? "ar" : "fr";
   renderTargets();
   renderGoals();
-  $("#log").textContent="";
-  $("#chatTitle").textContent="💬 Tuteur libre · " + t.name + (isAr ? " (Arabe)" : " (" + LANGS[S.lang].label + ")");
-  $("#live").textContent="";
-  const inp=$("#input");
-  inp.dir=isAr ? "rtl" : "auto";
-  inp.value="";
-  inp.placeholder="Posez votre question (ex: grammaire, vocabulaire, traduction…)";
-  stopTimer();
-  $("#timer").hidden=true;
-  $("#endBtn").hidden=true;
-  updateHF();
-  updateTutorSttUI();
-  updateAvatar();
   show("chat");
-  /* Message d'accueil du professeur actif */
-  const welcome=el("div","msg t");
-  const welcomeText = isAr
-    ? (t.id === "yasmine"
-        ? "مَرْحَبًا ! Je suis Yasmine, votre professeure d'arabe. Posez-moi n'importe quelle question en arabe ou en français."
-        : "مَرْحَبًا ! Je suis Tariq, votre professeur d'arabe. Parlons ensemble de situations du quotidien !")
-    : "Bonjour ! Je suis " + t.name + ", votre tuteur en " + LANGS[S.lang].name + ". Posez-moi vos questions !";
-  const wText=el("div",null,welcomeText);
-  welcome.append(wText);
-  $("#log").append(welcome);
+  let activeConv = (typeof window.getActiveConversation === 'function') ? window.getActiveConversation() : null;
+  if (activeConv) {
+    window.loadConversation(activeConv.id, false);
+  } else {
+    activeConv = (typeof window.createTutorConversation === 'function') ? window.createTutorConversation(t.id) : null;
+    if (activeConv) {
+      window.loadConversation(activeConv.id, false);
+      if (S.mode !== "write" && activeConv.messages?.[0] && typeof window.playTutorAudio === 'function') {
+        window.playTutorAudio(activeConv.messages[0].text, activeConv.tutorId);
+      }
+    }
+  }
   inp.focus();
-  if(S.mode!=="write") speakBilingualText(welcomeText);
 }
 function stopTimer(){if(S.timerId){clearInterval(S.timerId);S.timerId=null}}
 function startTimer(){
@@ -4535,7 +4925,8 @@ function bubbleT(d){
   say.onclick=(e)=>{
     if(e && e.preventDefault) e.preventDefault();
     const curTutor = window.currentTutorKey || localStorage.getItem('selected_tutor') || localStorage.getItem('parlons.tutor') || 'tariq';
-    window.playTutorAudio(d.reply, curTutor);
+    const textToSpeak = (d.fr && typeof d.fr === "string" && d.fr.trim()) ? `${d.reply}. ${d.fr}` : d.reply;
+    window.playTutorAudio(textToSpeak, curTutor);
   };
 
   const trad=el("button","btn-translate bubble-round-btn","\uD83C\uDF0D");
@@ -4625,11 +5016,12 @@ async function ask(){
     if(d.tip&&typeof d.tip==="string")log.append(el("div","tip",d.tip));
     if(d.end&&(!S.scn||S.scn.id!=="tutor"))log.append(el("p","typing","La séance est terminée. Touchez « Bilan » pour voir le résultat."));
     b.scrollIntoView({block:"nearest",behavior:"smooth"});
+    const textToSpeak = (d.fr && typeof d.fr === "string" && d.fr.trim()) ? `${d.reply}. ${d.fr}` : d.reply;
     if (typeof window.playTutorAudio === 'function') {
       const activeTutor = window.currentTutorKey || localStorage.getItem('selected_tutor') || 'tariq';
-      window.playTutorAudio(d.reply, activeTutor);
+      window.playTutorAudio(textToSpeak, activeTutor);
     } else if (S.mode!=="write") {
-      spoke=speak(d.reply,null);
+      spoke=speak(textToSpeak,null);
     }
   }catch(e){
     clearTimeout(globalTimeout);
