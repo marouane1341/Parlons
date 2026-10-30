@@ -1736,50 +1736,52 @@ window.translateMessage = window.toggleTranslation;
 // =========================================================================
 // 2. Dictée Vocale 100% Manuelle (Zéro Envoi Automatique & Anti-Bégaiement)
 // =========================================================================
+// Variables d'état isolées
+window.speechFinalText = '';
+window.isSpeechActive = false;
 window.isRecordingVoice = false;
 
-// Nettoyer toute instance précédente pour éviter d'empiler plusieurs listeners
-if (window.recognitionInstance) {
-  try { window.recognitionInstance.abort(); } catch(e){}
-  window.recognitionInstance = null;
-}
-
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-let recognition = null;
-if (SpeechRecognition) {
-  try {
-    recognition = new SpeechRecognition();
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.lang = 'ar-SA';
-    window.recognitionInstance = recognition;
-  } catch(e) {
-    console.warn("SpeechRecognition init error:", e);
-  }
+if (window.mySpeechRecognition) {
+  try { window.mySpeechRecognition.abort(); } catch(e){}
 }
 
-if (recognition) {
-  recognition.onresult = (event) => {
-    let finalTranscript = '';
-    let interimTranscript = '';
+window.mySpeechRecognition = SpeechRecognition ? new SpeechRecognition() : null;
+const rec = window.mySpeechRecognition;
+window.recognitionInstance = rec;
 
-    // Reconstruction propre depuis l'index 0 sans accumulation infinie
-    for (let i = 0; i < event.results.length; ++i) {
+if (rec) {
+  rec.continuous = true;
+  rec.interimResults = true;
+  rec.lang = 'ar-SA';
+
+  rec.onstart = function() {
+    window.isSpeechActive = true;
+    window.isRecordingVoice = true;
+    window.updateMicUI(true);
+  };
+
+  rec.onresult = function(event) {
+    let interimText = '';
+    
+    // Parcourir UNIQUEMENT les nouveaux index retournés par cet événement précis
+    for (let i = event.resultIndex; i < event.results.length; ++i) {
+      const piece = event.results[i][0].transcript;
       if (event.results[i].isFinal) {
-        finalTranscript += event.results[i][0].transcript + ' ';
+        window.speechFinalText += piece + ' ';
       } else {
-        interimTranscript += event.results[i][0].transcript;
+        interimText += piece;
       }
     }
 
-    const fullText = (finalTranscript + interimTranscript).trim();
-
-    // Affichage direct dans le champ de saisie
-    const inputField = document.querySelector('#input, #chatInput, #userMessageInput, textarea');
-    if (inputField) {
-      inputField.value = fullText;
-      inputField.dispatchEvent(new Event('input')); // Met à jour la hauteur si textarea
-      // Ouvrir le tiroir de composition pour que l'utilisateur puisse vérifier et cliquer sur Envoyer
+    // Assemblage propre : texte figé + texte en cours, sans duplication
+    const completeText = (window.speechFinalText + interimText).replace(/\s+/g, ' ').trim();
+    
+    const inputElem = document.querySelector('#chatInput, #userMessageInput, textarea, input[type="text"]');
+    if (inputElem) {
+      inputElem.value = completeText;
+      inputElem.dispatchEvent(new Event('input', { bubbles: true }));
+      // Ouvrir le tiroir de composition si besoin
       const drawer = document.getElementById('composerDrawer');
       if (drawer && drawer.hidden) {
         drawer.hidden = false;
@@ -1787,11 +1789,11 @@ if (recognition) {
       }
     }
 
-    // Affichage de secours dans speechPreview
+    // Affichage dans speechPreview
     const preview = document.getElementById('speechPreview');
     if (preview) {
-      if (fullText) {
-        preview.innerText = fullText;
+      if (completeText) {
+        preview.innerText = completeText;
         preview.style.display = 'block';
       } else {
         preview.innerText = '';
@@ -1800,17 +1802,16 @@ if (recognition) {
     }
   };
 
-  recognition.onerror = (e) => {
-    console.warn("Speech recognition error:", e.error);
+  rec.onerror = function(e) {
+    console.warn("Speech error:", e.error);
     if (e.error !== 'no-speech') {
-      window.stopVoiceRecording();
+      window.stopVoiceInput();
     }
   };
 
-  recognition.onend = () => {
-    if (window.isRecordingVoice) {
-      // Relance douce si l'utilisateur n'a pas appuyé sur stop
-      try { recognition.start(); } catch(e){}
+  rec.onend = function() {
+    if (window.isSpeechActive) {
+      try { rec.start(); } catch(e){}
     } else {
       window.updateMicUI(false);
     }
@@ -1829,16 +1830,8 @@ window.updateMicUI = function(isActive) {
   }
 };
 
-window.toggleVoiceRecording = function() {
-  if (window.isRecordingVoice) {
-    window.stopVoiceRecording();
-  } else {
-    window.startVoiceRecording();
-  }
-};
-
-window.startVoiceRecording = function() {
-  if (!recognition) {
+window.startVoiceInput = function() {
+  if (!rec) {
     alert("Reconnaissance vocale non supportée sur ce navigateur.");
     return;
   }
@@ -1846,38 +1839,50 @@ window.startVoiceRecording = function() {
   if (typeof window.stopAllAudios === 'function') {
     window.stopAllAudios();
   }
+  const inputElem = document.querySelector('#chatInput, #userMessageInput, textarea, input[type="text"]');
+  window.speechFinalText = inputElem ? inputElem.value : '';
+  if (window.speechFinalText && !window.speechFinalText.endsWith(' ')) {
+    window.speechFinalText += ' ';
+  }
+  window.isSpeechActive = true;
   window.isRecordingVoice = true;
   window.updateMicUI(true);
 
   // Ouvrir le tiroir pour que le champ texte et le bouton Envoyer soient visibles
   const drawer = document.getElementById('composerDrawer');
-  if (drawer) {
+  if (drawer && drawer.hidden) {
     drawer.hidden = false;
     drawer.style.display = 'flex';
   }
 
   const isFr = (typeof S !== "undefined" && S.tutorStt === "fr");
-  recognition.lang = isFr ? 'fr-FR' : 'ar-SA';
+  rec.lang = isFr ? 'fr-FR' : 'ar-SA';
 
-  try {
-    recognition.start();
-  } catch(e) {
-    console.warn("Start mic error:", e);
-  }
+  try { rec.start(); } catch(e){}
 };
 
-window.stopVoiceRecording = function() {
+window.stopVoiceInput = function() {
+  window.isSpeechActive = false;
   window.isRecordingVoice = false;
   window.updateMicUI(false);
-  if (recognition) {
-    try {
-      recognition.stop();
-    } catch(e){}
+  if (rec) {
+    try { rec.stop(); } catch(e){}
   }
 };
 
-// Alias pour compatibilité
+window.toggleVoiceRecording = function() {
+  if (window.isSpeechActive) {
+    window.stopVoiceInput();
+  } else {
+    window.startVoiceInput();
+  }
+};
+
+// Aliases pour compatibilité totale
 window.toggleMic = window.toggleVoiceRecording;
+window.stopVoiceRecording = window.stopVoiceInput;
+window.startVoiceRecording = window.startVoiceInput;
+
 window.sendMessageToTutor = function(text) {
   if (!text || !text.trim()) return;
   const finalText = text.trim();
@@ -2286,6 +2291,7 @@ async function handleSend() {
   window.isProcessingMessage = true;
   inp.value = "";
   inp.style.height = "auto";
+  window.speechFinalText = "";
   const preview = document.getElementById('speechPreview');
   if (preview) { preview.innerText = ''; preview.style.display = 'none'; }
   
