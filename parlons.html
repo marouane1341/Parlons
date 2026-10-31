@@ -1059,6 +1059,108 @@ audio,
     }
   };
 </script>
+<script>
+// Exposition explicite et infaillible de closeChat sur window et scope global
+window.closeChat = function() {
+  console.log('[PARLONS] Fermeture du chat / retour au parcours');
+  try {
+    const chatModal = document.getElementById('chatScreen') 
+      || document.getElementById('chat-modal') 
+      || document.getElementById('drill-view') 
+      || document.getElementById('active-lesson') 
+      || document.querySelector('.chat-container')
+      || document.querySelector('.chat-immersive');
+    if (chatModal) {
+      chatModal.style.display = 'none';
+      chatModal.classList.remove('active');
+      chatModal.hidden = true;
+      chatModal.style.pointerEvents = 'none';
+    }
+
+    const pathView = document.getElementById('home') 
+      || document.getElementById('path-view') 
+      || document.querySelector('.path-container') 
+      || document.getElementById('lessons-container')
+      || document.getElementById('lessonsScreen');
+    if (pathView) {
+      pathView.style.display = 'block';
+      pathView.classList.add('active');
+      pathView.hidden = false;
+      pathView.style.pointerEvents = 'auto';
+    }
+
+    if ('speechSynthesis' in window) {
+      try { window.speechSynthesis.cancel(); } catch(e){}
+    }
+    if (typeof window.stopAllAudios === 'function') {
+      try { window.stopAllAudios(); } catch(e){}
+    }
+  } catch (err) {
+    console.error('[PARLONS] Erreur dans closeChat :', err);
+  }
+};
+var closeChat = window.closeChat;
+
+// SÃ©curisation globale des actions d'interface courantes
+if (typeof window.startLesson !== 'function') {
+  window.startLesson = function(id) {
+    console.log('[PARLONS] startLesson (fallback):', id);
+    if (typeof window.startConversation === 'function') window.startConversation('lesson', id);
+  };
+}
+var startLesson = window.startLesson;
+
+if (typeof window.switchTab !== 'function') {
+  window.switchTab = function(tab) {
+    console.log('[PARLONS] switchTab (fallback):', tab);
+    document.querySelectorAll('.tab-view, .tab-content, .view').forEach(el => {
+      if (el.id !== 'home' && el.id !== 'app' && el.id !== 'bottomNav') {
+        el.style.display = 'none';
+        el.classList.remove('active');
+        el.hidden = true;
+        el.style.pointerEvents = 'none';
+      }
+    });
+    const targetMap = {
+      'lessons': document.getElementById('lessonsScreen'),
+      'roles': document.getElementById('rolesScreen'),
+      'roleplay': document.getElementById('rolesScreen'),
+      'tutor': document.getElementById('tutorScreen'),
+      'profile': document.getElementById('profileScreen')
+    };
+    const target = targetMap[tab];
+    if (target) {
+      target.style.display = 'block';
+      target.classList.add('active');
+      target.hidden = false;
+      target.style.pointerEvents = 'auto';
+    }
+  };
+}
+var switchTab = window.switchTab;
+window.switchMainTab = window.switchTab;
+var switchMainTab = window.switchTab;
+
+if (typeof window.selectLanguage !== 'function') {
+  window.selectLanguage = function(lang) { console.log('selectLanguage:', lang); };
+}
+var selectLanguage = window.selectLanguage;
+
+if (typeof window.chooseTutor !== 'function') {
+  window.chooseTutor = function(tutor) { console.log('chooseTutor:', tutor); };
+}
+var chooseTutor = window.chooseTutor;
+
+if (typeof window.toggleMic !== 'function') {
+  window.toggleMic = function() { console.log('toggleMic'); };
+}
+var toggleMic = window.toggleMic;
+
+if (typeof window.handleSend !== 'function') {
+  window.handleSend = function() { console.log('handleSend'); };
+}
+var handleSend = window.handleSend;
+</script>
 </head>
 <body>
 <div class="wrap">
@@ -1479,11 +1581,11 @@ audio,
 
   <!-- Barre de navigation inferieure fixe (4 onglets natifs) -->
   <nav id="bottomNav" class="bottom-nav" aria-label="Navigation principale">
-    <button class="bnav-btn nav-tab nav-item active" data-tab="lessons" id="navLessonsBtn" onclick="closeChat(); switchTab('lessons')" aria-label="Leçons" aria-selected="true">
+    <button class="bnav-btn nav-tab nav-item active" data-tab="lessons" id="navLessonsBtn" onclick="window.closeChat(); window.switchTab('lessons') " aria-label="Leçons" aria-selected="true">
       <span class="bnav-icon">&#128506;&#65039;</span>
       <span class="bnav-label">Le&ccedil;ons</span>
     </button>
-    <button class="bnav-btn nav-tab nav-item" data-tab="roles" id="navRoleplayBtn" onclick="closeChat(); switchTab('roles')" aria-label="Jeux de rôle" aria-selected="false">
+    <button class="bnav-btn nav-tab nav-item" data-tab="roles" id="navRoleplayBtn" onclick="window.closeChat(); window.switchTab('roles') " aria-label="Jeux de rôle" aria-selected="false">
       <span class="bnav-icon">&#127917;</span>
       <span class="bnav-label">Jeux de r&ocirc;le</span>
     </button>
@@ -1491,7 +1593,7 @@ audio,
       <span class="bnav-icon">&#128172;</span>
       <span class="bnav-label">Tuteur Libre</span>
     </button>
-    <button class="bnav-btn nav-tab nav-item" data-tab="profile" id="navProfileBtn" onclick="closeChat(); switchTab('profile')" aria-label="Profil &amp; Réglages" aria-selected="false">
+    <button class="bnav-btn nav-tab nav-item" data-tab="profile" id="navProfileBtn" onclick="window.closeChat(); window.switchTab('profile') " aria-label="Profil &amp; Réglages" aria-selected="false">
       <span class="bnav-icon">&#9881;&#65039;</span>
       <span class="bnav-label">Profil</span>
     </button>
