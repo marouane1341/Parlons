@@ -263,16 +263,53 @@ ul.clean{margin:0;padding-inline-start:18px;display:flex;flex-direction:column;g
   100%{transform:scale(1.42);opacity:0;border-width:1px}
 }
 
+/* Animation d'élocution et de présence */
+@keyframes speakingMouth {
+  0%, 100% {
+    transform: scale(1) translateY(0);
+    filter: brightness(1);
+  }
+  25% {
+    transform: scale(1.02, 0.98) translateY(1px);
+    filter: brightness(1.04);
+  }
+  50% {
+    transform: scale(0.99, 1.02) translateY(-1px);
+    filter: brightness(1.08);
+  }
+  75% {
+    transform: scale(1.03, 0.99) translateY(0);
+    filter: brightness(1.03);
+  }
+}
+
+@keyframes speakingGlow {
+  0%, 100% {
+    box-shadow: 0 0 12px rgba(59, 130, 246, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 28px rgba(245, 158, 11, 0.8), 0 0 45px rgba(245, 158, 11, 0.4);
+  }
+}
+
+.tutor-avatar.speaking,
+.prof-avatar.speaking .seal-medallion,
+.avatar-container.state-speaking .seal-medallion {
+  animation: speakingGlow 1s ease-in-out infinite;
+}
+
+.tutor-avatar.speaking img,
+.prof-avatar.speaking img,
+.avatar-container.state-speaking img,
+#tutorAvatarImg.speaking {
+  animation: speakingMouth 0.45s ease-in-out infinite;
+}
+
 /* Parole : pulsation rythmee et onde lumineuse active lorsque le tuteur parle */
 .avatar-container.state-speaking, .prof-avatar.speaking{border-color:var(--accent);background:linear-gradient(180deg,var(--tint) 0%,var(--card) 60%)}
 .avatar-container.state-speaking .avatar-status-pill, .prof-avatar.speaking .avatar-status-pill{background:var(--tint);color:var(--accent)}
 .avatar-container.state-speaking .avatar-dot, .prof-avatar.speaking .avatar-dot{background:var(--accent);box-shadow:0 0 6px var(--accent)}
-.avatar-container.state-speaking .seal-medallion, .prof-avatar.speaking .seal-medallion{animation:sealTalkPulse 0.6s ease-in-out infinite alternate}
 .avatar-container.state-speaking .avatar-ripple, .prof-avatar.speaking .avatar-ripple{border-color:var(--accent);animation:sealConcentricWave 1.4s cubic-bezier(0,0.2,0.8,1) infinite}
-@keyframes sealTalkPulse{
-  0%{transform:scale(0.98);box-shadow:0 0 8px rgba(245,166,35,0.45)}
-  100%{transform:scale(1.06);box-shadow:0 0 24px rgba(245,166,35,0.95)}
-}
 /* --- NOUVEAU STYLE APPLICATION MODERNE (Bottom Nav & Ecran Immersif) --- */
 
 /* Règle impérative pour toutes les sections / modales masquées */
@@ -716,6 +753,39 @@ audio,
 }
 .conv-card-item.active-conv {
   box-shadow: 0 0 0 1px var(--accent);
+}
+
+/* Boutons de Choix Rapides Pédagogiques */
+.quick-choices-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+  width: 100%;
+}
+.quick-choice-btn {
+  background: var(--card, #ffffff);
+  color: var(--accent, #2563eb);
+  border: 1.5px solid var(--accent, #2563eb);
+  border-radius: 12px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 1px 4px rgba(37,99,235,0.08);
+  font-family: inherit;
+}
+.quick-choice-btn:hover {
+  background: var(--tint, #eff6ff);
+  transform: translateY(-1px);
+}
+.quick-choice-btn:active {
+  transform: scale(0.98);
 }
 
 .scn-card{
@@ -1191,14 +1261,14 @@ audio,
       <div class="conv-drawer-panel">
         <div class="conv-drawer-header">
           <div style="display:flex;align-items:center;gap:8px">
-            <span style="font-size:18px">💬</span>
-            <h3 style="margin:0;font-size:16px;font-weight:700">Mes discussions</h3>
+            <span style="font-size:18px">🗂️</span>
+            <h3 style="margin:0;font-size:16px;font-weight:700">Mes sujets</h3>
           </div>
           <button type="button" class="icon-circle-btn" onclick="window.toggleConversationDrawer(false)" aria-label="Fermer" style="width:32px;height:32px;cursor:pointer;">&#10005;</button>
         </div>
 
         <div style="margin-top:12px;margin-bottom:12px;">
-          <button type="button" class="btn sm btn-new-conv" onclick="window.startNewConversation()" style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;font-weight:600;padding:10px 14px;border-radius:12px;background:var(--accent,#2563eb);color:#fff;border:none;cursor:pointer;box-shadow:0 2px 8px rgba(37,99,235,0.3);">
+          <button type="button" class="btn sm btn-new-conv" onclick="window.createNewSession()" style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;font-weight:600;padding:10px 14px;border-radius:12px;background:var(--accent,#2563eb);color:#fff;border:none;cursor:pointer;box-shadow:0 2px 8px rgba(37,99,235,0.3);">
             <span>➕</span>
             <span>Nouvelle discussion</span>
           </button>
@@ -1219,16 +1289,17 @@ audio,
           <span class="timer-pill" id="timer" hidden></span>
         </div>
         <div style="display:flex;align-items:center;gap:6px">
-          <button class="icon-circle-btn" id="chatHistoryBtn" onclick="window.toggleConversationDrawer()" aria-label="Historique des discussions" title="💬 Mes discussions" style="font-size:14px;cursor:pointer;">💬</button>
+          <button class="icon-circle-btn" id="newChatTopBtn" onclick="window.createNewSession()" aria-label="Nouvelle discussion" title="＋ Nouvelle discussion" style="font-size:15px;font-weight:700;cursor:pointer;">＋</button>
+          <button class="icon-circle-btn" id="chatHistoryBtn" onclick="window.toggleConversationDrawer()" aria-label="Mes sujets" title="🗂️ Mes sujets" style="font-size:14px;cursor:pointer;">🗂️</button>
           <button class="icon-circle-btn" id="chatCfgBtn" aria-label="Parametres" title="Parametres">&#9881;&#65039;</button>
         </div>
       </div>
 
       <!-- Medaillon du professeur avec portrait studio et onde reactive -->
-      <div id="avatarWrap" class="avatar-container prof-avatar state-neutral" aria-label="Portrait du professeur">
+      <div id="avatarWrap" class="avatar-container prof-avatar tutor-avatar state-neutral" aria-label="Portrait du professeur">
         <div class="avatar-ripple"></div>
-        <div class="seal-medallion large-seal" id="sealMedallion">
-          <img id="tutorAvatarImg" src="assets/yasmine.png" onerror="this.onerror=null;this.src='yasmine.png';" alt="Avatar tuteur" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
+        <div class="seal-medallion large-seal tutor-avatar" id="sealMedallion">
+          <img id="tutorAvatarImg" class="tutor-avatar-img" src="assets/yasmine.png" onerror="this.onerror=null;this.src='yasmine.png';" alt="Avatar tuteur" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
         </div>
         <div class="avatar-status-pill">
           <span class="avatar-dot"></span>
@@ -1579,10 +1650,9 @@ window.stopAllAudios = function() {
     } catch(e) {}
   }
   // 3. Retirer l'état visuel avatar
-  const avatar = document.querySelector('.tutor-avatar, #tutorAvatarImg');
-  if (avatar) avatar.classList.remove('speaking');
+  document.querySelectorAll('.tutor-avatar, #tutorAvatarImg, #sealMedallion, .prof-avatar').forEach(el => el.classList.remove('speaking'));
   const avatarWrap = document.getElementById('avatarWrap');
-  if (avatarWrap) avatarWrap.classList.remove('state-speaking');
+  if (avatarWrap) avatarWrap.classList.remove('state-speaking', 'speaking');
 };
 
 window.stopCurrentAudio = window.stopAllAudios;
@@ -1605,31 +1675,24 @@ window.showAudioStatus = function(msg, isError = false) {
   window._audioToastTimeout = setTimeout(() => { if (box) box.style.display = 'none'; }, 4000);
 };
 
-window.playTutorAudio = async function(text, tutorKey) {
-  if (!text) return;
-
-  // Coupe tout immédiatement
+window.playTutorAudio = async function(fullResponseText, tutorKey) {
+  if (!fullResponseText) return;
   window.stopAllAudios();
 
-  if (window.isGeneratingAudio) {
-    console.warn("Génération audio déjà en cours, requête ignorée.");
+  // 1. Extraction chirurgicale : on extrait UNIQUEMENT les caractères arabes
+  const arabicRegex = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\s,.!?،؟]+/g;
+  const arabicMatches = fullResponseText.match(arabicRegex);
+  
+  if (!arabicMatches || !arabicMatches.join('').trim()) {
+    console.warn("Aucun segment arabe détecté pour la synthèse vocale.");
     return;
   }
 
-  window.isGeneratingAudio = true;
+  // Ne lire que le premier bloc arabe cohérent pour éviter de relire des variantes ou le français
+  const arabicOnlyText = arabicMatches[0].trim();
+  if (!arabicOnlyText) return;
 
-  // Nettoyage respectueux des balises Markdown sans couper ni concaténer les mots
-  const cleanText = String(text || '')
-    .replace(/[*_#`~>]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-
-  if (!cleanText) {
-    window.isGeneratingAudio = false;
-    return;
-  }
-
-  const engineMode = localStorage.getItem('audio_engine_mode') || 'gemini_hd';
+  const apiKey = localStorage.getItem('gemini_api_key') || localStorage.getItem('apiKey') || '';
   const isYasmine = (tutorKey || localStorage.getItem('selected_tutor') || 'yasmine').toLowerCase().includes('yasmine');
   const voiceName = isYasmine ? 'Aoede' : 'Puck';
   const ttsModel = (localStorage.getItem('gemini_tts_model') || 'gemini-3.8-flash-lite-tts').replace(/^models\//, '').trim();
@@ -1637,71 +1700,26 @@ window.playTutorAudio = async function(text, tutorKey) {
   const avatar = document.querySelector('.tutor-avatar, #tutorAvatarImg');
   if (avatar) avatar.classList.add('speaking');
   const avatarWrap = document.getElementById('avatarWrap');
-  if (avatarWrap) avatarWrap.classList.add('state-speaking');
+  if (avatarWrap) avatarWrap.classList.add('state-speaking', 'speaking');
+  document.querySelectorAll('.tutor-avatar, #tutorAvatarImg, #sealMedallion, .prof-avatar').forEach(el => el.classList.add('speaking'));
 
-  // Moteur vocal local bilingue : vocalise fidèlement l'arabe ET l'explication française sans omettre de partie
-  function speakLocalBilingual(fullTxt, onDone) {
-    if (!('speechSynthesis' in window)) {
-      if (onDone) onDone();
-      return;
-    }
-    const hasArabic = /[\u0600-\u06FF]/.test(fullTxt);
-    const hasLatin = /[a-zA-ZÀ-ÿ]/.test(fullTxt);
-
-    if (hasArabic && hasLatin) {
-      // Découper par phrases pour appliquer ar-SA aux fragments arabes et fr-FR aux explications françaises
-      const parts = fullTxt.split(/(?<=[.!?:\n])\s+/).map(p => p.trim()).filter(Boolean);
-      let pIdx = 0;
-      function speakNextChunk() {
-        if (pIdx >= parts.length) {
-          if (onDone) onDone();
-          return;
-        }
-        const chunk = parts[pIdx++];
-        const chunkIsAr = /[\u0600-\u06FF]/.test(chunk);
-        const utt = new SpeechSynthesisUtterance(chunk);
-        utt.lang = chunkIsAr ? 'ar-SA' : 'fr-FR';
-        utt.rate = 0.95;
-        utt.pitch = isYasmine ? 1.15 : 0.95;
-        utt.onend = () => speakNextChunk();
-        utt.onerror = () => speakNextChunk();
-        window.speechSynthesis.speak(utt);
-      }
-      speakNextChunk();
-    } else {
-      const utt = new SpeechSynthesisUtterance(fullTxt);
-      utt.lang = hasArabic ? 'ar-SA' : 'fr-FR';
+  function speakLocalArabic() {
+    if ('speechSynthesis' in window) {
+      const utt = new SpeechSynthesisUtterance(arabicOnlyText);
+      utt.lang = 'ar-SA';
       utt.rate = 0.95;
       utt.pitch = isYasmine ? 1.15 : 0.95;
-      utt.onend = () => { if (onDone) onDone(); };
-      utt.onerror = () => { if (onDone) onDone(); };
+      utt.onend = () => { window.stopAllAudios(); };
+      utt.onerror = () => { window.stopAllAudios(); };
       window.speechSynthesis.speak(utt);
+    } else {
+      window.stopAllAudios();
     }
   }
 
-  // ==========================================
-  // OPTION A : MOTEUR STANDARD GRATUIT ILLIMITÉ
-  // ==========================================
-  if (engineMode === 'standard_free') {
-    speakLocalBilingual(cleanText, () => {
-      window.stopAllAudios();
-      window.isGeneratingAudio = false;
-    });
-    return;
-  }
-
-  // ==========================================
-  // OPTION B : MOTEUR STUDIO HD (GEMINI TTS)
-  // ==========================================
-  const apiKey = localStorage.getItem('gemini_api_key') || localStorage.getItem('apiKey') || localStorage.getItem('gemini_key') || (typeof curKey === 'function' ? curKey() : '') || (typeof S !== 'undefined' && S.cfg && S.cfg.keys && S.cfg.keys.gemini) || '';
-  if (!apiKey) {
-    if (typeof window.showAudioStatus === 'function') {
-      window.showAudioStatus("Clé API manquante pour la voix HD (bascule standard)", true);
-    }
-    speakLocalBilingual(cleanText, () => {
-      window.stopAllAudios();
-      window.isGeneratingAudio = false;
-    });
+  const engineMode = localStorage.getItem('audio_engine_mode') || 'gemini_hd';
+  if (engineMode === 'standard_free' || !apiKey) {
+    speakLocalArabic();
     return;
   }
 
@@ -1710,7 +1728,7 @@ window.playTutorAudio = async function(text, tutorKey) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: cleanText }] }],
+        contents: [{ parts: [{ text: arabicOnlyText }] }],
         generationConfig: {
           responseModalities: ["AUDIO"],
           speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voiceName } } }
@@ -1719,48 +1737,30 @@ window.playTutorAudio = async function(text, tutorKey) {
     });
 
     if (!resp.ok) {
-      console.warn("API TTS en erreur, bascule standard bilingue.");
-      speakLocalBilingual(cleanText, () => {
-        window.stopAllAudios();
-        window.isGeneratingAudio = false;
-      });
+      speakLocalArabic();
       return;
     }
 
     const data = await resp.json();
-    const audioCandidate = data?.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
+    const audioPart = data?.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
 
-    if (audioCandidate?.inlineData?.data) {
-      // Re-vérifier et couper tout son qui aurait pu démarrer entre-temps
+    if (audioPart?.inlineData?.data) {
       window.stopAllAudios();
+      document.querySelectorAll('.tutor-avatar, #tutorAvatarImg, #sealMedallion, .prof-avatar').forEach(el => el.classList.add('speaking'));
+      if (avatarWrap) avatarWrap.classList.add('state-speaking', 'speaking');
 
-      const mimeType = audioCandidate.inlineData.mimeType || 'audio/wav';
-      const audio = new Audio(`data:${mimeType};base64,${audioCandidate.inlineData.data}`);
-      window.currentAudio = audio;
+      const audio = new Audio(`data:${audioPart.inlineData.mimeType || 'audio/wav'};base64,${audioPart.inlineData.data}`);
       window.activeAudio = audio;
-
-      audio.onended = () => {
-        window.stopAllAudios();
-        window.isGeneratingAudio = false;
-      };
-      audio.onerror = () => {
-        window.stopAllAudios();
-        window.isGeneratingAudio = false;
-      };
-
+      window.currentAudio = audio;
+      audio.onended = () => { window.stopAllAudios(); };
+      audio.onerror = () => { window.stopAllAudios(); };
       await audio.play();
     } else {
-      speakLocalBilingual(cleanText, () => {
-        window.stopAllAudios();
-        window.isGeneratingAudio = false;
-      });
+      speakLocalArabic();
     }
-  } catch (e) {
-    console.warn("Exception audio TTS, secours local bilingue :", e);
-    speakLocalBilingual(cleanText, () => {
-      window.stopAllAudios();
-      window.isGeneratingAudio = false;
-    });
+  } catch (err) {
+    console.error("Erreur TTS:", err);
+    speakLocalArabic();
   }
 };
 
@@ -1779,10 +1779,9 @@ window.stopCurrentAudio = function() {
     } catch(e) {}
     window.currentAudioInstance = null;
   }
-  const avatar = document.querySelector('.tutor-avatar, #tutorAvatarImg');
-  if (avatar) avatar.classList.remove('speaking');
+  document.querySelectorAll('.tutor-avatar, #tutorAvatarImg, #sealMedallion, .prof-avatar').forEach(el => el.classList.remove('speaking'));
   const avatarWrap = document.getElementById('avatarWrap');
-  if (avatarWrap) avatarWrap.classList.remove('state-speaking');
+  if (avatarWrap) avatarWrap.classList.remove('state-speaking', 'speaking');
 };
 
 window.playVoice = window.playTutorAudio;
@@ -2105,207 +2104,179 @@ if (document.readyState === 'loading') {
 }
 
 // ============================================================================
-// GESTIONNAIRE PERSISTANT DE CONVERSATIONS (HISTORIQUE PAR SESSION & CLASSEMENT)
+// SYSTÈME MULTI-SESSIONS DE DISCUSSIONS (HISTORIQUE PAR SESSION & CLASSEMENT)
 // ============================================================================
-window.CONV_STORAGE_KEY = 'tutor_conversations_v1';
-window.CONV_ACTIVE_ID_KEY = 'tutor_active_conv_id';
-window.activeConversationId = localStorage.getItem(window.CONV_ACTIVE_ID_KEY) || null;
-
-window.getTutorConversations = function() {
+window.tutorSessions = (function() {
   try {
-    const raw = localStorage.getItem(window.CONV_STORAGE_KEY);
+    const raw = localStorage.getItem('tutor_chat_sessions') || localStorage.getItem('tutor_conversations_v1');
     return raw ? JSON.parse(raw) : [];
   } catch(e) {
-    console.warn("Erreur getTutorConversations:", e);
     return [];
   }
-};
+})();
+window.activeSessionId = localStorage.getItem('tutor_active_session_id') || localStorage.getItem('tutor_active_conv_id') || null;
 
-window.saveTutorConversations = function(list) {
+window.saveSessions = function() {
   try {
-    localStorage.setItem(window.CONV_STORAGE_KEY, JSON.stringify(list || []));
-  } catch(e) {
-    console.warn("Erreur saveTutorConversations:", e);
-  }
-};
-
-window.getActiveConversation = function() {
-  const list = window.getTutorConversations();
-  const activeId = window.activeConversationId || localStorage.getItem(window.CONV_ACTIVE_ID_KEY);
-  if (activeId) {
-    const found = list.find(c => c.id === activeId);
-    if (found) {
-      window.activeConversationId = found.id;
-      return found;
+    localStorage.setItem('tutor_chat_sessions', JSON.stringify(window.tutorSessions));
+    localStorage.setItem('tutor_conversations_v1', JSON.stringify(window.tutorSessions));
+    if (window.activeSessionId) {
+      localStorage.setItem('tutor_active_session_id', window.activeSessionId);
+      localStorage.setItem('tutor_active_conv_id', window.activeSessionId);
     }
+  } catch(e) {
+    console.warn("Erreur saveSessions:", e);
   }
-  if (list.length > 0) {
-    window.activeConversationId = list[0].id;
-    localStorage.setItem(window.CONV_ACTIVE_ID_KEY, list[0].id);
-    return list[0];
-  }
-  return null;
 };
 
-window.createTutorConversation = function(tutorKey) {
-  const activeTutor = tutorKey || localStorage.getItem('selected_tutor') || 'yasmine';
+window.createNewSession = function(topicTitle = "Nouvelle discussion") {
+  const newId = 'session_' + Date.now();
+  const activeTutor = localStorage.getItem('selected_tutor') || 'yasmine';
   const isYasmine = activeTutor.toLowerCase().includes('yasmine');
   const tutorId = isYasmine ? 'yasmine' : 'tariq';
   const welcomeText = isYasmine
     ? "مَرْحَبًا ! Je suis Yasmine, votre professeure d'arabe. Posez-moi n'importe quelle question en arabe ou en français."
     : "مَرْحَبًا ! Je suis Tariq, votre professeur d'arabe. Parlons ensemble de situations du quotidien !";
 
-  const newConv = {
-    id: "conv_" + Date.now(),
+  const newSession = {
+    id: newId,
+    title: topicTitle,
+    tutor: tutorId,
     tutorId: tutorId,
-    title: "Discussion du " + new Date().toLocaleDateString('fr-FR'),
-    createdAt: Date.now(),
+    createdAt: new Date().toLocaleDateString('fr-FR'),
     messages: [
-      { role: "assistant", text: welcomeText, timestamp: Date.now() }
+      { role: "assistant", content: welcomeText, text: welcomeText, timestamp: Date.now() }
     ]
   };
 
-  const list = window.getTutorConversations();
-  list.unshift(newConv);
-  window.saveTutorConversations(list);
-  window.activeConversationId = newConv.id;
-  localStorage.setItem(window.CONV_ACTIVE_ID_KEY, newConv.id);
-  return newConv;
-};
+  window.tutorSessions.unshift(newSession);
+  window.activeSessionId = newId;
+  window.saveSessions();
+  window.renderSessionList();
+  window.loadSession(newId);
 
-window.addMessageToActiveConversation = function(role, text) {
-  if (!text || !String(text).trim()) return;
-  let conv = window.getActiveConversation();
-  if (!conv) {
-    conv = window.createTutorConversation();
+  const inp = document.getElementById("input");
+  if (inp) { inp.value = ""; inp.focus(); }
+  if (typeof window.playTutorAudio === 'function') {
+    window.playTutorAudio(welcomeText, tutorId);
   }
-  conv.messages = conv.messages || [];
-  conv.messages.push({
+};
+// Aliases de compatibilité
+window.createTutorConversation = window.createNewSession;
+window.startNewConversation = window.createNewSession;
+
+window.loadSession = function(sessionId) {
+  window.activeSessionId = sessionId;
+  localStorage.setItem('tutor_active_session_id', sessionId);
+  localStorage.setItem('tutor_active_conv_id', sessionId);
+  const session = window.tutorSessions.find(s => s.id === sessionId);
+  if (!session) return;
+
+  const activeTutor = session.tutor || session.tutorId || 'yasmine';
+  localStorage.setItem('selected_tutor', activeTutor);
+  if (typeof window.chooseTutor === 'function') {
+    window.chooseTutor(activeTutor);
+  }
+
+  const chatContainer = document.querySelector('#log, #chatMessages, .chat-box, .messages-list');
+  if (chatContainer) {
+    chatContainer.innerHTML = '';
+    (session.messages || []).forEach(msg => {
+      window.appendMessage(msg.role, msg.content || msg.text, true);
+    });
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+  }
+
+  window.updateChatTitleUI(session);
+  window.toggleConversationDrawer(false);
+};
+window.loadConversation = window.loadSession;
+
+window.getActiveSession = function() {
+  if (window.activeSessionId) {
+    const s = window.tutorSessions.find(x => x.id === window.activeSessionId);
+    if (s) return s;
+  }
+  if (window.tutorSessions.length > 0) {
+    window.activeSessionId = window.tutorSessions[0].id;
+    return window.tutorSessions[0];
+  }
+  return null;
+};
+window.getActiveConversation = window.getActiveSession;
+
+window.addMessageToActiveSession = function(role, text) {
+  if (!text || !String(text).trim()) return;
+  let session = window.getActiveSession();
+  if (!session) {
+    window.createNewSession();
+    session = window.getActiveSession();
+  }
+  session.messages = session.messages || [];
+  session.messages.push({
     role: role,
+    content: String(text).trim(),
     text: String(text).trim(),
     timestamp: Date.now()
   });
 
-  // Si premier message envoyé par l'utilisateur et titre par défaut, générer un titre automatique (30 car max)
   if (role === 'user') {
-    const isDefaultTitle = !conv.title || conv.title.startsWith("Discussion du ");
-    if (isDefaultTitle) {
+    const isDefault = !session.title || session.title === "Nouvelle discussion" || session.title.startsWith("Discussion du ");
+    if (isDefault) {
       const clean = String(text).replace(/[*_#`~>]/g, ' ').replace(/\s+/g, ' ').trim();
       if (clean) {
-        conv.title = clean.length > 30 ? (clean.slice(0, 30) + '…') : clean;
+        session.title = clean.length > 30 ? (clean.slice(0, 30) + '…') : clean;
       }
     }
   }
 
-  const list = window.getTutorConversations();
-  const idx = list.findIndex(c => c.id === conv.id);
-  if (idx !== -1) {
-    list[idx] = conv;
-  } else {
-    list.unshift(conv);
-  }
-  window.saveTutorConversations(list);
-  window.updateChatTitleUI(conv);
+  window.saveSessions();
+  window.updateChatTitleUI(session);
 };
+window.addMessageToActiveConversation = window.addMessageToActiveSession;
 
-window.updateChatTitleUI = function(conv) {
+window.updateChatTitleUI = function(session) {
   const titleEl = document.getElementById("chatTitle");
   if (!titleEl) return;
-  const isYasmine = (conv?.tutorId || localStorage.getItem('selected_tutor') || 'yasmine').toLowerCase().includes('yasmine');
+  const tutorId = session?.tutor || session?.tutorId || localStorage.getItem('selected_tutor') || 'yasmine';
+  const isYasmine = tutorId.toLowerCase().includes('yasmine');
   const tutorName = isYasmine ? 'Yasmine' : 'Tariq';
-  const titleText = conv?.title || "Discussion libre";
+  const titleText = session?.title || "Discussion libre";
   titleEl.innerHTML = `<span style="font-weight:700;">💬 ${tutorName}</span> · <span style="font-weight:400;opacity:0.9;">${titleText}</span>`;
 };
 
-window.loadConversation = function(convId, speakLastMessage = false) {
-  const list = window.getTutorConversations();
-  const conv = list.find(c => c.id === convId);
-  if (!conv) return;
-
-  window.activeConversationId = conv.id;
-  localStorage.setItem(window.CONV_ACTIVE_ID_KEY, conv.id);
-
-  if (conv.tutorId) {
-    localStorage.setItem('selected_tutor', conv.tutorId);
-    if (typeof window.chooseTutor === 'function') {
-      window.chooseTutor(conv.tutorId);
-    }
-  }
-
-  const logEl = document.getElementById("log");
-  if (logEl) logEl.textContent = "";
-
-  window.updateChatTitleUI(conv);
-
-  if (conv.messages && Array.isArray(conv.messages)) {
-    conv.messages.forEach(msg => {
-      if (typeof window.appendMessage === 'function') {
-        window.appendMessage(msg.role, msg.text, true); // true = skipSave
-      }
-    });
-  }
-
-  window.toggleConversationDrawer(false);
-
-  if (logEl) {
-    logEl.scrollTop = logEl.scrollHeight;
-  }
-
-  if (speakLastMessage && conv.messages && conv.messages.length > 0) {
-    const last = conv.messages[conv.messages.length - 1];
-    if (last.role === 'assistant' && typeof window.playTutorAudio === 'function') {
-      window.playTutorAudio(last.text, conv.tutorId);
-    }
-  }
-};
-
-window.startNewConversation = function() {
-  const curTutor = localStorage.getItem('selected_tutor') || 'yasmine';
-  const newConv = window.createTutorConversation(curTutor);
-  window.loadConversation(newConv.id, false);
-  window.renderConversationsList();
-  const inp = document.getElementById("input");
-  if (inp) {
-    inp.value = "";
-    inp.focus();
-  }
-  if (newConv.messages && newConv.messages[0] && typeof window.playTutorAudio === 'function') {
-    window.playTutorAudio(newConv.messages[0].text, newConv.tutorId);
-  }
-};
-
-window.renameConversation = function(convId, e) {
+window.renameSession = function(sessionId, e) {
   if (e && e.stopPropagation) e.stopPropagation();
-  const list = window.getTutorConversations();
-  const conv = list.find(c => c.id === convId);
-  if (!conv) return;
-  const newTitle = prompt("Renommer la discussion :", conv.title || "");
+  const session = window.tutorSessions.find(s => s.id === sessionId);
+  if (!session) return;
+  const newTitle = prompt("Renommer le sujet de discussion :", session.title || "");
   if (newTitle && newTitle.trim()) {
-    conv.title = newTitle.trim();
-    window.saveTutorConversations(list);
-    window.renderConversationsList();
-    if (window.activeConversationId === conv.id) {
-      window.updateChatTitleUI(conv);
+    session.title = newTitle.trim();
+    window.saveSessions();
+    window.renderSessionList();
+    if (window.activeSessionId === session.id) {
+      window.updateChatTitleUI(session);
     }
   }
 };
+window.renameConversation = window.renameSession;
 
-window.deleteConversation = function(convId, e) {
+window.deleteSession = function(sessionId, e) {
   if (e && e.stopPropagation) e.stopPropagation();
   if (!confirm("Voulez-vous vraiment supprimer cette discussion ?")) return;
-  let list = window.getTutorConversations();
-  list = list.filter(c => c.id !== convId);
-  window.saveTutorConversations(list);
+  window.tutorSessions = window.tutorSessions.filter(s => s.id !== sessionId);
+  window.saveSessions();
 
-  if (window.activeConversationId === convId) {
-    if (list.length > 0) {
-      window.loadConversation(list[0].id, false);
+  if (window.activeSessionId === sessionId) {
+    if (window.tutorSessions.length > 0) {
+      window.loadSession(window.tutorSessions[0].id);
     } else {
-      window.startNewConversation();
+      window.createNewSession();
     }
   }
-  window.renderConversationsList();
+  window.renderSessionList();
 };
+window.deleteConversation = window.deleteSession;
 
 window.toggleConversationDrawer = function(forceState) {
   const drawer = document.getElementById('conversationsDrawer');
@@ -2314,21 +2285,21 @@ window.toggleConversationDrawer = function(forceState) {
   const targetState = (typeof forceState === 'boolean') ? forceState : !isVisible;
   drawer.style.display = targetState ? 'flex' : 'none';
   if (targetState) {
-    window.renderConversationsList();
+    window.renderSessionList();
   }
 };
 
-window.renderConversationsList = function() {
+window.renderSessionList = function() {
   const container = document.getElementById('conversationsList');
   if (!container) return;
-  const list = window.getTutorConversations();
-  const activeId = window.activeConversationId || localStorage.getItem(window.CONV_ACTIVE_ID_KEY);
+  const list = window.tutorSessions;
+  const activeId = window.activeSessionId;
 
   if (!list || list.length === 0) {
     container.innerHTML = `
       <div style="text-align:center;padding:30px 15px;color:var(--muted,#64748b);font-size:13px;">
-        <span style="font-size:28px;display:block;margin-bottom:8px">💬</span>
-        Aucune discussion enregistrée.<br>Touchez « Nouvelle discussion » pour commencer !
+        <span style="font-size:28px;display:block;margin-bottom:8px">🗂️</span>
+        Aucun sujet enregistré.<br>Touchez « ＋ Nouvelle discussion » pour commencer !
       </div>
     `;
     return;
@@ -2338,23 +2309,19 @@ window.renderConversationsList = function() {
     return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
-  container.innerHTML = list.map(c => {
-    const isActive = (c.id === activeId);
-    const isYasmine = (c.tutorId || 'yasmine').toLowerCase().includes('yasmine');
+  container.innerHTML = list.map(s => {
+    const isActive = (s.id === activeId);
+    const tutorId = s.tutor || s.tutorId || 'yasmine';
+    const isYasmine = tutorId.toLowerCase().includes('yasmine');
     const tutorBadge = isYasmine
       ? `<span style="font-size:11px;font-weight:600;color:#9d174d;background:#fce7f3;padding:2px 8px;border-radius:10px;">👩‍🏫 Yasmine</span>`
       : `<span style="font-size:11px;font-weight:600;color:#1e40af;background:#dbeafe;padding:2px 8px;border-radius:10px;">👨‍🏫 Tariq</span>`;
-    const dateStr = new Date(c.createdAt || Date.now()).toLocaleDateString('fr-FR', {
-      day: 'numeric',
-      month: 'short',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-    const msgCount = (c.messages && c.messages.length) || 0;
+    const dateStr = s.createdAt || new Date().toLocaleDateString('fr-FR');
+    const msgCount = (s.messages && s.messages.length) || 0;
 
     return `
       <div class="conv-card-item ${isActive ? 'active-conv' : ''}" 
-           onclick="window.loadConversation('${c.id}')"
+           onclick="window.loadSession('${s.id}')"
            style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-radius:12px;background:${isActive ? 'var(--tint, #eff6ff)' : 'var(--card-sub, #f8fafc)'};border:${isActive ? '2px solid var(--accent, #2563eb)' : '1px solid var(--line, #e2e8f0)'};cursor:pointer;gap:8px;transition:all 0.15s ease;">
         <div style="flex:1;min-width:0;">
           <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
@@ -2362,20 +2329,21 @@ window.renderConversationsList = function() {
             <span style="font-size:11px;color:var(--muted,#64748b);">${dateStr}</span>
           </div>
           <div style="font-weight:${isActive ? '700' : '600'};font-size:13px;color:var(--ink,#0f172a);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-            ${esc(c.title || 'Discussion')}
+            ${esc(s.title || 'Discussion')}
           </div>
           <div style="font-size:11px;color:var(--muted,#64748b);margin-top:2px;">
             💬 ${msgCount} message${msgCount > 1 ? 's' : ''}
           </div>
         </div>
         <div style="display:flex;align-items:center;gap:4px;" onclick="event.stopPropagation()">
-          <button type="button" class="icon-circle-btn mini-tool" title="Renommer" onclick="window.renameConversation('${c.id}', event)" style="width:28px;height:28px;font-size:12px;background:transparent;border:1px solid var(--line,#cbd5e1);border-radius:50%;cursor:pointer;">✏️</button>
-          <button type="button" class="icon-circle-btn mini-tool" title="Supprimer" onclick="window.deleteConversation('${c.id}', event)" style="width:28px;height:28px;font-size:12px;background:transparent;border:1px solid var(--line,#cbd5e1);border-radius:50%;cursor:pointer;color:#e11d48;">🗑️</button>
+          <button type="button" class="icon-circle-btn mini-tool" title="Renommer" onclick="window.renameSession('${s.id}', event)" style="width:28px;height:28px;font-size:12px;background:transparent;border:1px solid var(--line,#cbd5e1);border-radius:50%;cursor:pointer;">✏️</button>
+          <button type="button" class="icon-circle-btn mini-tool" title="Supprimer" onclick="window.deleteSession('${s.id}', event)" style="width:28px;height:28px;font-size:12px;background:transparent;border:1px solid var(--line,#cbd5e1);border-radius:50%;cursor:pointer;color:#e11d48;">🗑️</button>
         </div>
       </div>
     `;
   }).join('');
 };
+window.renderConversationsList = window.renderSessionList;
 
 // 1. Initialisation de la salutation du tuteur actif
 window.initTutorGreeting = function() {
@@ -2528,6 +2496,37 @@ window.loadLessonData = function(lessonId) {
   }
 };
 
+// Utilitaires de Choix Rapides et Formatage Pédagogique
+function parseChoicesFromText(fullText) {
+  const choices = [];
+  if (!fullText) return choices;
+  const choiceRegex = /\[(?:Choix\s*\d+|Option\s*\d+)\s*:\s*([^\]]+)\]/gi;
+  let m;
+  while ((m = choiceRegex.exec(fullText)) !== null) {
+    if (m[1] && m[1].trim()) {
+      choices.push(m[1].trim());
+    }
+  }
+  return choices;
+}
+
+window.selectQuickChoice = function(text) {
+  if (!text) return;
+  const inp = document.querySelector('#input, .chat-input, #chatInput, #userMessageInput, #composerDrawer textarea');
+  if (inp) {
+    inp.value = text;
+    inp.dispatchEvent(new Event('input', { bubbles: true }));
+    inp.dispatchEvent(new Event('change', { bubbles: true }));
+    const drawer = document.getElementById('composerDrawer');
+    if (drawer && drawer.hidden) {
+      drawer.hidden = false;
+      drawer.style.display = 'flex';
+    }
+    inp.focus();
+    inp.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+};
+
 // --- GESTION ROBUSTE DE GEMINI & CHAT ---
 function appendMessage(role, text, skipSave) {
   const log = document.getElementById("log");
@@ -2543,12 +2542,12 @@ function appendMessage(role, text, skipSave) {
     if (typeof S !== "undefined") S.lastUserEl = m;
     m.scrollIntoView({ block: "nearest", behavior: "smooth" });
   } else {
+    let b;
     if (typeof bubbleT === 'function') {
-      const b = bubbleT({ reply: text, tr: "", fr: "", corrections: [], tip: null, targets: [], used: [], end: false });
+      b = bubbleT({ reply: text, tr: "", fr: "", corrections: [], tip: null, targets: [], used: [], end: false });
       log.appendChild(b);
-      b.scrollIntoView({ block: "nearest", behavior: "smooth" });
     } else {
-      const b = document.createElement("div");
+      b = document.createElement("div");
       b.className = "msg t tutor-message-card";
       const main = document.createElement("div");
       main.className = "ar-msg";
@@ -2582,8 +2581,27 @@ function appendMessage(role, text, skipSave) {
       b.appendChild(tools);
 
       log.appendChild(b);
-      b.scrollIntoView({ block: "nearest", behavior: "smooth" });
     }
+
+    // Boutons de choix rapides en bas de bulle
+    const choices = parseChoicesFromText(text);
+    if (choices.length > 0) {
+      const choiceWrap = document.createElement("div");
+      choiceWrap.className = "quick-choices-row";
+      choices.forEach(ch => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "quick-choice-btn";
+        btn.innerHTML = `<span>💬</span> <span>${ch}</span>`;
+        btn.onclick = (e) => {
+          if (e && e.preventDefault) e.preventDefault();
+          window.selectQuickChoice(ch);
+        };
+        choiceWrap.appendChild(btn);
+      });
+      b.appendChild(choiceWrap);
+    }
+    b.scrollIntoView({ block: "nearest", behavior: "smooth" });
   }
 
   // Sauvegarde automatique dans la conversation active si non skipSave
@@ -2600,21 +2618,20 @@ async function sendToGemini(userMessage) {
     return;
   }
 
-  // 1. Récupération robuste du tuteur (Sécurisation totale)
+  // 1. Récupération robuste du tuteur et structure pédagogique stricte pour débutants
   const tutorId = localStorage.getItem('selected_tutor') || localStorage.getItem('parlons.tutor') || 'tariq';
   const isYasmine = tutorId.toLowerCase().includes('yasmine');
-  const currentTutor = (window.TUTORS && window.TUTORS[tutorId]) ? window.TUTORS[tutorId] : {
-    name: isYasmine ? "Yasmine" : "Tariq",
-    prompt: isYasmine 
-      ? "Tu es Yasmine, professeure d'arabe bienveillante et encourageante. Réponds de façon concise et pédagogique, principalement en arabe avec transcription et traduction française si nécessaire."
-      : "Tu es Tariq, professeur d'arabe pragmatique et dynamique. Réponds de façon vivante et concrète, principalement en arabe parlé."
-  };
+  const tutorName = isYasmine ? "Yasmine" : "Tariq";
 
-  const systemInstruction = currentTutor.prompt || currentTutor.promptText || (
-    isYasmine
-      ? "Tu es Yasmine, professeure d'arabe bienveillante et encourageante. Réponds de façon concise et pédagogique, principalement en arabe avec transcription et traduction française si nécessaire."
-      : "Tu es Tariq, professeur d'arabe pragmatique et dynamique. Réponds de façon vivante et concrète, principalement en arabe parlé."
-  );
+  const systemInstruction = `Tu es ${tutorName}, ${isYasmine ? "professeure bienveillante d'arabe pour débutants francophones" : "professeur dynamique et pragmatique d'arabe pour débutants francophones"}.
+
+RÈGLE PÉDAGOGIQUE STRICTE : Structure TOUJOURS ta réponse exactement ainsi :
+1. Une phrase courte en arabe avec toutes les voyelles (tashkeel).
+2. Phonétique : La prononciation simplifiée en lettres latines.
+3. Traduction : La traduction en français.
+4. Choix suggérés : Termine TOUJOURS par exactement 2 propositions courtes de réponse pour l'élève au format strict suivant :
+[Choix 1: Réponse en arabe (traduction)] | [Choix 2: Autre réponse en arabe (traduction)]
+`;
 
   // 2. Appel direct et dynamique à Gemini avec gemini-3.5-flash-lite
   const storedModel = localStorage.getItem('gemini_chat_model') || 'gemini-3.5-flash-lite';
@@ -3942,6 +3959,7 @@ function updateAvatarSpeaking(isSpeaking){
     if(prof) prof.classList.toggle('speaking', !!isSpeaking);
     const wrap = document.getElementById('avatarWrap');
     if(wrap) wrap.classList.toggle('state-speaking', !!isSpeaking);
+    document.querySelectorAll('.tutor-avatar, #tutorAvatarImg, #sealMedallion').forEach(el => el.classList.toggle('speaking', !!isSpeaking));
   } catch(e){
     console.error("updateAvatarSpeaking error:", e);
   }
@@ -4925,8 +4943,7 @@ function bubbleT(d){
   say.onclick=(e)=>{
     if(e && e.preventDefault) e.preventDefault();
     const curTutor = window.currentTutorKey || localStorage.getItem('selected_tutor') || localStorage.getItem('parlons.tutor') || 'tariq';
-    const textToSpeak = (d.fr && typeof d.fr === "string" && d.fr.trim()) ? `${d.reply}. ${d.fr}` : d.reply;
-    window.playTutorAudio(textToSpeak, curTutor);
+    window.playTutorAudio(d.reply, curTutor);
   };
 
   const trad=el("button","btn-translate bubble-round-btn","\uD83C\uDF0D");
@@ -4939,6 +4956,22 @@ function bubbleT(d){
   };
   tools.append(say,trad);
   b.append(tools);
+
+  const choices = (typeof parseChoicesFromText === 'function') ? parseChoicesFromText(d.reply) : [];
+  if (choices.length > 0) {
+    const choiceWrap = el("div", "quick-choices-row");
+    choices.forEach(ch => {
+      const btn = el("button", "quick-choice-btn");
+      btn.type = "button";
+      btn.innerHTML = `<span>💬</span> <span>${ch}</span>`;
+      btn.onclick = (e) => {
+        if (e && e.preventDefault) e.preventDefault();
+        if (typeof window.selectQuickChoice === 'function') window.selectQuickChoice(ch);
+      };
+      choiceWrap.appendChild(btn);
+    });
+    b.append(choiceWrap);
+  }
   return b;
 }function fixCard(list){
   const voice=S.mode!=="write";
