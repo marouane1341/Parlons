@@ -1,18 +1,28 @@
 ﻿<!doctype html>
 <html lang="fr">
 <head>
-<meta charset="UTF-8">
+<meta charset= UTF-8>
 <script>
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.getRegistrations().then(function(registrations) {
-    for (let registration of registrations) {
-      registration.unregister();
-    }
+  window.addEventListener('error', function(e) {
+    alert('CRASH JS BLOQUANT : ' + e.message + ' dans ' + e.filename + ' ligne ' + e.lineno);
   });
-}
-if ('caches' in window) {
-  caches.keys().then(keys => keys.forEach(key => caches.delete(key)));
-}
+  window.addEventListener('unhandledrejection', function(e) {
+    alert('PROMESSE NON GÉRÉE : ' + e.reason);
+  });
+  if ('serviceWorker' in navigator) {
+    try {
+      navigator.serviceWorker.getRegistrations().then(function(registrations) {
+        for (let registration of registrations) {
+          registration.unregister();
+        }
+      });
+    } catch(e) {}
+  }
+  if ('caches' in window) {
+    try {
+      caches.keys().then(keys => keys.forEach(key => caches.delete(key)));
+    } catch(e) {}
+  }
 </script>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Parlons</title>
