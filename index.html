@@ -3735,22 +3735,7 @@ function bindCoreNavigation(){
       }
     });
 
-    safeAddListener("#installBtn", "click", async () => {
-      try {
-        if(typeof deferredInstallPrompt !== "undefined" && deferredInstallPrompt){
-          deferredInstallPrompt.prompt();
-          const res=await deferredInstallPrompt.userChoice;
-          if(res && res.outcome==="accepted"){
-            const b = document.getElementById("installBtn");
-            if(b) b.hidden = true;
-          }
-          deferredInstallPrompt=null;
-        }
-      } catch(err){
-        console.error("installBtn error:", err);
-      }
-    });
-  } catch(err) {
+    } catch(err) {
     console.error("bindCoreNavigation error:", err);
   }
 }
@@ -6560,28 +6545,66 @@ try {
   } else {
     initApp();
   }
-} catch(e){ console.error(e); }/* ---------- gestion PWA & hors-ligne ---------- */
-let deferredInstallPrompt=null;
-window.addEventListener("beforeinstallprompt",e=>{
+} catch(e){ console.error(e); }/* ---------- gestion PWA & installation propre ---------- */
+let deferredPrompt = null;
+window.deferredPrompt = null;
+
+// 1. Capturer l'Ã©vÃ©nement d'installation sans appeler .prompt() automatiquement
+window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
-  deferredInstallPrompt=e;
-  const b=$("#installBtn");if(b)b.hidden=false;
+  deferredPrompt = e;
+  window.deferredPrompt = e;
+  
+  // Afficher le bouton d'installation uniquement s'il est prÃªt
+  const btn = document.getElementById('installBtn') || document.getElementById('install-btn') || document.querySelector('.install-btn');
+  if (btn) {
+    btn.hidden = false;
+    btn.style.display = 'inline-flex';
+  }
 });
-const insBtn=$("#installBtn");
-if(insBtn){
-  insBtn.onclick=async()=>{
-    if(!deferredInstallPrompt)return;
-    deferredInstallPrompt.prompt();
-    const res=await deferredInstallPrompt.userChoice;
-    if(res&&res.outcome==="accepted"){
-      insBtn.hidden=true;
+
+// 2. DÃ©clencher le prompt STRICTEMENT lors d'un clic explicite de l'utilisateur
+function setupInstallButton() {
+  const btn = document.getElementById('installBtn') || document.getElementById('install-btn') || document.querySelector('.install-btn');
+  if (!btn) return;
+  btn.onclick = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    const promptEvent = deferredPrompt || window.deferredPrompt;
+    if (!promptEvent) {
+      alert("L'application peut Ãªtre installÃ©e directement depuis le menu de votre navigateur (3 points > 'Installer l'application' ou 'Ajouter Ã  l'Ã©cran d'accueil').");
+      return;
     }
-    deferredInstallPrompt=null;
+    
+    try {
+      promptEvent.prompt();
+      const choiceResult = await promptEvent.userChoice;
+      console.log('Choix d installation :', choiceResult ? choiceResult.outcome : 'inconnu');
+      deferredPrompt = null;
+      window.deferredPrompt = null;
+      btn.style.display = 'none';
+      btn.hidden = true;
+    } catch (err) {
+      console.error('Erreur lors de l appel du prompt d installation :', err);
+    }
   };
 }
-window.addEventListener("appinstalled",()=>{
-  const b=$("#installBtn");if(b)b.hidden=true;
-  flash("Application installée sur votre appareil !");
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', setupInstallButton);
+} else {
+  setupInstallButton();
+}
+
+// 3. Masquer le bouton si l'application est dÃ©jÃ  installÃ©e
+window.addEventListener('appinstalled', () => {
+  deferredPrompt = null;
+  window.deferredPrompt = null;
+  const btn = document.getElementById('installBtn') || document.getElementById('install-btn') || document.querySelector('.install-btn');
+  if (btn) {
+    btn.style.display = 'none';
+    btn.hidden = true;
+  }
+  console.log('Application Parlons installÃ©e avec succÃ¨s');
 });
 
 function updateNetStatus(){
