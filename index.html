@@ -29,6 +29,54 @@ if ('caches' in window) {
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Instrument+Sans:wght@400;500;600&family=Noto+Naskh+Arabic:wght@400;600;700&display=swap">
 <style>
+@import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&display=swap');
+
+/* Typographie pédagogique & affichage vocal A0 */
+.arabic-display {
+  font-family: 'Amiri', serif;
+  direction: rtl;
+  font-size: 1.85rem;
+  line-height: 2.2;
+  letter-spacing: 0.02em;
+  color: #1a202c;
+  word-spacing: 4px;
+}
+
+.phonetic-display {
+  font-size: 1rem;
+  color: #4a5568;
+  font-style: italic;
+  direction: ltr;
+  margin-top: 4px;
+}
+
+.translation-display {
+  font-size: 1rem;
+  font-weight: 500;
+  color: #2d3748;
+  direction: ltr;
+  margin-top: 2px;
+}
+
+.feedback-display {
+  font-size: 0.95rem;
+  color: #059669;
+  background: #ecfdf5;
+  border-radius: 8px;
+  padding: 6px 10px;
+  margin-top: 6px;
+  direction: ltr;
+  border-left: 3px solid #10b981;
+}
+
+.prompt-display {
+  font-size: 0.95rem;
+  color: #2563eb;
+  font-weight: 600;
+  margin-top: 6px;
+  direction: ltr;
+}
+
 /* Layout: une colonne étroite. Accueil (parcours en tête) -> conversation (écrit, voix, mains libres) / écoute / répétition -> bilan. */
 :root, :root[data-theme="studio"]{
   color-scheme:light;
@@ -1679,9 +1727,20 @@ window.playTutorAudio = async function(fullResponseText, tutorKey) {
   if (!fullResponseText) return;
   window.stopAllAudios();
 
-  // 1. Extraction chirurgicale : on extrait UNIQUEMENT les caractères arabes
+  // 1. Extraction chirurgicale : si JSON, extraire directement le champ arabe
+  let textToParse = fullResponseText;
+  try {
+    const jsonMatch = fullResponseText.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]);
+      if (parsed.arabic_text) textToParse = parsed.arabic_text;
+      else if (parsed.target_ar) textToParse = parsed.target_ar;
+      else if (parsed.ar) textToParse = parsed.ar;
+    }
+  } catch(e) {}
+
   const arabicRegex = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\s,.!?،؟]+/g;
-  const arabicMatches = fullResponseText.match(arabicRegex);
+  const arabicMatches = textToParse.match(arabicRegex);
   
   if (!arabicMatches || !arabicMatches.join('').trim()) {
     console.warn("Aucun segment arabe détecté pour la synthèse vocale.");
@@ -2289,27 +2348,92 @@ window.toggleConversationDrawer = function(forceState) {
   }
 };
 
+window.startA0LessonSession = function(lessonId) {
+  const lesson = CURRICULUM_A0_FUSHA_TIER1.lessons.find(l => l.lesson_id === lessonId);
+  if (!lesson) return;
+  const tutorId = localStorage.getItem('selected_tutor') || 'yasmine';
+  const isYasmine = tutorId.toLowerCase().includes('yasmine');
+  const tutorName = isYasmine ? 'Yasmine' : 'Tariq';
+  
+  // Premier prompt d'accueil pour la leçon
+  let initText = "";
+  if (lesson.drills && lesson.drills[0]) {
+    const d = lesson.drills[0];
+    if (d.type === "mini_dialogue" && d.turns && d.turns[0]) {
+      initText = `${d.turns[0].ar}\n${d.turns[0].phonetic}\n${d.turns[0].fr}\n[Choix 1: نَعَمْ، أَنَا بِخَيْر (Oui, je vais bien)] | [Choix 2: تَعْبَان (Fatigué)]`;
+    } else if (d.target_ar) {
+      initText = `${d.target_ar}\n${d.target_phonetic || ''}\n${d.target_fr || ''}\n👉 ${d.instruction || "Écoute et répète."}`;
+      if (d.type === "guided_production" && d.options) {
+        initText += `\n[Choix 1: ${d.options[0]}] | [Choix 2: ${d.options[1] || d.options[0]}]`;
+      }
+    }
+  }
+  if (!initText) {
+    initText = `مَرْحَبًا! نَبْدَأُ الدَّرْسَ : ${lesson.title}\nMarḥaban! Nabda'u-d-dars: ${lesson.title}\nBonjour ! Commençons la leçon : ${lesson.title}`;
+  }
+
+  const newSession = {
+    id: "conv_" + Date.now() + "_" + Math.random().toString(36).substr(2, 4),
+    tutor: tutorId,
+    tutorId: tutorId,
+    title: "A0 · " + lesson.title,
+    createdAt: new Date().toLocaleDateString('fr-FR'),
+    messages: [
+      {
+        role: "assistant",
+        text: initText,
+        content: initText,
+        timestamp: Date.now()
+      }
+    ]
+  };
+
+  window.tutorSessions.unshift(newSession);
+  window.saveSessions();
+  window.loadSession(newSession.id);
+  window.toggleConversationDrawer(false);
+};
+
 window.renderSessionList = function() {
   const container = document.getElementById('conversationsList');
   if (!container) return;
   const list = window.tutorSessions;
   const activeId = window.activeSessionId;
 
+  function esc(s) {
+    return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  // Section Modules A0 Recommandés
+  const a0LessonsHtml = (typeof CURRICULUM_A0_FUSHA_TIER1 !== 'undefined' && CURRICULUM_A0_FUSHA_TIER1.lessons) ? `
+    <div style="margin-bottom:12px;padding:8px;background:var(--tint,#eff6ff);border-radius:12px;border:1px solid rgba(37,99,235,0.2);">
+      <div style="font-size:12px;font-weight:700;color:var(--accent,#2563eb);margin-bottom:6px;display:flex;align-items:center;gap:4px;">
+        <span>🎯</span> Parcours A0 Fusha (Tier 1)
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px;">
+        ${CURRICULUM_A0_FUSHA_TIER1.lessons.map(l => `
+          <button type="button" onclick="window.startA0LessonSession('${l.lesson_id}')" 
+                  style="text-align:left;background:#ffffff;border:1px solid #dbeafe;border-radius:8px;padding:6px 8px;font-size:11px;font-weight:600;color:#1e3a8a;cursor:pointer;display:flex;align-items:center;justify-content:space-between;">
+            <span>📖 ${esc(l.title)}</span>
+            <span style="font-size:10px;color:#2563eb;">Lancer →</span>
+          </button>
+        `).join('')}
+      </div>
+    </div>
+  ` : '';
+
   if (!list || list.length === 0) {
     container.innerHTML = `
-      <div style="text-align:center;padding:30px 15px;color:var(--muted,#64748b);font-size:13px;">
-        <span style="font-size:28px;display:block;margin-bottom:8px">🗂️</span>
-        Aucun sujet enregistré.<br>Touchez « ＋ Nouvelle discussion » pour commencer !
+      ${a0LessonsHtml}
+      <div style="text-align:center;padding:20px 15px;color:var(--muted,#64748b);font-size:13px;">
+        <span style="font-size:24px;display:block;margin-bottom:6px">🗂️</span>
+        Aucune discussion archivée.<br>Sélectionnez un module A0 ou touchez « ＋ Nouvelle discussion » !
       </div>
     `;
     return;
   }
 
-  function esc(s) {
-    return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-  }
-
-  container.innerHTML = list.map(s => {
+  const sessionsHtml = list.map(s => {
     const isActive = (s.id === activeId);
     const tutorId = s.tutor || s.tutorId || 'yasmine';
     const isYasmine = tutorId.toLowerCase().includes('yasmine');
@@ -2342,6 +2466,9 @@ window.renderSessionList = function() {
       </div>
     `;
   }).join('');
+
+  container.innerHTML = a0LessonsHtml + sessionsHtml;
+};
 };
 window.renderConversationsList = window.renderSessionList;
 
@@ -2496,10 +2623,116 @@ window.loadLessonData = function(lessonId) {
   }
 };
 
+function escapeHtml(s) {
+  return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// Formatage Pédagogique du Tuteur A0 (JSON structuré ou Triple Format)
+function formatTutorReply(rawText) {
+  if (!rawText || typeof rawText !== 'string') return '';
+  const text = rawText.trim();
+
+  // 1. Détection JSON structuré { arabic_text, phonetic, translation_fr, tutor_feedback, next_prompt }
+  let jsonObj = null;
+  const jsonMatch = text.match(/\{[\s\S]*\}/);
+  if (jsonMatch) {
+    try {
+      jsonObj = JSON.parse(jsonMatch[0]);
+    } catch(e) {}
+  }
+
+  if (jsonObj && (jsonObj.arabic_text || jsonObj.target_ar || jsonObj.ar)) {
+    const arText = jsonObj.arabic_text || jsonObj.target_ar || jsonObj.ar || '';
+    const phoText = jsonObj.phonetic || jsonObj.target_phonetic || '';
+    const frText = jsonObj.translation_fr || jsonObj.target_fr || jsonObj.translation || '';
+    const feedbackText = jsonObj.tutor_feedback || jsonObj.feedback || '';
+    const promptText = jsonObj.next_prompt || jsonObj.instruction || '';
+
+    let html = '';
+    if (feedbackText) {
+      html += `<div class="feedback-display">💡 <strong>Conseil :</strong> ${escapeHtml(feedbackText)}</div>`;
+    }
+    if (arText) {
+      html += `<div class="arabic-display" dir="rtl">${escapeHtml(arText)}</div>`;
+    }
+    if (phoText) {
+      html += `<div class="phonetic-display" dir="ltr">${escapeHtml(phoText)}</div>`;
+    }
+    if (frText) {
+      html += `<div class="translation-display" dir="ltr">${escapeHtml(frText)}</div>`;
+    }
+    if (promptText) {
+      html += `<div class="prompt-display" dir="ltr">👉 ${escapeHtml(promptText)}</div>`;
+    }
+    return html;
+  }
+
+  // 2. Détection Triple Format (Arabe vocalisé / Phonétique / Traduction française)
+  const cleanForLines = text.replace(/\[(?:Choix|Option)\s*\d+:[^\]]+\]/gi, '').trim();
+  const rawLines = cleanForLines.split('\n').map(l => l.trim()).filter(Boolean);
+  const arabicRegex = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]/;
+  const arLineIdx = rawLines.findIndex(l => arabicRegex.test(l));
+
+  if (arLineIdx !== -1 && rawLines.length >= 2) {
+    const arLine = rawLines[arLineIdx].replace(/^(?:Arabe|Texte arabe)\s*:\s*/i, '').trim();
+    let phoLine = '';
+    let frLine = '';
+    let otherLines = [];
+
+    for (let i = 0; i < rawLines.length; i++) {
+      if (i === arLineIdx) continue;
+      const l = rawLines[i];
+      if (/^(?:Phon[ée]tique|Phonetic)\s*:/i.test(l)) {
+        phoLine = l.replace(/^(?:Phon[ée]tique|Phonetic)\s*:\s*/i, '').trim();
+      } else if (/^(?:Traduction|Fran[çc]ais)\s*:/i.test(l)) {
+        frLine = l.replace(/^(?:Traduction|Fran[çc]ais)\s*:\s*/i, '').trim();
+      } else if (!phoLine && !arabicRegex.test(l) && i === arLineIdx + 1) {
+        phoLine = l;
+      } else if (!frLine && !arabicRegex.test(l)) {
+        frLine = l;
+      } else {
+        otherLines.push(l);
+      }
+    }
+
+    let html = '';
+    if (arLine) {
+      html += `<div class="arabic-display" dir="rtl">${escapeHtml(arLine)}</div>`;
+    }
+    if (phoLine) {
+      html += `<div class="phonetic-display" dir="ltr">${escapeHtml(phoLine)}</div>`;
+    }
+    if (frLine) {
+      html += `<div class="translation-display" dir="ltr">${escapeHtml(frLine)}</div>`;
+    }
+    if (otherLines.length > 0) {
+      html += `<div class="prompt-display" dir="ltr">${escapeHtml(otherLines.join(' '))}</div>`;
+    }
+    return html;
+  }
+
+  // 3. Fallback visuel standard
+  return (typeof renderMarkdownVisual === 'function') ? renderMarkdownVisual(text) : escapeHtml(text);
+}
+window.formatTutorReply = formatTutorReply;
+
 // Utilitaires de Choix Rapides et Formatage Pédagogique
 function parseChoicesFromText(fullText) {
   const choices = [];
   if (!fullText) return choices;
+
+  // 1. Détection depuis objet JSON si options: [...]
+  try {
+    const jsonMatch = fullText.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]);
+      if (Array.isArray(parsed.options) && parsed.options.length > 0) {
+        return parsed.options.map(o => String(o).trim()).filter(Boolean);
+      }
+    }
+  } catch(e) {}
+
+  // 2. Détection par balises [Choix 1: ...] | [Choix 2: ...]
   const choiceRegex = /\[(?:Choix\s*\d+|Option\s*\d+)\s*:\s*([^\]]+)\]/gi;
   let m;
   while ((m = choiceRegex.exec(fullText)) !== null) {
@@ -2551,7 +2784,7 @@ function appendMessage(role, text, skipSave) {
       b.className = "msg t tutor-message-card";
       const main = document.createElement("div");
       main.className = "ar-msg";
-      main.textContent = text;
+      main.innerHTML = formatTutorReply(text);
       main.dir = "auto";
       b.appendChild(main);
 
@@ -2618,18 +2851,38 @@ async function sendToGemini(userMessage) {
     return;
   }
 
-  // 1. Récupération robuste du tuteur et structure pédagogique stricte pour débutants
+  // 1. Récupération robuste du tuteur et structure pédagogique stricte A0 Fusha
   const tutorId = localStorage.getItem('selected_tutor') || localStorage.getItem('parlons.tutor') || 'tariq';
   const isYasmine = tutorId.toLowerCase().includes('yasmine');
   const tutorName = isYasmine ? "Yasmine" : "Tariq";
 
-  const systemInstruction = `Tu es ${tutorName}, ${isYasmine ? "professeure bienveillante d'arabe pour débutants francophones" : "professeur dynamique et pragmatique d'arabe pour débutants francophones"}.
+  const systemInstruction = `TU ES ${tutorName.toUpperCase()}, ${isYasmine ? "TUTRICE VOCALE ET PÉDAGOGIQUE BIENVEILLANTE" : "TUTEUR VOCAL ET PÉDAGOGIQUE DYNAMIQUE"} DE L'APPLICATION "PARLONS".
+TON RÔLE : ENSEIGNER L'ARABE STANDARD MODERNE (FUSHA) À UN DÉBUTANT COMPLET (NIVEAU A0).
 
-RÈGLE PÉDAGOGIQUE STRICTE : Structure TOUJOURS ta réponse exactement ainsi :
-1. Une phrase courte en arabe avec toutes les voyelles (tashkeel).
-2. Phonétique : La prononciation simplifiée en lettres latines.
-3. Traduction : La traduction en français.
-4. Choix suggérés : Termine TOUJOURS par exactement 2 propositions courtes de réponse pour l'élève au format strict suivant :
+--- RÈGLES STRICTES DE FORMATAGE (OBLIGATOIRES) ---
+1. TASHKĪL TOTAL : Tout mot ou texte arabe produit DOIT IMPÉRATIVEMENT comporter l'intégralité de ses voyelles courtes (Fatḥa, Kasra, Ḍamma, Sukūn, Shadda). ZÉRO mot non vocalisé toléré.
+2. NEUTRALISATION FINALE : Utilise le sukūn (waqf) sur la dernière lettre de chaque groupe de souffle pour éviter la surcharge des cas grammaticaux (I'rāb).
+3. TOUJOURS FOURNIR LE TRIPLE FORMAT dans tes réponses textuelles :
+   - Ligne 1 : Arabe vocalisé
+   - Ligne 2 : Phonétique latine simplifiée
+   - Ligne 3 : Traduction française concise
+
+--- COMPORTEMENT PÉDAGOGIQUE ---
+- Périmètre lexical : Reste STRICTEMENT dans le vocabulaire et les structures du niveau A0 (Identification & États, phrases nominales simples, pronoms أنا, أنتَ, أنتِ, négation لَسْتُ, question هَلْ). N'invente pas de constructions complexes, de duel ni de pluriels irréguliers.
+- Feedback immédiat et bienveillant : En cas d'erreur de l'utilisateur, isole précisément le mot fautif, réaffiche sa forme correcte vocalisée, sa phonétique et demande une seule répétition.
+- Réponse brève : Ne fais aucun cours magistral théorique. Focalise 100 % du temps sur l'écoute, la répétition et l'assemblage de briques de phrases.
+
+--- STRUCTURE DE SORTIE JSON OU TRIPLE FORMAT ---
+Pour chaque tour, réponds au format JSON suivant ou en triple format direct :
+{
+  "arabic_text": "Texte arabe entièrement vocalisé",
+  "phonetic": "Transcription latine fluide",
+  "translation_fr": "Traduction fidèle en français",
+  "tutor_feedback": "Correction courte ou encouragement (si applicable)",
+  "next_prompt": "Consigne précise pour l'utilisateur"
+}
+
+Termine TOUJOURS en proposant exactement 2 choix de réponses sous forme :
 [Choix 1: Réponse en arabe (traduction)] | [Choix 2: Autre réponse en arabe (traduction)]
 `;
 
@@ -3388,6 +3641,193 @@ const PROVIDERS={
     note:"Modèles européens performants."}
 };
 
+/* ---------- Curriculum Officiel A0 Fusha Tier 1 ---------- */
+const CURRICULUM_A0_FUSHA_TIER1 = {
+  "curriculum_version": "1.0",
+  "level": "A0_Fusha",
+  "tier_id": "tier_1",
+  "tier_title": "Identification & États (Phrase nominale)",
+  "lessons": [
+    {
+      "lesson_id": "lesson_1_1",
+      "title": "Je suis... (Pronoms & Identité)",
+      "lexicon": [
+        { "ar": "أَنَا", "phonetic": "Anā", "fr": "Je / Moi", "audio_hint": "a-naa" },
+        { "ar": "مُسْتَعِدّ", "phonetic": "Musta'idd", "fr": "Prêt", "audio_hint": "mous-ta-'idd" },
+        { "ar": "تَعْبَان", "phonetic": "Ta'bān", "fr": "Fatigué", "audio_hint": "ta'-baan" },
+        { "ar": "هُنَا", "phonetic": "Hunā", "fr": "Ici", "audio_hint": "hou-naa" }
+      ],
+      "drills": [
+        {
+          "id": "drill_1",
+          "type": "listen_and_repeat",
+          "target_ar": "أَنَا مُسْتَعِدّ",
+          "target_phonetic": "Anā musta'idd",
+          "target_fr": "Je suis prêt",
+          "instruction": "Écoute et répète la phrase."
+        },
+        {
+          "id": "drill_2",
+          "type": "substitution",
+          "base_ar": "أَنَا مُسْتَعِدّ",
+          "base_fr": "Je suis prêt",
+          "replace_token": "مُسْتَعِدّ",
+          "with_token": "تَعْبَان",
+          "target_ar": "أَنَا تَعْبَان",
+          "target_phonetic": "Anā ta'bān",
+          "target_fr": "Je suis fatigué",
+          "instruction": "Remplace 'prêt' par 'fatigué'."
+        },
+        {
+          "id": "drill_3",
+          "type": "guided_production",
+          "prompt_fr": "Comment dis-tu : 'Je suis ici' ?",
+          "expected_ar": "أَنَا هُنَا",
+          "expected_phonetic": "Anā hunā",
+          "options": ["أَنَا هُنَا", "أَنَا تَعْبَان", "أَنَا مُسْتَعِدّ"]
+        }
+      ]
+    },
+    {
+      "lesson_id": "lesson_1_2",
+      "title": "Tu es... (Genre & Interlocuteur)",
+      "lexicon": [
+        { "ar": "أَنْتَ", "phonetic": "Anta", "fr": "Tu (masculin)", "audio_hint": "an-ta" },
+        { "ar": "أَنْتِ", "phonetic": "Anti", "fr": "Tu (féminin)", "audio_hint": "an-ti" },
+        { "ar": "بِخَيْر", "phonetic": "Bikhayr", "fr": "Bien / En forme", "audio_hint": "bi-khayr" },
+        { "ar": "مَشْغُول", "phonetic": "Mashghūl", "fr": "Occupé", "audio_hint": "mash-ghoul" }
+      ],
+      "drills": [
+        {
+          "id": "drill_4",
+          "type": "listen_and_repeat",
+          "target_ar": "أَنْتَ بِخَيْر",
+          "target_phonetic": "Anta bikhayr",
+          "target_fr": "Tu vas bien",
+          "instruction": "Écoute et répète."
+        },
+        {
+          "id": "drill_5",
+          "type": "substitution",
+          "base_ar": "أَنْتَ مَشْغُول",
+          "base_fr": "Tu es occupé (homme)",
+          "replace_token": "أَنْتَ",
+          "with_token": "أَنْتِ",
+          "target_ar": "أَنْتِ مَشْغُولَة",
+          "target_phonetic": "Anti mashghūlah",
+          "target_fr": "Tu es occupée (femme)",
+          "instruction": "Passe la phrase au féminin."
+        },
+        {
+          "id": "drill_6",
+          "type": "guided_production",
+          "prompt_fr": "Dis à un homme qu'il est occupé :",
+          "expected_ar": "أَنْتَ مَشْغُول",
+          "expected_phonetic": "Anta mashghūl",
+          "options": ["أَنْتَ مَشْغُول", "أَنَا مَشْغُول", "أَنْتِ مَشْغُول"]
+        }
+      ]
+    },
+    {
+      "lesson_id": "lesson_1_3",
+      "title": "La Négation simple (Laysa / Lastu)",
+      "lexicon": [
+        { "ar": "لَسْتُ", "phonetic": "Lastu", "fr": "Je ne suis pas", "audio_hint": "las-tou" },
+        { "ar": "لَسْتَ", "phonetic": "Lasta", "fr": "Tu n'es pas (masculin)", "audio_hint": "las-ta" },
+        { "ar": "مَرِيض", "phonetic": "Marīḍ", "fr": "Malade", "audio_hint": "ma-reed" }
+      ],
+      "drills": [
+        {
+          "id": "drill_7",
+          "type": "listen_and_repeat",
+          "target_ar": "لَسْتُ تَعْبَان",
+          "target_phonetic": "Lastu ta'bān",
+          "target_fr": "Je ne suis pas fatigué",
+          "instruction": "Répète la négation."
+        },
+        {
+          "id": "drill_8",
+          "type": "substitution",
+          "base_ar": "لَسْتُ تَعْبَان",
+          "base_fr": "Je ne suis pas fatigué",
+          "replace_token": "تَعْبَان",
+          "with_token": "مَرِيض",
+          "target_ar": "لَسْتُ مَرِيض",
+          "target_phonetic": "Lastu marīḍ",
+          "target_fr": "Je ne suis pas malade",
+          "instruction": "Remplace 'fatigué' par 'malade'."
+        }
+      ]
+    },
+    {
+      "lesson_id": "lesson_1_4",
+      "title": "Poser la première question (Hal)",
+      "lexicon": [
+        { "ar": "هَلْ", "phonetic": "Hal", "fr": "Est-ce que... ?", "audio_hint": "hal" },
+        { "ar": "نَعَمْ", "phonetic": "Na'am", "fr": "Oui", "audio_hint": "na-'am" },
+        { "ar": "لَا", "phonetic": "Lā", "fr": "Non", "audio_hint": "laa" }
+      ],
+      "drills": [
+        {
+          "id": "drill_9",
+          "type": "listen_and_repeat",
+          "target_ar": "هَلْ أَنْتَ مُسْتَعِدّ؟",
+          "target_phonetic": "Hal anta musta'idd?",
+          "target_fr": "Es-tu prêt ?",
+          "instruction": "Écoute l'intonation interrogative et répète."
+        },
+        {
+          "id": "drill_10",
+          "type": "guided_production",
+          "prompt_fr": "Réponds : 'Oui, je suis prêt.'",
+          "expected_ar": "نَعَمْ، أَنَا مُسْتَعِدّ",
+          "expected_phonetic": "Na'am, anā musta'idd",
+          "options": ["نَعَمْ، أَنَا مُسْتَعِدّ", "لَا، أَنَا مُسْتَعِدّ", "هَلْ أَنَا مُسْتَعِدّ"]
+        }
+      ]
+    },
+    {
+      "lesson_id": "lesson_1_5",
+      "title": "Synthèse et Premier Dialogue",
+      "lexicon": [],
+      "drills": [
+        {
+          "id": "drill_11",
+          "type": "mini_dialogue",
+          "context_fr": "Ton interlocuteur te demande comment tu vas.",
+          "turns": [
+            {
+              "speaker": "tutor",
+              "ar": "مَرْحَبًا! هَلْ أَنْتَ بِخَيْر؟",
+              "phonetic": "Marḥaban! Hal anta bikhayr?",
+              "fr": "Bonjour ! Vas-tu bien ?"
+            },
+            {
+              "speaker": "user",
+              "expected_ar": "نَعَمْ، أَنَا بِخَيْر",
+              "expected_phonetic": "Na'am, anā bikhayr",
+              "fr": "Oui, je vais bien."
+            },
+            {
+              "speaker": "tutor",
+              "ar": "هَلْ أَنْتَ مَشْغُولُ اليَوْم؟",
+              "phonetic": "Hal anta mashghūlu-l-yawm?",
+              "fr": "Es-tu occupé aujourd'hui ?"
+            },
+            {
+              "speaker": "user",
+              "expected_ar": "لَا، لَسْتُ مَشْغُول",
+              "expected_phonetic": "Lā, lastu mashghūl",
+              "fr": "Non, je ne suis pas occupé."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+};
+window.CURRICULUM_A0_FUSHA_TIER1 = CURRICULUM_A0_FUSHA_TIER1;
+
 /* ---------- parcours : capacités à démontrer, par étape ---------- */
 const PATH={
   en:[
@@ -3405,6 +3845,11 @@ const PATH={
     {id:"en12",lvl:"B1",t:"Entretien et négociation",can:["Je peux me présenter en entretien d'embauche","Je peux parler de mes forces et de mes faiblesses","Je peux négocier un délai ou un prix"]}
   ],
   ar:[
+    {id:"ar0_1",lvl:"A0",t:"Je suis... (Pronoms & Identité)",can:["Je peux dire 'أَنَا مُسْتَعِدّ' (Je suis prêt)","Je peux dire 'أَنَا تَعْبَان' (Je suis fatigué)","Je peux dire 'أَنَا هُنَا' (Je suis ici)"]},
+    {id:"ar0_2",lvl:"A0",t:"Tu es... (Genre & Interlocuteur)",can:["Je peux dire 'أَنْتَ بِخَيْر' (Tu vas bien)","Je peux distinguer 'أَنْتَ مَشْغُول' et 'أَنْتِ مَشْغُولَة'"]},
+    {id:"ar0_3",lvl:"A0",t:"La Négation simple (Laysa / Lastu)",can:["Je peux employer 'لَسْتُ تَعْبَان' (Je ne suis pas fatigué)","Je peux dire 'لَسْتُ مَرِيض' (Je ne suis pas malade)"]},
+    {id:"ar0_4",lvl:"A0",t:"Poser la question (Hal)",can:["Je peux interroger avec 'هَلْ أَنْتَ مُسْتَعِدّ؟'","Je peux répondre par 'نَعَمْ' ou 'لَا'"]},
+    {id:"ar0_5",lvl:"A0",t:"Synthèse et Premier Dialogue",can:["Je peux tenir un premier mini-dialogue en arabe standard avec Tashkīl","Je peux répondre sur ma forme et mes occupations"]},
     {id:"ar1",lvl:"A1",t:"Faire connaissance",can:["Je peux saluer et prendre congé poliment","Je peux me présenter : nom, origine, métier","Je peux demander à quelqu'un son nom et comment il va"]},
     {id:"ar2",lvl:"A1",t:"La famille",can:["Je peux nommer les membres de ma famille","Je peux dire l'âge et le métier de mes proches","Je peux décrire ma famille en quelques phrases"]},
     {id:"ar3",lvl:"A1",t:"L'habitation",can:["Je peux nommer les pièces et les objets de la maison","Je peux dire où j'habite","Je peux décrire mon logement simplement"]},
@@ -4708,9 +5153,9 @@ function targetsState(){
   return "Expressions-cibles de la séance : "+S.targets.map(t=>t.expr).join(" ; ")+". Déjà utilisées par l'apprenant : "+(done.join(" ; ")||"aucune")+". Amène naturellement l'apprenant à employer celles qui restent : "+(todo.join(" ; ")||"toutes sont faites")+".";
 }
 function arRules(){
-  return (S.ar.vow?"Écris les voyelles courtes (tashkeel) sur tous les mots arabes. ":"Écris sans voyelles courtes, sauf sur les mots ambigus. ")
+  return "TASHKĪL TOTAL OBLIGATOIRE : écris TOUTES les voyelles courtes (Fatḥa, Kasra, Ḍamma, Sukūn, Shadda) sur TOUS les mots arabes sans exception. Neutralisation finale : sukūn (waqf) sur la dernière lettre de chaque groupe de souffle. "
     +((S.ar.tr||knownCount()<20)?"Remplis \"tr\" avec une translittération latine lisible pour un francophone de ta réponse. ":"\"tr\" vaut une chaîne vide. ")
-    +"Emploie l'arabe littéraire standard, sans dialecte.";
+    +"Emploie l'arabe littéraire standard (Fusha), niveau A0 simple et accessible.";
 }
 function rules(){
   const L=LANGS[S.lang] || { name: "arabe", rtl: true };
@@ -4927,7 +5372,7 @@ function bubbleT(d){
   const b=el("div","msg t tutor-message-card");
   const isTutor=S.scn&&S.scn.id==="tutor";
   const main=el("div",LANGS[S.lang].rtl&&!isTutor?"ar":"ar-msg");
-  main.innerHTML=renderMarkdownVisual(d.reply);
+  main.innerHTML = (typeof formatTutorReply === 'function') ? formatTutorReply(d.reply) : renderMarkdownVisual(d.reply);
   main.dir="auto";
   b.append(main);
 
