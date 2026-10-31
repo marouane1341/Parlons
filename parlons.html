@@ -1031,6 +1031,34 @@ audio,
   box-shadow: 0 4px 16px rgba(27, 107, 138, 0.15);
 }
 </style>
+<script>
+  window.startLesson = function(lessonId) {
+    console.log('[PARLONS] DÃ©marrage de la leÃ§on :', lessonId);
+    try {
+      const pathView = document.getElementById('path-view') || document.querySelector('.path-container') || document.getElementById('lessons-container') || document.getElementById('lessonsScreen');
+      if (pathView) {
+        pathView.style.display = 'none';
+        pathView.classList.remove('active');
+      }
+      const drillView = document.getElementById('drill-view') || document.getElementById('lesson-modal') || document.getElementById('active-lesson') || document.getElementById('chatScreen');
+      if (drillView) {
+        drillView.style.display = 'flex';
+        drillView.classList.add('active');
+        drillView.hidden = false;
+        drillView.style.pointerEvents = 'auto';
+      }
+      if (typeof window.startConversation === 'function') {
+        window.startConversation('lesson', lessonId);
+      } else if (typeof window.loadLessonData === 'function') {
+        window.loadLessonData(lessonId);
+      } else if (typeof window.startA0LessonSession === 'function') {
+        window.startA0LessonSession(typeof lessonId === 'number' ? 'lesson_1_' + lessonId : lessonId);
+      }
+    } catch (err) {
+      console.error('[PARLONS] Erreur dans startLesson :', err);
+    }
+  };
+</script>
 </head>
 <body>
 <div class="wrap">
@@ -1065,7 +1093,7 @@ audio,
 
         <div class="roadmap-path" style="display: flex; flex-direction: column; gap: 16px; margin-top: 20px;">
           <!-- Étape 1 : Débloquée par défaut -->
-          <div class="lesson-step active" onclick="window.startLesson(1)" style="cursor: pointer; background: white; border: 2px solid #2563eb; border-radius: 16px; padding: 16px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+          <div class="lesson-step active" onclick="if(typeof window.startLesson === 'function') { window.startLesson(1); } else { console.warn('startLesson pas encore prÃªt'); }" style="cursor: pointer; background: white; border: 2px solid #2563eb; border-radius: 16px; padding: 16px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
             <div style="display: flex; align-items: center; gap: 12px;">
               <div style="width: 44px; height: 44px; border-radius: 50%; background: #2563eb; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold;">1</div>
               <div>
@@ -1077,7 +1105,7 @@ audio,
           </div>
 
           <!-- Étape 2 -->
-          <div class="lesson-step" onclick="window.startLesson(2)" style="cursor: pointer; background: white; border: 1px solid #e2e8f0; border-radius: 16px; padding: 16px; display: flex; align-items: center; justify-content: space-between;">
+          <div class="lesson-step" onclick="if(typeof window.startLesson === 'function') { window.startLesson(2); } else { console.warn('startLesson pas encore prÃªt'); }" style="cursor: pointer; background: white; border: 1px solid #e2e8f0; border-radius: 16px; padding: 16px; display: flex; align-items: center; justify-content: space-between;">
             <div style="display: flex; align-items: center; gap: 12px;">
               <div style="width: 44px; height: 44px; border-radius: 50%; background: #f1f5f9; color: #64748b; display: flex; align-items: center; justify-content: center; font-weight: bold;">2</div>
               <div>
@@ -1089,7 +1117,7 @@ audio,
           </div>
 
           <!-- Étape 3 -->
-          <div class="lesson-step" onclick="window.startLesson(3)" style="cursor: pointer; background: white; border: 1px solid #e2e8f0; border-radius: 16px; padding: 16px; display: flex; align-items: center; justify-content: space-between;">
+          <div class="lesson-step" onclick="if(typeof window.startLesson === 'function') { window.startLesson(3); } else { console.warn('startLesson pas encore prÃªt'); }" style="cursor: pointer; background: white; border: 1px solid #e2e8f0; border-radius: 16px; padding: 16px; display: flex; align-items: center; justify-content: space-between;">
             <div style="display: flex; align-items: center; gap: 12px;">
               <div style="width: 44px; height: 44px; border-radius: 50%; background: #f1f5f9; color: #64748b; display: flex; align-items: center; justify-content: center; font-weight: bold;">3</div>
               <div>
