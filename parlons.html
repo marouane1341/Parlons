@@ -1,7 +1,8 @@
 <!doctype html>
 <html lang="fr">
 <head>
-<meta charset= UTF-8>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 <script>
   window.addEventListener('error', function(e) {
     alert('CRASH JS BLOQUANT : ' + e.message + ' dans ' + e.filename + ' ligne ' + e.lineno);
@@ -1198,15 +1199,16 @@ window.updateTutorUI = function(tutorKey) {
 
     const chatTitle = document.getElementById('chatTitle');
     if (chatTitle) {
-      const session = typeof window.getActiveSession === 'function' ? window.getActiveSession() : null;
-      const titleText = session?.title || "Discussion libre";
-      const tutorName = isTariq ? "Tariq" : "Yasmine";
-      chatTitle.innerHTML = `<span style="font-weight:700;">💬 ${tutorName}</span> · <span style="font-weight:400;opacity:0.9;">${titleText}</span>`;
+      chatTitle.innerText = isTariq ? "Tuteur libre • Tariq (Arabe)" : "Tuteur libre • Yasmine (Arabe)";
     }
 
     const avatarStateText = document.getElementById('avatarStateText');
     if (avatarStateText) {
       avatarStateText.textContent = isTariq ? "● Tariq prêt" : "● Yasmine prête";
+    }
+
+    if (typeof window.syncCurrentTutorDisplay === 'function') {
+      try { window.syncCurrentTutorDisplay(); } catch(e){}
     }
   } catch(e) {
     console.warn("updateTutorUI head error:", e);
@@ -1249,6 +1251,51 @@ window.setActiveTutor = window.selectTutor;
 var chooseTutor = window.chooseTutor;
 var selectTutor = window.selectTutor;
 var setActiveTutor = window.setActiveTutor;
+
+window.getInitialLessonMessage = function(tutorKey) {
+  const currentKey = (tutorKey || localStorage.getItem('selected_tutor') || 'yasmine').toLowerCase();
+  const isTariq = currentKey.includes('tariq');
+  const profName = isTariq ? "Tariq" : "Yasmine";
+  
+  return `Bonjour ! Je suis ${profName}, votre professeur d'arabe. Pas d'inquiétude : je vais vous guider pas à pas, vous n'avez rien à deviner.\n\n` +
+         `Commençons par la salutation de base en arabe pour dire bonjour.\n\n` +
+         `ARABE: مَرْحَبًا\n` +
+         `PHONÉTIQUE: Mar-ha-ban\n` +
+         `TRADUCTION: Bonjour / Bienvenue\n\n` +
+         `CONSIGNE: Touchez le micro et répétez simplement après moi, ou cliquez sur l'un des choix ci-dessous.\n\n` +
+         `OPTIONS: [مَرْحَبًا (Marhaban) - Bonjour] | [أَهْلًا (Ahlan) - Salut]`;
+};
+
+window.syncCurrentTutorDisplay = function() {
+  const tutor = (localStorage.getItem('selected_tutor') || 'yasmine').toLowerCase();
+  const isTariq = tutor === 'tariq';
+
+  // En-tête
+  const headerTitle = document.querySelector('#tutorHeaderTitle, .tutor-header h2, .tutor-name, #chatTitle');
+  if (headerTitle) {
+    headerTitle.innerText = isTariq ? "Tuteur libre • Tariq (Arabe)" : "Tuteur libre • Yasmine (Arabe)";
+  }
+
+  // Badge
+  const statusBadge = document.querySelector('#tutorStatusBadge, .tutor-status, #avatarStateText');
+  if (statusBadge) {
+    statusBadge.innerText = isTariq ? "● Tariq prêt" : "● Yasmine prête";
+  }
+
+  // Photo
+  const avatarImg = document.querySelector('#tutorAvatarImg, .tutor-avatar img');
+  if (avatarImg) {
+    avatarImg.src = isTariq ? "assets/tariq.png" : "assets/yasmine.png";
+    avatarImg.onerror = function() { this.onerror = null; this.src = isTariq ? "tariq.png" : "yasmine.png"; };
+    avatarImg.alt = isTariq ? "Tariq" : "Yasmine";
+  }
+
+  // Sceau
+  const seal = document.getElementById('sealMedallion');
+  if (seal) {
+    seal.classList.toggle('tutor-tariq', isTariq);
+  }
+};
 
 if (typeof window.toggleMic !== 'function') {
   window.toggleMic = function() { console.log('toggleMic'); };
@@ -1976,29 +2023,42 @@ window.playTutorAudio = async function(fullResponseText, tutorKey) {
   if (!fullResponseText) return;
   window.stopAllAudios();
 
-  // 1. Extraction chirurgicale : si JSON, extraire directement le champ arabe
-  let textToParse = fullResponseText;
-  try {
-    const jsonMatch = fullResponseText.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      const parsed = JSON.parse(jsonMatch[0]);
-      if (parsed.arabic_text) textToParse = parsed.arabic_text;
-      else if (parsed.target_ar) textToParse = parsed.target_ar;
-      else if (parsed.ar) textToParse = parsed.ar;
+  // 1. Extraction chirurgicale prioritaire : ligne ARABE:
+  let arabicOnlyText = '';
+  const arabeLineMatch = fullResponseText.match(/ARABE\s*:\s*([^\r\n]+)/i);
+  if (arabeLineMatch && arabeLineMatch[1]) {
+    const cleanAr = arabeLineMatch[1].replace(/\[|\]/g, '').trim();
+    const arRegex = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\s,.!?،؟]+/;
+    const m = cleanAr.match(arRegex);
+    if (m && m[0].trim()) {
+      arabicOnlyText = m[0].trim();
     }
-  } catch(e) {}
+  }
 
-  const arabicRegex = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\s,.!?،؟]+/g;
-  const arabicMatches = textToParse.match(arabicRegex);
-  
-  if (!arabicMatches || !arabicMatches.join('').trim()) {
+  // 2. Si pas de ligne ARABE:, tentative JSON ou extraction générale
+  if (!arabicOnlyText) {
+    let textToParse = fullResponseText;
+    try {
+      const jsonMatch = fullResponseText.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        if (parsed.arabic_text) textToParse = parsed.arabic_text;
+        else if (parsed.target_ar) textToParse = parsed.target_ar;
+        else if (parsed.ar) textToParse = parsed.ar;
+      }
+    } catch(e) {}
+
+    const arabicRegex = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\s,.!?،؟]+/g;
+    const arabicMatches = textToParse.match(arabicRegex);
+    if (arabicMatches && arabicMatches.join('').trim()) {
+      arabicOnlyText = arabicMatches[0].trim();
+    }
+  }
+
+  if (!arabicOnlyText) {
     console.warn("Aucun segment arabe détecté pour la synthèse vocale.");
     return;
   }
-
-  // Ne lire que le premier bloc arabe cohérent pour éviter de relire des variantes ou le français
-  const arabicOnlyText = arabicMatches[0].trim();
-  if (!arabicOnlyText) return;
 
   const apiKey = localStorage.getItem('gemini_api_key') || localStorage.getItem('apiKey') || '';
   const isYasmine = (tutorKey || localStorage.getItem('selected_tutor') || 'yasmine').toLowerCase().includes('yasmine');
@@ -2388,6 +2448,9 @@ window.selectTutor = function(tutor) {
     }
 
     window.updateTutorUI(normalizedKey);
+    if (typeof window.syncCurrentTutorDisplay === "function") {
+      try { window.syncCurrentTutorDisplay(); } catch(e){}
+    }
     if (typeof updateAvatar === "function") {
       try { updateAvatar(); } catch(e){}
     }
@@ -2406,10 +2469,16 @@ if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => {
     const current = localStorage.getItem('selected_tutor') || localStorage.getItem('parlons.tutor') || 'yasmine';
     window.chooseTutor(current);
+    if (typeof window.syncCurrentTutorDisplay === "function") {
+      try { window.syncCurrentTutorDisplay(); } catch(e){}
+    }
   });
 } else {
   const current = localStorage.getItem('selected_tutor') || localStorage.getItem('parlons.tutor') || 'yasmine';
   window.chooseTutor(current);
+  if (typeof window.syncCurrentTutorDisplay === "function") {
+    try { window.syncCurrentTutorDisplay(); } catch(e){}
+  }
 }
 
 // ============================================================================
@@ -2438,18 +2507,32 @@ window.saveSessions = function() {
   }
 };
 
-window.createNewSession = function(topicTitle = "Nouvelle discussion") {
+window.createNewSession = function(topicTitle = "Salutations • Niveau A0", forceTutorKey = null) {
   const newId = 'session_' + Date.now();
-  const activeTutor = localStorage.getItem('selected_tutor') || 'yasmine';
-  const isYasmine = activeTutor.toLowerCase().includes('yasmine');
-  const tutorId = isYasmine ? 'yasmine' : 'tariq';
-  const welcomeText = isYasmine
-    ? "مَرْحَبًا ! Je suis Yasmine, votre professeure d'arabe. Posez-moi n'importe quelle question en arabe ou en français."
-    : "مَرْحَبًا ! Je suis Tariq, votre professeur d'arabe. Parlons ensemble de situations du quotidien !";
+  let candidateTutor = forceTutorKey;
+  let finalTitle = topicTitle;
+
+  if (topicTitle === 'tariq' || topicTitle === 'yasmine') {
+    candidateTutor = topicTitle;
+    finalTitle = "Salutations • Niveau A0";
+  }
+
+  const activeTutor = (candidateTutor || localStorage.getItem('selected_tutor') || 'yasmine').toLowerCase();
+  const isTariq = activeTutor.includes('tariq');
+  const tutorId = isTariq ? 'tariq' : 'yasmine';
+  const tutorName = isTariq ? 'Tariq' : 'Yasmine';
+
+  localStorage.setItem('selected_tutor', tutorId);
+  localStorage.setItem('parlons.tutor', tutorId);
+  window.currentTutorKey = tutorId;
+
+  const welcomeText = (typeof window.getInitialLessonMessage === 'function')
+    ? window.getInitialLessonMessage(tutorId)
+    : `Bonjour ! Je suis ${tutorName}, votre professeur d'arabe. Pas d'inquiétude : je vais vous guider pas à pas, vous n'avez rien à deviner.\n\nARABE: مَرْحَبًا\nPHONÉTIQUE: Mar-ha-ban\nTRADUCTION: Bonjour / Bienvenue\n\nCONSIGNE: Touchez le micro et répétez simplement après moi, ou cliquez sur l'un des choix ci-dessous.\n\nOPTIONS: [مَرْحَبًا (Marhaban) - Bonjour] | [أَهْلًا (Ahlan) - Salut]`;
 
   const newSession = {
     id: newId,
-    title: topicTitle,
+    title: finalTitle || "Salutations • Niveau A0",
     tutor: tutorId,
     tutorId: tutorId,
     createdAt: new Date().toLocaleDateString('fr-FR'),
@@ -2464,14 +2547,23 @@ window.createNewSession = function(topicTitle = "Nouvelle discussion") {
   window.renderSessionList();
   window.loadSession(newId);
 
+  if (typeof window.syncCurrentTutorDisplay === 'function') {
+    try { window.syncCurrentTutorDisplay(); } catch(e){}
+  }
+
   const inp = document.getElementById("input");
   if (inp) { inp.value = ""; inp.focus(); }
   if (typeof window.playTutorAudio === 'function') {
     window.playTutorAudio(welcomeText, tutorId);
   }
+  return newSession;
 };
-// Aliases de compatibilité
-window.createTutorConversation = window.createNewSession;
+window.createTutorConversation = function(tutorKeyOrTitle, maybeTitle) {
+  if (tutorKeyOrTitle === 'tariq' || tutorKeyOrTitle === 'yasmine') {
+    return window.createNewSession(maybeTitle || "Salutations • Niveau A0", tutorKeyOrTitle);
+  }
+  return window.createNewSession(tutorKeyOrTitle || "Salutations • Niveau A0");
+};
 window.startNewConversation = window.createNewSession;
 
 window.loadSession = function(sessionId) {
@@ -2502,6 +2594,9 @@ window.loadSession = function(sessionId) {
   }
 
   window.updateChatTitleUI(session);
+  if (typeof window.syncCurrentTutorDisplay === 'function') {
+    try { window.syncCurrentTutorDisplay(); } catch(e){}
+  }
   window.toggleConversationDrawer(false);
 };
 window.loadConversation = window.loadSession;
@@ -2552,11 +2647,12 @@ window.addMessageToActiveConversation = window.addMessageToActiveSession;
 window.updateChatTitleUI = function(session) {
   const titleEl = document.getElementById("chatTitle");
   if (!titleEl) return;
-  const tutorId = session?.tutor || session?.tutorId || localStorage.getItem('selected_tutor') || 'yasmine';
-  const isYasmine = tutorId.toLowerCase().includes('yasmine');
-  const tutorName = isYasmine ? 'Yasmine' : 'Tariq';
-  const titleText = session?.title || "Discussion libre";
-  titleEl.innerHTML = `<span style="font-weight:700;">💬 ${tutorName}</span> · <span style="font-weight:400;opacity:0.9;">${titleText}</span>`;
+  const tutorId = (session?.tutor || session?.tutorId || localStorage.getItem('selected_tutor') || 'yasmine').toLowerCase();
+  const isTariq = tutorId.includes('tariq');
+  titleEl.innerText = isTariq ? "Tuteur libre • Tariq (Arabe)" : "Tuteur libre • Yasmine (Arabe)";
+  if (typeof window.syncCurrentTutorDisplay === 'function') {
+    try { window.syncCurrentTutorDisplay(); } catch(e){}
+  }
 };
 
 window.renameSession = function(sessionId, e) {
@@ -2753,7 +2849,7 @@ window.initTutorGreeting = function() {
     if (inp) {
       inp.dir = isAr ? "rtl" : "auto";
       inp.value = "";
-      inp.placeholder = "Posez votre question (ex: grammaire, vocabulaire, traduction…)";
+      inp.placeholder = "Répétez la phrase ou choisissez votre réponse…";
     }
     if (typeof stopTimer === "function") stopTimer();
     const timerEl = document.getElementById("timer");
@@ -2763,6 +2859,9 @@ window.initTutorGreeting = function() {
     if (typeof updateHF === "function") updateHF();
     if (typeof updateTutorSttUI === "function") updateTutorSttUI();
     if (typeof updateAvatar === "function") updateAvatar();
+    if (typeof window.syncCurrentTutorDisplay === "function") {
+      try { window.syncCurrentTutorDisplay(); } catch(e){}
+    }
 
     // Persistance des conversations : restaurer la discussion active ou en initialiser une
     let activeConv = window.getActiveConversation();
@@ -2881,10 +2980,112 @@ function escapeHtml(s) {
   return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+// Injection des boutons interactifs de réponse guidée (Chips)
+window.renderLessonChips = function(messageBubble, text) {
+  if (!messageBubble || !text) return;
+  if (messageBubble.querySelector('.tutor-lesson-chips')) return;
+
+  const optionsMatch = text.match(/OPTIONS:\s*\[(.*?)\]\s*\|\s*\[(.*?)\]/i);
+  let opt1 = '', opt2 = '';
+  if (optionsMatch && optionsMatch[1] && optionsMatch[2]) {
+    opt1 = optionsMatch[1].trim();
+    opt2 = optionsMatch[2].trim();
+  } else {
+    const after = text.split(/OPTIONS:/i)[1];
+    if (after) {
+      const all = [...after.matchAll(/\[(.*?)\]/g)].map(m => m[1].trim()).filter(Boolean);
+      if (all.length >= 2) { opt1 = all[0]; opt2 = all[1]; }
+    }
+  }
+
+  if (opt1 && opt2) {
+    const chipsContainer = document.createElement('div');
+    chipsContainer.className = 'tutor-lesson-chips';
+    chipsContainer.style.cssText = 'display: flex; gap: 8px; margin-top: 10px; margin-bottom: 4px; flex-wrap: wrap; width: 100%;';
+
+    [opt1, opt2].forEach(optText => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn-lesson-choice';
+      btn.style.cssText = 'background: #2563eb; color: #fff; border: none; padding: 10px 16px; border-radius: 20px; font-size: 14px; font-weight: 600; cursor: pointer; box-shadow: 0 2px 6px rgba(37,99,235,0.25); display: inline-flex; align-items: center; gap: 6px; transition: transform 0.15s, opacity 0.15s;';
+      btn.innerText = optText;
+
+      btn.onclick = (e) => {
+        if (e && e.preventDefault) e.preventDefault();
+        const arabicPart = optText.split('(')[0].replace(/^\[|\]$/g, '').trim();
+
+        if (typeof window.playTutorAudio === 'function') {
+          const curTutor = window.currentTutorKey || localStorage.getItem('selected_tutor') || 'yasmine';
+          window.playTutorAudio(arabicPart, curTutor);
+        }
+
+        const input = document.querySelector('#input, #chatInput, #userMessageInput, textarea');
+        if (input) {
+          input.value = arabicPart;
+          input.dispatchEvent(new Event('input', { bubbles: true }));
+          input.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+
+        if (typeof window.handleSend === 'function') {
+          window.handleSend();
+        } else {
+          const sendBtn = document.querySelector('#sendBtn, #btnSendMessage, .btn-send, button[type="submit"]');
+          if (sendBtn) sendBtn.click();
+        }
+      };
+      chipsContainer.appendChild(btn);
+    });
+
+    messageBubble.appendChild(chipsContainer);
+  }
+};
+
 // Formatage Pédagogique du Tuteur A0 (JSON structuré ou Triple Format)
 function formatTutorReply(rawText) {
   if (!rawText || typeof rawText !== 'string') return '';
   const text = rawText.trim();
+
+  // 1. Détection structure pédagogique guidée (ARABE:, PHONÉTIQUE:, TRADUCTION:, CONSIGNE:)
+  if (/ARABE\s*:/i.test(text)) {
+    const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+    let introLines = [];
+    let arLine = '';
+    let phoLine = '';
+    let frLine = '';
+    let consigneLine = '';
+
+    lines.forEach(l => {
+      if (/^ARABE\s*:/i.test(l)) {
+        arLine = l.replace(/^ARABE\s*:\s*/i, '').replace(/^\[|\]$/g, '').trim();
+      } else if (/^(?:PHON[ÉE]TIQUE|PHONETIC)\s*:/i.test(l)) {
+        phoLine = l.replace(/^(?:PHON[ÉE]TIQUE|PHONETIC)\s*:\s*/i, '').replace(/^\[|\]$/g, '').trim();
+      } else if (/^TRADUCTION\s*:/i.test(l)) {
+        frLine = l.replace(/^TRADUCTION\s*:\s*/i, '').replace(/^\[|\]$/g, '').trim();
+      } else if (/^CONSIGNE\s*:/i.test(l)) {
+        consigneLine = l.replace(/^CONSIGNE\s*:\s*/i, '').replace(/^\[|\]$/g, '').trim();
+      } else if (!/^OPTIONS\s*:/i.test(l)) {
+        if (!arLine) introLines.push(l);
+      }
+    });
+
+    let html = '';
+    if (introLines.length > 0) {
+      html += `<div class="lesson-intro-text" style="margin-bottom:8px;font-size:14px;color:#1e293b;">${escapeHtml(introLines.join(' '))}</div>`;
+    }
+    if (arLine) {
+      html += `<div class="arabic-display" dir="rtl" style="font-size:26px;font-weight:700;color:var(--accent,#2563eb);margin:8px 0;line-height:1.4;">${escapeHtml(arLine)}</div>`;
+    }
+    if (phoLine) {
+      html += `<div class="phonetic-display" dir="ltr" style="font-size:14px;color:#64748b;font-style:italic;margin-bottom:4px;">🗣️ ${escapeHtml(phoLine)}</div>`;
+    }
+    if (frLine) {
+      html += `<div class="translation-display" dir="ltr" style="font-size:14px;color:#334155;margin-bottom:8px;">🇫🇷 <strong>Sens :</strong> ${escapeHtml(frLine)}</div>`;
+    }
+    if (consigneLine) {
+      html += `<div class="prompt-display" dir="ltr" style="background:rgba(37,99,235,0.08);border-left:3px solid #2563eb;padding:8px 12px;border-radius:6px;font-size:13px;font-weight:600;color:#1e3a8a;margin:8px 0;">🎯 ${escapeHtml(consigneLine)}</div>`;
+    }
+    return html;
+  }
 
   // 1. Détection JSON structuré { arabic_text, phonetic, translation_fr, tutor_feedback, next_prompt }
   let jsonObj = null;
@@ -3071,6 +3272,9 @@ function appendMessage(role, text, skipSave) {
     }
 
     // Boutons de choix rapides en bas de bulle
+    if (typeof window.renderLessonChips === 'function') {
+      try { window.renderLessonChips(b, text); } catch(e){}
+    }
     const choices = parseChoicesFromText(text);
     if (choices.length > 0) {
       const choiceWrap = document.createElement("div");
@@ -3110,35 +3314,25 @@ async function sendToGemini(userMessage) {
   const isYasmine = tutorId.toLowerCase().includes('yasmine');
   const tutorName = isYasmine ? "Yasmine" : "Tariq";
 
-  const systemInstruction = `TU ES ${tutorName.toUpperCase()}, ${isYasmine ? "TUTRICE VOCALE ET PÉDAGOGIQUE BIENVEILLANTE" : "TUTEUR VOCAL ET PÉDAGOGIQUE DYNAMIQUE"} DE L'APPLICATION "PARLONS".
-TON RÔLE : ENSEIGNER L'ARABE STANDARD MODERNE (FUSHA) À UN DÉBUTANT COMPLET (NIVEAU A0).
+  const systemInstruction = `Tu es ${tutorName}, ${isYasmine ? "professeure" : "professeur"} d'arabe bienveillant mais très directif pour un élève FRANCOPHONE DÉBUTANT TOTAL.
+L'élève ne sait pas construire de phrases. Tu ne dois JAMAIS lui demander "De quoi veux-tu parler ?" ni le laisser sans guide.
 
---- RÈGLES STRICTES DE FORMATAGE (OBLIGATOIRES) ---
-1. TASHKĪL TOTAL : Tout mot ou texte arabe produit DOIT IMPÉRATIVEMENT comporter l'intégralité de ses voyelles courtes (Fatḥa, Kasra, Ḍamma, Sukūn, Shadda). ZÉRO mot non vocalisé toléré.
-2. NEUTRALISATION FINALE : Utilise le sukūn (waqf) sur la dernière lettre de chaque groupe de souffle pour éviter la surcharge des cas grammaticaux (I'rāb).
-3. TOUJOURS FOURNIR LE TRIPLE FORMAT dans tes réponses textuelles :
-   - Ligne 1 : Arabe vocalisé
-   - Ligne 2 : Phonétique latine simplifiée
-   - Ligne 3 : Traduction française concise
+TA MÉTHODE PÉDAGOGIQUE STRICTE :
+1. Tu prends TOUJOURS l'initiative. C'est toi qui diriges la leçon pas à pas.
+2. Tu enseignes UN SEUL élément concret à la fois (saluer, dire comment on va, commander à boire, etc.).
+3. À CHAQUE tour, tu donnes le modèle, sa prononciation, son sens, puis tu demandes à l'élève de répéter ou de répondre parmi 2 choix évidents.
+4. Tu valides chaleureusement ce qu'il dit et tu enchaînes immédiatement sur l'étape suivante de la leçon.
 
---- COMPORTEMENT PÉDAGOGIQUE ---
-- Périmètre lexical : Reste STRICTEMENT dans le vocabulaire et les structures du niveau A0 (Identification & États, phrases nominales simples, pronoms أنا, أنتَ, أنتِ, négation لَسْتُ, question هَلْ). N'invente pas de constructions complexes, de duel ni de pluriels irréguliers.
-- Feedback immédiat et bienveillant : En cas d'erreur de l'utilisateur, isole précisément le mot fautif, réaffiche sa forme correcte vocalisée, sa phonétique et demande une seule répétition.
-- Réponse brève : Ne fais aucun cours magistral théorique. Focalise 100 % du temps sur l'écoute, la répétition et l'assemblage de briques de phrases.
+STRUCTURE OBLIGATOIRE DE TOUTES TES RÉPONSES (SANS EXCEPTION) :
 
---- STRUCTURE DE SORTIE JSON OU TRIPLE FORMAT ---
-Pour chaque tour, réponds au format JSON suivant ou en triple format direct :
-{
-  "arabic_text": "Texte arabe entièrement vocalisé",
-  "phonetic": "Transcription latine fluide",
-  "translation_fr": "Traduction fidèle en français",
-  "tutor_feedback": "Correction courte ou encouragement (si applicable)",
-  "next_prompt": "Consigne précise pour l'utilisateur"
-}
+[Message court en français pour expliquer la situation ou valider l'étape]
 
-Termine TOUJOURS en proposant exactement 2 choix de réponses sous forme :
-[Choix 1: Réponse en arabe (traduction)] | [Choix 2: Autre réponse en arabe (traduction)]
-`;
+ARABE: [Une seule courte phrase vocalisée avec tashkeel]
+PHONÉTIQUE: [Prononciation en lettres françaises simples]
+TRADUCTION: [Sens en français]
+
+CONSIGNE: [Ce que l'élève doit faire maintenant, ex: "Répète après moi" ou "Choisis ta réponse"]
+OPTIONS: [Choix A (Phonétique) - Sens] | [Choix B (Phonétique) - Sens]`;
 
   // 2. Appel direct et dynamique à Gemini avec gemini-3.5-flash-lite
   const storedModel = localStorage.getItem('gemini_chat_model') || 'gemini-3.5-flash-lite';
@@ -5558,6 +5752,9 @@ function startTutor(){
   renderTargets();
   renderGoals();
   show("chat");
+  if (typeof window.syncCurrentTutorDisplay === "function") {
+    try { window.syncCurrentTutorDisplay(); } catch(e){}
+  }
   let activeConv = (typeof window.getActiveConversation === 'function') ? window.getActiveConversation() : null;
   if (activeConv) {
     window.loadConversation(activeConv.id, false);
@@ -5639,6 +5836,9 @@ function bubbleT(d){
   tools.append(say,trad);
   b.append(tools);
 
+  if (typeof window.renderLessonChips === 'function') {
+    try { window.renderLessonChips(b, d.reply); } catch(e){}
+  }
   const choices = (typeof parseChoicesFromText === 'function') ? parseChoicesFromText(d.reply) : [];
   if (choices.length > 0) {
     const choiceWrap = el("div", "quick-choices-row");
