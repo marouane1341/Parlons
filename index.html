@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="fr">
 <head>
 <meta charset= UTF-8>
@@ -1146,10 +1146,109 @@ if (typeof window.selectLanguage !== 'function') {
 }
 var selectLanguage = window.selectLanguage;
 
-if (typeof window.chooseTutor !== 'function') {
-  window.chooseTutor = function(tutor) { console.log('chooseTutor:', tutor); };
-}
+window.updateTutorUI = function(tutorKey) {
+  try {
+    const normalizedKey = (tutorKey || localStorage.getItem('selected_tutor') || 'yasmine').toLowerCase();
+    const isTariq = normalizedKey === 'tariq';
+    window.currentTutorKey = isTariq ? 'tariq' : 'yasmine';
+
+    const tutorTitle = document.querySelector('#tutorHeaderTitle, .tutor-name, [class*="tutor-title"]');
+    if (tutorTitle) {
+      tutorTitle.innerText = isTariq ? "Tuteur libre • Tariq (Arabe)" : "Tuteur libre • Yasmine (Arabe)";
+    }
+
+    const statusBadge = document.querySelector('#tutorStatusBadge, .tutor-badge, [class*="tutor-badge"]');
+    if (statusBadge) {
+      statusBadge.innerText = isTariq ? "● Tariq prêt" : "● Yasmine prête";
+    }
+
+    const avatarImg = document.querySelector('#tutorAvatarImg, [class*="tutor-avatar-img"]');
+    if (avatarImg) {
+      avatarImg.src = isTariq ? "assets/tariq.png" : "assets/yasmine.png";
+      avatarImg.onerror = function() { this.onerror = null; this.src = isTariq ? "tariq.png" : "yasmine.png"; };
+      avatarImg.alt = isTariq ? "Portrait de Tariq" : "Portrait de Yasmine";
+    }
+
+    const sealMedallion = document.getElementById('sealMedallion');
+    if (sealMedallion) {
+      sealMedallion.classList.toggle('tutor-tariq', isTariq);
+    }
+
+    const cardTariq = document.querySelector('.card-tariq, #tutorCardTariq');
+    const cardYasmine = document.querySelector('.card-yasmine, #tutorCardYasmine');
+    const btnTariq = document.querySelector('#btnSelectTariq');
+    const btnYasmine = document.querySelector('#btnSelectYasmine');
+    const activeTutorChip = document.querySelector('#activeTutorChip, .tutor-active-badge');
+
+    if (cardTariq) cardTariq.classList.toggle('selected', isTariq);
+    if (cardYasmine) cardYasmine.classList.toggle('selected', !isTariq);
+    if (btnTariq) {
+      btnTariq.textContent = isTariq ? '✓ Sélectionné' : 'Sélectionner';
+      btnTariq.style.background = isTariq ? '#2563eb' : '';
+      btnTariq.style.color = isTariq ? '#fff' : '';
+    }
+    if (btnYasmine) {
+      btnYasmine.textContent = !isTariq ? '✓ Sélectionnée' : 'Sélectionner';
+      btnYasmine.style.background = !isTariq ? '#2563eb' : '';
+      btnYasmine.style.color = !isTariq ? '#fff' : '';
+    }
+    if (activeTutorChip) {
+      activeTutorChip.textContent = isTariq ? 'Tariq actif' : 'Yasmine active';
+    }
+
+    const chatTitle = document.getElementById('chatTitle');
+    if (chatTitle) {
+      const session = typeof window.getActiveSession === 'function' ? window.getActiveSession() : null;
+      const titleText = session?.title || "Discussion libre";
+      const tutorName = isTariq ? "Tariq" : "Yasmine";
+      chatTitle.innerHTML = `<span style="font-weight:700;">💬 ${tutorName}</span> · <span style="font-weight:400;opacity:0.9;">${titleText}</span>`;
+    }
+
+    const avatarStateText = document.getElementById('avatarStateText');
+    if (avatarStateText) {
+      avatarStateText.textContent = isTariq ? "● Tariq prêt" : "● Yasmine prête";
+    }
+  } catch(e) {
+    console.warn("updateTutorUI head error:", e);
+  }
+};
+
+window.selectTutor = function(tutorKey) {
+  try {
+    const normalizedKey = (tutorKey || 'yasmine').toLowerCase();
+    localStorage.setItem('selected_tutor', normalizedKey);
+    localStorage.setItem('parlons.tutor', normalizedKey);
+    window.currentTutorKey = normalizedKey;
+
+    if (typeof window.stopAllAudios === 'function') {
+      try { window.stopAllAudios(); } catch(e){}
+    }
+    if (typeof window.stopVoiceRecording === 'function') {
+      try { window.stopVoiceRecording(); } catch(e){}
+    }
+
+    if (window.activeSessionId && Array.isArray(window.tutorSessions)) {
+      const s = window.tutorSessions.find(x => x.id === window.activeSessionId);
+      if (s) {
+        s.tutor = normalizedKey;
+        s.tutorId = normalizedKey;
+        if (typeof window.saveSessions === 'function') window.saveSessions();
+      }
+    }
+
+    window.updateTutorUI(normalizedKey);
+    if (typeof updateAvatar === 'function') {
+      try { updateAvatar(); } catch(e){}
+    }
+  } catch(e) {
+    console.error("selectTutor head error:", e);
+  }
+};
+window.chooseTutor = window.selectTutor;
+window.setActiveTutor = window.selectTutor;
 var chooseTutor = window.chooseTutor;
+var selectTutor = window.selectTutor;
+var setActiveTutor = window.setActiveTutor;
 
 if (typeof window.toggleMic !== 'function') {
   window.toggleMic = function() { console.log('toggleMic'); };
@@ -2265,41 +2364,42 @@ window.sendMessageToTutor = function(text) {
   if (typeof window.sendToGemini === 'function') window.sendToGemini(finalText);
 };
 
-window.chooseTutor = function(tutor) {
+window.selectTutor = function(tutor) {
   try {
-    localStorage.setItem('selected_tutor', tutor);
-    localStorage.setItem('parlons.tutor', tutor);
-  } catch(e){}
-  
-  const btnY = document.getElementById('btnSelectYasmine') || document.getElementById('selectYasmineBtn');
-  const btnT = document.getElementById('btnSelectTariq') || document.getElementById('selectTariqBtn');
-  const cardY = document.querySelector('.card-yasmine') || document.getElementById('tutorCardYasmine');
-  const cardT = document.querySelector('.card-tariq') || document.getElementById('tutorCardTariq');
-  const badge = document.querySelector('.tutor-active-badge') || document.getElementById('activeTutorChip');
+    const normalizedKey = (tutor || 'yasmine').toLowerCase();
+    localStorage.setItem('selected_tutor', normalizedKey);
+    localStorage.setItem('parlons.tutor', normalizedKey);
+    window.currentTutorKey = normalizedKey;
 
-  if (tutor === 'tariq') {
-    if (btnT) { btnT.textContent = '✓ Sélectionné'; btnT.style.background = '#2563eb'; btnT.style.color = '#fff'; }
-    if (btnY) { btnY.textContent = 'Sélectionner'; btnY.style.background = ''; btnY.style.color = ''; }
-    if (cardT) { cardT.classList.add('selected', 'active'); }
-    if (cardY) { cardY.classList.remove('selected', 'active'); }
-    if (badge) badge.textContent = 'Tariq actif';
-  } else {
-    if (btnY) { btnY.textContent = '✓ Sélectionnée'; btnY.style.background = '#2563eb'; btnY.style.color = '#fff'; }
-    if (btnT) { btnT.textContent = 'Sélectionner'; btnT.style.background = ''; btnT.style.color = ''; }
-    if (cardY) { cardY.classList.add('selected', 'active'); }
-    if (cardT) { cardT.classList.remove('selected', 'active'); }
-    if (badge) badge.textContent = 'Yasmine active';
-  }
+    if (typeof window.stopAllAudios === 'function') {
+      try { window.stopAllAudios(); } catch(e){}
+    }
+    if (typeof window.stopVoiceRecording === 'function') {
+      try { window.stopVoiceRecording(); } catch(e){}
+    }
 
-  if (typeof updateAvatar === "function") {
-    try { updateAvatar(); } catch(e){}
-  }
-  if (typeof populateTutorVoices === "function") {
-    try { populateTutorVoices(); } catch(e){}
+    if (window.activeSessionId && Array.isArray(window.tutorSessions)) {
+      const s = window.tutorSessions.find(x => x.id === window.activeSessionId);
+      if (s) {
+        s.tutor = normalizedKey;
+        s.tutorId = normalizedKey;
+        if (typeof window.saveSessions === 'function') window.saveSessions();
+      }
+    }
+
+    window.updateTutorUI(normalizedKey);
+    if (typeof updateAvatar === "function") {
+      try { updateAvatar(); } catch(e){}
+    }
+    if (typeof populateTutorVoices === "function") {
+      try { populateTutorVoices(); } catch(e){}
+    }
+  } catch(e) {
+    console.error("selectTutor error:", e);
   }
 };
-window.selectTutor = window.chooseTutor;
-window.setActiveTutor = window.chooseTutor;
+window.chooseTutor = window.selectTutor;
+window.setActiveTutor = window.selectTutor;
 
 // Initialiser l'état au chargement
 if (document.readyState === 'loading') {
@@ -2381,9 +2481,14 @@ window.loadSession = function(sessionId) {
   const session = window.tutorSessions.find(s => s.id === sessionId);
   if (!session) return;
 
-  const activeTutor = session.tutor || session.tutorId || 'yasmine';
+  const userChosenTutor = localStorage.getItem('selected_tutor') || localStorage.getItem('parlons.tutor');
+  const activeTutor = userChosenTutor || session.tutor || session.tutorId || 'yasmine';
+  session.tutor = activeTutor;
+  session.tutorId = activeTutor;
   localStorage.setItem('selected_tutor', activeTutor);
-  if (typeof window.chooseTutor === 'function') {
+  if (typeof window.selectTutor === 'function') {
+    window.selectTutor(activeTutor);
+  } else if (typeof window.chooseTutor === 'function') {
     window.chooseTutor(activeTutor);
   }
 
@@ -3001,7 +3106,7 @@ async function sendToGemini(userMessage) {
   }
 
   // 1. Récupération robuste du tuteur et structure pédagogique stricte A0 Fusha
-  const tutorId = localStorage.getItem('selected_tutor') || localStorage.getItem('parlons.tutor') || 'tariq';
+  const tutorId = localStorage.getItem('selected_tutor') || localStorage.getItem('parlons.tutor') || window.currentTutorKey || 'yasmine';
   const isYasmine = tutorId.toLowerCase().includes('yasmine');
   const tutorName = isYasmine ? "Yasmine" : "Tariq";
 
@@ -4707,10 +4812,8 @@ function updateAvatar(){
       const isTariq=(activeTutor.id==="tariq");
       const targetSrc=isTariq?photoTariq:photoYasmine;
       const fallbackSrc=isTariq?"tariq.png":"yasmine.png";
-      if(avatarImg.getAttribute("src")!==targetSrc && avatarImg.getAttribute("src")!==fallbackSrc){
-        avatarImg.onerror=function(){ this.onerror=null; this.src=fallbackSrc; };
-        avatarImg.src=targetSrc;
-      }
+      avatarImg.onerror=function(){ this.onerror=null; this.src=fallbackSrc; };
+      avatarImg.src=targetSrc;
       avatarImg.alt="Portrait de "+(activeTutor.name||"Tuteur");
       avatarImg.style.width="100%";
       avatarImg.style.height="100%";
