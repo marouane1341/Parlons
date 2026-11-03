@@ -1033,6 +1033,7 @@ audio,
 }
 </style>
 <script src="lessonsData.js"></script>
+<script src="readingWorkshop.js"></script>
 <script>
   window.startLesson = function(lessonId) {
     console.log('[PARLONS] Démarrage de la leçon guidée :', lessonId);
@@ -1107,7 +1108,7 @@ window.closeChat = function() {
 };
 var closeChat = window.closeChat;
 
-// SÃ©curisation globale des actions d'interface courantes
+// Sécurisation globale des actions d'interface courantes
 if (typeof window.startLesson !== 'function') {
   window.startLesson = function(id) {
     console.log('[PARLONS] startLesson (fallback):', id);
@@ -1530,14 +1531,19 @@ var handleSend = window.handleSend;
     <!-- Onglet 1 : Leçons & Parcours (Roadmap) -->
     <div id="lessonsScreen" data-view="lessons" class="tab-view tab-content view active">
       <div class="lessons-roadmap-container" style="padding: 16px; padding-bottom: 90px;">
-        <div class="roadmap-header">
-          <h2 style="font-size: 1.25rem; font-weight: 700;">Parcours d'apprentissage</h2>
-          <p style="color: #64748b; font-size: 0.875rem;">Validez chaque étape à l'oral pour débloquer la suite.</p>
+        <div class="roadmap-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+          <div>
+            <h2 style="font-size: 1.25rem; font-weight: 700;">Parcours d'apprentissage</h2>
+            <p style="color: #64748b; font-size: 0.875rem;">Validez chaque étape à l'oral pour débloquer la suite.</p>
+          </div>
+          <button type="button" onclick="window.openReadingWorkshop()" style="background: #eef2ff; color: #4338ca; border: 1px solid #c7d2fe; padding: 6px 12px; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer;">
+            📖 Atelier Lecture
+          </button>
         </div>
 
         <div class="roadmap-path" style="display: flex; flex-direction: column; gap: 16px; margin-top: 20px;">
           <!-- Étape 1 : Débloquée par défaut -->
-          <div class="lesson-step active" onclick="if(typeof window.startLesson === 'function') { window.startLesson(1); } else { console.warn('startLesson pas encore prÃªt'); }" style="cursor: pointer; background: white; border: 2px solid #2563eb; border-radius: 16px; padding: 16px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+          <div class="lesson-step active" onclick="if(typeof window.startLesson === 'function') { window.startLesson(1); } else { console.warn('startLesson pas encore prêt'); }" style="cursor: pointer; background: white; border: 2px solid #2563eb; border-radius: 16px; padding: 16px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
             <div style="display: flex; align-items: center; gap: 12px;">
               <div style="width: 44px; height: 44px; border-radius: 50%; background: #2563eb; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold;">1</div>
               <div>
@@ -1549,7 +1555,7 @@ var handleSend = window.handleSend;
           </div>
 
           <!-- Étape 2 -->
-          <div class="lesson-step" onclick="if(typeof window.startLesson === 'function') { window.startLesson(2); } else { console.warn('startLesson pas encore prÃªt'); }" style="cursor: pointer; background: white; border: 1px solid #e2e8f0; border-radius: 16px; padding: 16px; display: flex; align-items: center; justify-content: space-between;">
+          <div class="lesson-step" onclick="if(typeof window.startLesson === 'function') { window.startLesson(2); } else { console.warn('startLesson pas encore prêt'); }" style="cursor: pointer; background: white; border: 1px solid #e2e8f0; border-radius: 16px; padding: 16px; display: flex; align-items: center; justify-content: space-between;">
             <div style="display: flex; align-items: center; gap: 12px;">
               <div style="width: 44px; height: 44px; border-radius: 50%; background: #f1f5f9; color: #64748b; display: flex; align-items: center; justify-content: center; font-weight: bold;">2</div>
               <div>
@@ -1561,7 +1567,7 @@ var handleSend = window.handleSend;
           </div>
 
           <!-- Étape 3 -->
-          <div class="lesson-step" onclick="if(typeof window.startLesson === 'function') { window.startLesson(3); } else { console.warn('startLesson pas encore prÃªt'); }" style="cursor: pointer; background: white; border: 1px solid #e2e8f0; border-radius: 16px; padding: 16px; display: flex; align-items: center; justify-content: space-between;">
+          <div class="lesson-step" onclick="if(typeof window.startLesson === 'function') { window.startLesson(3); } else { console.warn('startLesson pas encore prêt'); }" style="cursor: pointer; background: white; border: 1px solid #e2e8f0; border-radius: 16px; padding: 16px; display: flex; align-items: center; justify-content: space-between;">
             <div style="display: flex; align-items: center; gap: 12px;">
               <div style="width: 44px; height: 44px; border-radius: 50%; background: #f1f5f9; color: #64748b; display: flex; align-items: center; justify-content: center; font-weight: bold;">3</div>
               <div>
@@ -1829,6 +1835,7 @@ var handleSend = window.handleSend;
           <span class="timer-pill" id="timer" hidden></span>
         </div>
         <div style="display:flex;align-items:center;gap:6px">
+          <button class="icon-circle-btn" id="readingWorkshopChatBtn" onclick="window.openReadingWorkshop()" aria-label="Atelier Lecture" title="📖 Atelier Lecture" style="font-size:14px;cursor:pointer;">📖</button>
           <button class="icon-circle-btn" id="newChatTopBtn" onclick="window.createNewSession()" aria-label="Nouvelle discussion" title="＋ Nouvelle discussion" style="font-size:15px;font-weight:700;cursor:pointer;">＋</button>
           <button class="icon-circle-btn" id="chatHistoryBtn" onclick="window.toggleConversationDrawer()" aria-label="Mes sujets" title="🗂️ Mes sujets" style="font-size:14px;cursor:pointer;">🗂️</button>
           <button class="icon-circle-btn" id="chatCfgBtn" aria-label="Parametres" title="Parametres">&#9881;&#65039;</button>
@@ -1927,6 +1934,50 @@ var handleSend = window.handleSend;
   </section>
 
   <section id="recap" class="col" style="gap:16px" hidden></section>
+
+  <!-- Atelier de Lecture (Fusha) - Vue isolée -->
+  <section id="readingWorkshopSection" class="app-view tab-view" style="display: none; padding: 16px; max-width: 600px; margin: 0 auto;">
+    <!-- En-tête de l'atelier -->
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
+      <button type="button" class="btn-icon" onclick="window.closeReadingWorkshop()" style="background: none; border: none; font-size: 20px; cursor: pointer;">✕</button>
+      <h3 style="margin: 0; font-size: 18px; font-weight: 600;">Atelier de Lecture (Fusha)</h3>
+      <div style="width: 24px;"></div>
+    </div>
+
+    <!-- Carte du texte cible -->
+    <div style="background: #ffffff; border-radius: 16px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 16px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+        <span id="readingLevelBadge" style="font-size: 12px; background: #e0e7ff; color: #3730a3; padding: 4px 8px; border-radius: 8px; font-weight: 600;">Texte 1 • Débutant</span>
+        <button type="button" onclick="window.playTargetReadingAudio()" style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; padding: 6px 10px; font-size: 13px; cursor: pointer;">
+          🔊 Écouter le modèle
+        </button>
+      </div>
+
+      <!-- Zone de texte arabe aérée pour lisibilité maximale -->
+      <div id="targetReadingText" style="direction: rtl; text-align: right; font-size: 28px; line-height: 2.2; font-family: 'Amiri', 'Scheherazade New', serif; color: #1e293b; margin: 16px 0; word-spacing: 4px;">
+        أَنَا أَتَكَلَّمُ اللُّغَةَ الْعَرَبِيَّةَ بِهُدُوءٍ وَوُضُوحٍ.
+      </div>
+
+      <div id="targetReadingTranslation" style="font-size: 14px; color: #64748b; font-style: italic; border-top: 1px solid #f1f5f9; padding-top: 10px;">
+        « Je parle la langue arabe calmement et avec clarté. »
+      </div>
+    </div>
+
+    <!-- Zone de retour en direct et feedback -->
+    <div id="readingFeedbackCard" style="display: none; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 14px; padding: 14px; margin-bottom: 16px;">
+      <div id="readingScoreHeader" style="font-weight: 600; font-size: 15px; margin-bottom: 6px;"></div>
+      <div id="readingComparisonView" style="direction: rtl; text-align: right; font-size: 22px; line-height: 2; margin-bottom: 8px;"></div>
+      <div id="readingAdviceText" style="font-size: 14px; color: #334155;"></div>
+    </div>
+
+    <!-- Barre d'action basse pour l'enregistrement -->
+    <div style="display: flex; flex-direction: column; align-items: center; gap: 10px; margin-top: 20px;">
+      <button type="button" id="btnRecordReading" onclick="window.toggleReadingRecording()" style="width: 72px; height: 72px; border-radius: 50%; background: #2563eb; color: #ffffff; border: none; font-size: 28px; cursor: pointer; box-shadow: 0 4px 14px rgba(37,99,235,0.4); display: flex; align-items: center; justify-content: center;">
+        🎙️
+      </button>
+      <span id="readingStatusLabel" style="font-size: 13px; color: #64748b;">Touchez pour commencer votre lecture</span>
+    </div>
+  </section>
 
   <!-- Barre de navigation inferieure fixe (4 onglets natifs) -->
   <nav id="bottomNav" class="bottom-nav" aria-label="Navigation principale">
