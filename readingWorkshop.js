@@ -26,46 +26,68 @@ window.stripTashkeel = function(text) {
 };
 
 window.openReadingWorkshop = function() {
-  const views = document.querySelectorAll('.app-view, section[id$="Section"], #home, #chatScreen, .tab-view, .tab-content, .view');
-  views.forEach(v => {
-    if (v && v.id !== 'readingWorkshopSection' && v.id !== 'app' && v.id !== 'body') {
+  const readingSection = document.getElementById('readingWorkshopSection');
+  if (!readingSection) {
+    console.error("Erreur : #readingWorkshopSection introuvable dans le DOM.");
+    return;
+  }
+
+  // S'assurer que le conteneur home est affiché
+  const home = document.getElementById('home');
+  if (home) {
+    home.style.display = 'flex';
+    home.hidden = false;
+    home.classList.add('active');
+    home.style.pointerEvents = 'auto';
+  }
+
+  // Masquer les autres sections principales et onglets
+  const mainViews = document.querySelectorAll('.app-view, #lessonsView, #lessonsScreen, #tutorSection, #tutorScreen, #roleplaySection, #rolesScreen, #profileSection, #profileScreen, #chatScreen, .tab-view, .tab-content, .view');
+  mainViews.forEach(v => {
+    if (v && v.id !== 'readingWorkshopSection' && v.id !== 'home' && v.id !== 'app' && v.id !== 'bottomNav') {
       v.style.display = 'none';
       v.style.pointerEvents = 'none';
     }
   });
 
-  const section = document.getElementById('readingWorkshopSection');
-  if (section) {
-    section.style.display = 'block';
-    section.style.pointerEvents = 'auto';
-    window.loadReadingText(window.currentReadingIndex || 0);
-  }
+  // Afficher la section lecture
+  readingSection.style.display = 'block';
+  readingSection.style.pointerEvents = 'auto';
+  readingSection.hidden = false;
+
+  // Charger le texte
+  window.loadReadingText(window.currentReadingIndex || 0);
 };
 
 window.closeReadingWorkshop = function() {
-  if (window.isReadingRecording) window.toggleReadingRecording();
-  const section = document.getElementById('readingWorkshopSection');
-  if (section) {
-    section.style.display = 'none';
-    section.style.pointerEvents = 'none';
+  if (window.isReadingRecording && typeof window.toggleReadingRecording === 'function') {
+    window.toggleReadingRecording();
   }
-  // Réactive l'écran principal sans recharger la page
-  const home = document.getElementById('home') || document.getElementById('tutorSection') || document.querySelector('.main-view');
+  const readingSection = document.getElementById('readingWorkshopSection');
+  if (readingSection) {
+    readingSection.style.display = 'none';
+    readingSection.style.pointerEvents = 'none';
+  }
+
+  // Réafficher l'onglet actif (Leçons par défaut)
+  const home = document.getElementById('home');
   if (home) {
     home.style.display = 'flex';
-    home.style.pointerEvents = 'auto';
+    home.hidden = false;
     home.classList.add('active');
+    home.style.pointerEvents = 'auto';
   }
-  const lessons = document.getElementById('lessonsScreen');
-  if (lessons) {
-    lessons.style.display = 'block';
-    lessons.style.pointerEvents = 'auto';
-    lessons.classList.add('active');
-  }
-  const bottomNav = document.getElementById('bottomNav');
-  if (bottomNav) {
-    bottomNav.style.display = 'flex';
-    bottomNav.style.pointerEvents = 'auto';
+
+  const lessonsView = document.getElementById('lessonsScreen') || document.getElementById('lessonsView') || document.querySelector('.lessons-container, [id*="lesson"]');
+  if (lessonsView) {
+    lessonsView.style.display = 'block';
+    lessonsView.style.pointerEvents = 'auto';
+    lessonsView.classList.add('active');
+    lessonsView.hidden = false;
+  } else {
+    // Fallback : déclencher le clic sur le premier onglet du menu bas
+    const firstTab = document.querySelector('.bottom-nav button, .nav-item');
+    if (firstTab) firstTab.click();
   }
 };
 

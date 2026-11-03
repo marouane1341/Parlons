@@ -1798,6 +1798,52 @@ var handleSend = window.handleSend;
         </div>
       </div>
     </div>
+
+    <!-- Vue dédiée : Atelier Lecture -->
+    <section id="readingWorkshopSection" class="app-view tab-view" style="display: none; padding: 16px; max-width: 600px; margin: 0 auto; min-height: 80vh;">
+      <!-- Barre supérieure avec bouton retour -->
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
+        <button type="button" onclick="window.closeReadingWorkshop()" style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; padding: 6px 12px; font-size: 14px; font-weight: 600; cursor: pointer;">
+          ← Retour
+        </button>
+        <h3 style="margin: 0; font-size: 17px; font-weight: 700; color: #0f172a;">Atelier Lecture (Fusha)</h3>
+        <div style="width: 60px;"></div>
+      </div>
+
+      <!-- Carte du texte à lire -->
+      <div style="background: #ffffff; border-radius: 16px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; margin-bottom: 16px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+          <span id="readingLevelBadge" style="font-size: 12px; background: #e0e7ff; color: #3730a3; padding: 4px 10px; border-radius: 20px; font-weight: 600;">Texte 1 • Débutant</span>
+          <button type="button" onclick="window.playTargetReadingAudio()" style="background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; border-radius: 8px; padding: 6px 12px; font-size: 13px; font-weight: 600; cursor: pointer;">
+            🔊 Écouter
+          </button>
+        </div>
+
+        <!-- Texte arabe grand format bien aéré -->
+        <div id="targetReadingText" style="direction: rtl; text-align: right; font-size: 28px; line-height: 2.2; font-family: 'Amiri', 'Scheherazade New', serif; color: #0f172a; margin: 16px 0; word-spacing: 6px;">
+          أَنَا أَتَكَلَّمُ اللُّغَةَ الْعَرَبِيَّةَ بِهُدُوءٍ وَوُضُوحٍ.
+        </div>
+
+        <div id="targetReadingTranslation" style="font-size: 14px; color: #64748b; font-style: italic; border-top: 1px solid #f1f5f9; padding-top: 12px;">
+          « Je parle la langue arabe calmement et avec clarté. »
+        </div>
+      </div>
+
+      <!-- Carte de résultat / feedback -->
+      <div id="readingFeedbackCard" style="display: none; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 14px; padding: 16px; margin-bottom: 16px;">
+        <div id="readingScoreHeader" style="font-weight: 700; font-size: 15px; margin-bottom: 8px;"></div>
+        <div id="readingComparisonView" style="direction: rtl; text-align: right; font-size: 22px; line-height: 2; margin-bottom: 10px;"></div>
+        <div id="readingAdviceText" style="font-size: 14px; color: #334155; line-height: 1.5;"></div>
+      </div>
+
+      <!-- Bouton micro de lecture -->
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 12px; margin-top: 24px;">
+        <button type="button" id="btnRecordReading" onclick="window.toggleReadingRecording()" style="width: 72px; height: 72px; border-radius: 50%; background: #2563eb; color: #ffffff; border: none; font-size: 28px; cursor: pointer; box-shadow: 0 4px 14px rgba(37,99,235,0.35); display: flex; align-items: center; justify-content: center;">
+          🎙️
+        </button>
+        <span id="readingStatusLabel" style="font-size: 13px; color: #64748b;">Touchez le micro pour lire le texte à voix haute</span>
+      </div>
+    </section>
   </section>
 
     <section id="chatScreen" class="chat-immersive conversation-view" data-view="chat" hidden>
@@ -1934,50 +1980,6 @@ var handleSend = window.handleSend;
   </section>
 
   <section id="recap" class="col" style="gap:16px" hidden></section>
-
-  <!-- Atelier de Lecture (Fusha) - Vue isolée -->
-  <section id="readingWorkshopSection" class="app-view tab-view" style="display: none; padding: 16px; max-width: 600px; margin: 0 auto;">
-    <!-- En-tête de l'atelier -->
-    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
-      <button type="button" class="btn-icon" onclick="window.closeReadingWorkshop()" style="background: none; border: none; font-size: 20px; cursor: pointer;">✕</button>
-      <h3 style="margin: 0; font-size: 18px; font-weight: 600;">Atelier de Lecture (Fusha)</h3>
-      <div style="width: 24px;"></div>
-    </div>
-
-    <!-- Carte du texte cible -->
-    <div style="background: #ffffff; border-radius: 16px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 16px;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-        <span id="readingLevelBadge" style="font-size: 12px; background: #e0e7ff; color: #3730a3; padding: 4px 8px; border-radius: 8px; font-weight: 600;">Texte 1 • Débutant</span>
-        <button type="button" onclick="window.playTargetReadingAudio()" style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; padding: 6px 10px; font-size: 13px; cursor: pointer;">
-          🔊 Écouter le modèle
-        </button>
-      </div>
-
-      <!-- Zone de texte arabe aérée pour lisibilité maximale -->
-      <div id="targetReadingText" style="direction: rtl; text-align: right; font-size: 28px; line-height: 2.2; font-family: 'Amiri', 'Scheherazade New', serif; color: #1e293b; margin: 16px 0; word-spacing: 4px;">
-        أَنَا أَتَكَلَّمُ اللُّغَةَ الْعَرَبِيَّةَ بِهُدُوءٍ وَوُضُوحٍ.
-      </div>
-
-      <div id="targetReadingTranslation" style="font-size: 14px; color: #64748b; font-style: italic; border-top: 1px solid #f1f5f9; padding-top: 10px;">
-        « Je parle la langue arabe calmement et avec clarté. »
-      </div>
-    </div>
-
-    <!-- Zone de retour en direct et feedback -->
-    <div id="readingFeedbackCard" style="display: none; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 14px; padding: 14px; margin-bottom: 16px;">
-      <div id="readingScoreHeader" style="font-weight: 600; font-size: 15px; margin-bottom: 6px;"></div>
-      <div id="readingComparisonView" style="direction: rtl; text-align: right; font-size: 22px; line-height: 2; margin-bottom: 8px;"></div>
-      <div id="readingAdviceText" style="font-size: 14px; color: #334155;"></div>
-    </div>
-
-    <!-- Barre d'action basse pour l'enregistrement -->
-    <div style="display: flex; flex-direction: column; align-items: center; gap: 10px; margin-top: 20px;">
-      <button type="button" id="btnRecordReading" onclick="window.toggleReadingRecording()" style="width: 72px; height: 72px; border-radius: 50%; background: #2563eb; color: #ffffff; border: none; font-size: 28px; cursor: pointer; box-shadow: 0 4px 14px rgba(37,99,235,0.4); display: flex; align-items: center; justify-content: center;">
-        🎙️
-      </button>
-      <span id="readingStatusLabel" style="font-size: 13px; color: #64748b;">Touchez pour commencer votre lecture</span>
-    </div>
-  </section>
 
   <!-- Barre de navigation inferieure fixe (4 onglets natifs) -->
   <nav id="bottomNav" class="bottom-nav" aria-label="Navigation principale">
@@ -7240,5 +7242,6 @@ if ('serviceWorker' in navigator) {
 }
 })();
 </script>
+<script src="readingWorkshop.js"></script>
 </body>
 </html>
