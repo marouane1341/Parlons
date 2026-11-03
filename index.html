@@ -1032,10 +1032,15 @@ audio,
   box-shadow: 0 4px 16px rgba(27, 107, 138, 0.15);
 }
 </style>
+<script src="lessonsData.js"></script>
 <script>
   window.startLesson = function(lessonId) {
-    console.log('[PARLONS] DÃ©marrage de la leÃ§on :', lessonId);
+    console.log('[PARLONS] Démarrage de la leçon guidée :', lessonId);
     try {
+      if (typeof window.switchLearningMode === 'function') {
+        window.switchLearningMode('parcours');
+        return;
+      }
       const pathView = document.getElementById('path-view') || document.querySelector('.path-container') || document.getElementById('lessons-container') || document.getElementById('lessonsScreen');
       if (pathView) {
         pathView.style.display = 'none';
@@ -1294,6 +1299,197 @@ window.syncCurrentTutorDisplay = function() {
   const seal = document.getElementById('sealMedallion');
   if (seal) {
     seal.classList.toggle('tutor-tariq', isTariq);
+  }
+};
+
+// =========================================================================
+// ARCHITECTURE DES 3 MODES & CONTRÔLEUR DU PARCOURS DÉBUTANT
+// =========================================================================
+window.currentLessonState = {
+  lessonId: "lesson_1",
+  stepIndex: 0,
+  mode: localStorage.getItem('parlons_learning_mode') || "parcours" // "parcours" | "scenario" | "libre"
+};
+
+window.renderCurrentStep = function() {
+  const catalog = window.LESSONS_CATALOG || [];
+  const lesson = catalog.find(l => l.id === window.currentLessonState.lessonId) || catalog[0];
+  if (!lesson) return;
+
+  if (window.currentLessonState.stepIndex >= lesson.steps.length) {
+    window.currentLessonState.stepIndex = lesson.steps.length - 1;
+  }
+  const currentStep = lesson.steps[window.currentLessonState.stepIndex];
+  if (!currentStep) return;
+
+  // Formatage du message professeur
+  const formattedHtml = `
+    <div class="lesson-step-header" style="font-size: 12px; color: #6b7280; margin-bottom: 4px; font-weight: 600;">
+      Étape ${currentStep.step} / ${lesson.totalSteps} • ${lesson.title}
+    </div>
+    <div class="lesson-teacher-intro" style="margin-bottom: 8px; font-size: 15px; color: #1e293b; line-height: 1.4;">
+      ${currentStep.teacherFr}
+    </div>
+    <div class="lesson-arabic-box" style="font-size: 26px; color: #1d4ed8; font-weight: bold; direction: rtl; text-align: right; margin: 8px 0; line-height: 1.4;">
+      ${currentStep.arabicText}
+    </div>
+    <div class="lesson-phonetic" style="font-style: italic; color: #4b5563; margin-bottom: 4px; font-size: 14px;">
+      🗣️ <strong>Phonétique :</strong> ${currentStep.phonetic}
+    </div>
+    <div class="lesson-translation" style="color: #374151; margin-bottom: 10px; font-size: 14px;">
+      🇫🇷 <strong>Sens :</strong> ${currentStep.translation}
+    </div>
+    <div class="lesson-instruction" style="font-weight: 600; color: #1e3a8a; margin-bottom: 12px; font-size: 14px; background: rgba(37,99,235,0.08); padding: 8px 12px; border-radius: 8px; border-left: 3px solid #2563eb;">
+      👉 ${currentStep.instruction}
+    </div>
+    <div class="lesson-options" style="display: flex; gap: 8px; flex-wrap: wrap;">
+      ${currentStep.options.map(opt => `
+        <button type="button" class="btn-step-option" onclick="window.handleStepChoice('${opt.value.replace(/'/g, "\\'")}')" style="background: #2563eb; color: #ffffff; border: none; padding: 10px 14px; border-radius: 12px; font-size: 14px; font-weight: 600; cursor: pointer; box-shadow: 0 2px 6px rgba(37,99,235,0.25); display: inline-flex; align-items: center; gap: 6px;">
+          ${opt.text}
+        </button>
+      `).join('')}
+    </div>
+  `;
+
+  // Injection dans le conteneur de chat
+  const chatContainer = document.querySelector('#log, #chatMessages, .chat-box, .messages-list');
+  if (chatContainer) {
+    const bubble = document.createElement('div');
+    bubble.className = 'msg t tutor-message-card chat-bubble teacher-bubble';
+    bubble.style.cssText = 'background: #f8fafc; border: 1px solid #e2e8f0; padding: 16px; border-radius: 16px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);';
+    bubble.innerHTML = formattedHtml;
+    chatContainer.appendChild(bubble);
+    bubble.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  // Vocalisation automatique de la phrase arabe uniquement
+  if (typeof window.playTutorAudio === 'function' && currentStep.arabicText) {
+    const curTutor = window.currentTutorKey || localStorage.getItem('selected_tutor') || 'yasmine';
+    window.playTutorAudio(currentStep.arabicText, curTutor);
+  }
+};
+
+window.handleStepChoice = function(chosenValue) {
+  if (chosenValue === "ACTION_NEXT_MODULE") {
+    alert("🎉 Félicitations ! Module 1 validé avec succès. Vous maîtrisez la phrase nominale en arabe Fusha.");
+    if (typeof window.closeChat === 'function') window.closeChat();
+    if (typeof window.switchTab === 'function') window.switchTab('lessons');
+    return;
+  }
+  if (chosenValue === "ACTION_RESTART_MODULE") {
+    window.currentLessonState.stepIndex = 0;
+    const chatContainer = document.querySelector('#log, #chatMessages, .chat-box, .messages-list');
+    if (chatContainer) chatContainer.innerHTML = '';
+    window.renderCurrentStep();
+    return;
+  }
+
+  // Affichage de la réponse de l'utilisateur dans le chat
+  if (typeof window.appendMessage === 'function') {
+    window.appendMessage('user', chosenValue);
+  }
+
+  // Avancement séquentiel vers l'étape suivante
+  const catalog = window.LESSONS_CATALOG || [];
+  const lesson = catalog.find(l => l.id === window.currentLessonState.lessonId) || catalog[0];
+  if (lesson && window.currentLessonState.stepIndex < lesson.totalSteps - 1) {
+    window.currentLessonState.stepIndex++;
+    setTimeout(() => {
+      window.renderCurrentStep();
+    }, 400);
+  }
+};
+
+window.scenarioTurnsCount = 0;
+window.startScenarioSession = function(scenarioTitle = "Au café • Commander une boisson") {
+  window.scenarioTurnsCount = 0;
+  const chatContainer = document.querySelector('#log, #chatMessages, .chat-box, .messages-list');
+  if (chatContainer) chatContainer.innerHTML = '';
+
+  const introText = `🎭 **Mission Scénario : ${scenarioTitle}**\n\n` +
+    `Bienvenue dans cette simulation immersive en 6 tours. Je joue le rôle du serveur au café et vous êtes le client.\n\n` +
+    `ARABE: مَرْحَبًا ! تَفَضَّلْ، مَاذَا تَشْرَبُ ؟\n` +
+    `PHONÉTIQUE: Marḥaban ! Tafaḍḍal, mādhā tashrab ?\n` +
+    `TRADUCTION: Bonjour ! Bienvenue, que désirez-vous boire ?\n\n` +
+    `CONSIGNE: Tour 1/6 • Saluez et commandez une boisson :\n\n` +
+    `OPTIONS: [أُرِيدُ قَهْوَة، مِنْ فَضْلِك (Urīdu qahwah, min faḍlik) - Je veux un café, s'il vous plaît] | [أُرِيدُ شَاي (Urīdu shāy) - Je veux un thé]`;
+
+  if (typeof window.appendMessage === 'function') {
+    window.appendMessage('assistant', introText);
+  }
+  if (typeof window.playTutorAudio === 'function') {
+    window.playTutorAudio("مَرْحَبًا ! تَفَضَّلْ، مَاذَا تَشْرَبُ ؟");
+  }
+};
+
+window.switchLearningMode = function(mode) {
+  const validMode = (mode === 'scenario' || mode === 'libre') ? mode : 'parcours';
+  window.currentLessonState.mode = validMode;
+  try { localStorage.setItem('parlons_learning_mode', validMode); } catch(e){}
+
+  // Mise à jour visuelle des boutons du sélecteur
+  document.querySelectorAll('.mode-pill-btn, [data-learning-mode]').forEach(btn => {
+    const bMode = btn.getAttribute('data-learning-mode') || btn.getAttribute('data-mode');
+    const isActive = (bMode === validMode);
+    btn.classList.toggle('active', isActive);
+    btn.style.background = isActive ? 'var(--accent, #2563eb)' : 'rgba(255,255,255,0.08)';
+    btn.style.color = isActive ? '#ffffff' : '#cbd5e1';
+    btn.style.borderColor = isActive ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.15)';
+  });
+
+  const chatTitle = document.getElementById('chatTitle');
+  const chatScreen = document.getElementById('chatScreen');
+  const homeScreen = document.getElementById('home');
+
+  if (validMode === 'parcours') {
+    if (chatTitle) chatTitle.innerText = "🎯 Parcours Guidé • Débutant (A0)";
+    if (chatScreen) {
+      chatScreen.hidden = false;
+      chatScreen.classList.add('active');
+      chatScreen.style.display = 'flex';
+      chatScreen.style.pointerEvents = 'auto';
+    }
+    if (homeScreen) {
+      homeScreen.hidden = true;
+      homeScreen.classList.remove('active');
+      homeScreen.style.display = 'none';
+      homeScreen.style.pointerEvents = 'none';
+    }
+    const chatContainer = document.querySelector('#log, #chatMessages, .chat-box, .messages-list');
+    if (chatContainer) chatContainer.innerHTML = '';
+    window.currentLessonState.stepIndex = 0;
+    window.renderCurrentStep();
+  } else if (validMode === 'scenario') {
+    if (chatTitle) chatTitle.innerText = "🎭 Scénario • Mission (6 tours)";
+    if (chatScreen) {
+      chatScreen.hidden = false;
+      chatScreen.classList.add('active');
+      chatScreen.style.display = 'flex';
+      chatScreen.style.pointerEvents = 'auto';
+    }
+    if (homeScreen) {
+      homeScreen.hidden = true;
+      homeScreen.classList.remove('active');
+      homeScreen.style.display = 'none';
+      homeScreen.style.pointerEvents = 'none';
+    }
+    window.startScenarioSession();
+  } else {
+    // Mode Libre
+    const curTutor = (localStorage.getItem('selected_tutor') || 'yasmine').toLowerCase();
+    const isTariq = curTutor.includes('tariq');
+    if (chatTitle) {
+      chatTitle.innerText = isTariq ? "💬 Tuteur libre • Tariq (Arabe)" : "💬 Tuteur libre • Yasmine (Arabe)";
+    }
+    if (typeof window.openFreeTutor === 'function') {
+      window.openFreeTutor();
+    } else if (typeof window.createNewSession === 'function') {
+      window.createNewSession("Discussion libre");
+    }
+  }
+
+  if (typeof window.syncCurrentTutorDisplay === 'function') {
+    try { window.syncCurrentTutorDisplay(); } catch(e){}
   }
 };
 
@@ -1637,6 +1833,13 @@ var handleSend = window.handleSend;
           <button class="icon-circle-btn" id="chatHistoryBtn" onclick="window.toggleConversationDrawer()" aria-label="Mes sujets" title="🗂️ Mes sujets" style="font-size:14px;cursor:pointer;">🗂️</button>
           <button class="icon-circle-btn" id="chatCfgBtn" aria-label="Parametres" title="Parametres">&#9881;&#65039;</button>
         </div>
+      </div>
+
+      <!-- Sélecteur des 3 Modes d'Apprentissage (Guidé A0 / Scénario / Libre) -->
+      <div class="learning-mode-selector-wrap" id="learningModeBar" style="display:flex;justify-content:center;gap:6px;width:100%;max-width:380px;margin:2px auto 8px auto;padding:2px 8px;z-index:100;">
+        <button type="button" class="mode-pill-btn active" data-learning-mode="parcours" onclick="window.switchLearningMode('parcours')" style="flex:1;font-size:11px;font-weight:700;padding:6px 8px;border-radius:20px;border:1px solid rgba(255,255,255,0.35);background:var(--accent,#2563eb);color:#fff;cursor:pointer;transition:all 0.2s;">🎯 Guidé (A0)</button>
+        <button type="button" class="mode-pill-btn" data-learning-mode="scenario" onclick="window.switchLearningMode('scenario')" style="flex:1;font-size:11px;font-weight:600;padding:6px 8px;border-radius:20px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.08);color:#cbd5e1;cursor:pointer;transition:all 0.2s;">🎭 Scénario</button>
+        <button type="button" class="mode-pill-btn" data-learning-mode="libre" onclick="window.switchLearningMode('libre')" style="flex:1;font-size:11px;font-weight:600;padding:6px 8px;border-radius:20px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.08);color:#cbd5e1;cursor:pointer;transition:all 0.2s;">💬 Libre</button>
       </div>
 
       <!-- Medaillon du professeur avec portrait studio et onde reactive -->
@@ -2420,6 +2623,12 @@ window.sendMessageToTutor = function(text) {
   if (inp) { inp.value = ''; inp.style.height = 'auto'; }
   const preview = document.getElementById('speechPreview');
   if (preview) { preview.innerText = ''; preview.style.display = 'none'; }
+
+  if (window.currentLessonState && window.currentLessonState.mode === 'parcours') {
+    window.handleStepChoice(finalText);
+    return;
+  }
+
   if (typeof window.appendMessage === 'function') window.appendMessage('user', finalText);
   if (typeof window.sendToGemini === 'function') window.sendToGemini(finalText);
 };
@@ -3309,30 +3518,73 @@ async function sendToGemini(userMessage) {
     return;
   }
 
-  // 1. Récupération robuste du tuteur et structure pédagogique stricte A0 Fusha
+  // 1. Récupération robuste du tuteur et structure pédagogique selon le mode
   const tutorId = localStorage.getItem('selected_tutor') || localStorage.getItem('parlons.tutor') || window.currentTutorKey || 'yasmine';
   const isYasmine = tutorId.toLowerCase().includes('yasmine');
   const tutorName = isYasmine ? "Yasmine" : "Tariq";
 
-  const systemInstruction = `Tu es ${tutorName}, ${isYasmine ? "professeure" : "professeur"} d'arabe bienveillant mais très directif pour un élève FRANCOPHONE DÉBUTANT TOTAL.
-L'élève ne sait pas construire de phrases. Tu ne dois JAMAIS lui demander "De quoi veux-tu parler ?" ni le laisser sans guide.
+  const isScenario = (window.currentLessonState && window.currentLessonState.mode === 'scenario');
+  let systemInstruction = "";
 
-TA MÉTHODE PÉDAGOGIQUE STRICTE :
-1. Tu prends TOUJOURS l'initiative. C'est toi qui diriges la leçon pas à pas.
-2. Tu enseignes UN SEUL élément concret à la fois (saluer, dire comment on va, commander à boire, etc.).
-3. À CHAQUE tour, tu donnes le modèle, sa prononciation, son sens, puis tu demandes à l'élève de répéter ou de répondre parmi 2 choix évidents.
-4. Tu valides chaleureusement ce qu'il dit et tu enchaînes immédiatement sur l'étape suivante de la leçon.
+  if (isScenario) {
+    window.scenarioTurnsCount = (window.scenarioTurnsCount || 1) + 1;
+    const turn = window.scenarioTurnsCount;
+    if (turn >= 6) {
+      systemInstruction = `Tu es ${tutorName}, ${isYasmine ? "professeure" : "professeur"} d'arabe. C'est le 6e et DERNIER tour de la mission scénario.
+Félicite chaleureusement l'élève francophone en français pour avoir mené à bien la mission.
+Donne une dernière réplique en arabe pour clore l'échange.
+FOURNIS IMPÉRATIVEMENT UN BILAN FINAL dans ta réponse listant les 3 ou 4 expressions arabes clés acquises durant ce scénario avec leur phonétique et leur traduction.
 
-STRUCTURE OBLIGATOIRE DE TOUTES TES RÉPONSES (SANS EXCEPTION) :
+STRUCTURE OBLIGATOIRE DE TA RÉPONSE :
+[Félicitations et conclusion de la situation]
 
-[Message court en français pour expliquer la situation ou valider l'étape]
-
-ARABE: [Une seule courte phrase vocalisée avec tashkeel]
-PHONÉTIQUE: [Prononciation en lettres françaises simples]
+ARABE: [Dernière réplique de conclusion en arabe vocalisé avec tashkeel]
+PHONÉTIQUE: [Prononciation en français]
 TRADUCTION: [Sens en français]
 
-CONSIGNE: [Ce que l'élève doit faire maintenant, ex: "Répète après moi" ou "Choisis ta réponse"]
-OPTIONS: [Choix A (Phonétique) - Sens] | [Choix B (Phonétique) - Sens]`;
+BILAN DE LA MISSION :
+- Expression 1 : [Arabe vocalisé] ([Phonétique]) - [Traduction]
+- Expression 2 : [Arabe vocalisé] ([Phonétique]) - [Traduction]
+- Expression 3 : [Arabe vocalisé] ([Phonétique]) - [Traduction]
+🎯 Mission accomplie avec succès !`;
+    } else {
+      systemInstruction = `Tu es ${tutorName}, ${isYasmine ? "professeure" : "professeur"} d'arabe bienveillant guidant un élève francophone débutant dans un SCÉNARIO DE MISE EN SITUATION (Tour ${turn}/6).
+Tu joues ton rôle dans la situation en t'adressant à l'élève en arabe simple vocalisé (Fusha).
+Règles :
+1. Tu réagis à ce que l'élève vient de dire et tu fais avancer la situation vers l'objectif.
+2. Tu fournis TOUJOURS la phonétique et la traduction française.
+3. Tu proposes à chaque tour une consigne claire et 2 options de réplique pour guider l'élève sans le bloquer.
+
+STRUCTURE OBLIGATOIRE DE TA RÉPONSE :
+[Commentaire court ou réaction du personnage en français]
+
+ARABE: [Courte réplique vocalisée avec tashkeel]
+PHONÉTIQUE: [Prononciation en français]
+TRADUCTION: [Sens en français]
+
+CONSIGNE: Tour ${turn}/6 • [Indique ce que l'élève doit répondre ou choisir]
+OPTIONS: [Option A (Phonétique) - Sens] | [Option B (Phonétique) - Sens]`;
+    }
+  } else {
+    // Mode Libre : Immersion conversationnelle bienveillante
+    systemInstruction = `Tu es ${tutorName}, ${isYasmine ? "professeure" : "professeur"} d'arabe bienveillant pour un élève FRANCOPHONE en mode Immersion Libre.
+L'élève souhaite pratiquer la conversation arabe Fusha.
+TA MÉTHODE PÉDAGOGIQUE :
+1. Tu réponds à l'élève, adaptes ton vocabulaire à son niveau et relances la conversation de manière naturelle et bienveillante.
+2. Tu vocalises TOUJOURS l'arabe avec les voyelles courtes (tashkeel).
+3. Tu fournis systématiquement la phonétique et la traduction en français pour garantir la compréhension.
+4. Tu donnes 2 suggestions de réponse ou pistes pour l'encourager à poursuivre l'échange.
+
+STRUCTURE OBLIGATOIRE DE TOUTES TES RÉPONSES :
+[Explication ou commentaire bienveillant en français]
+
+ARABE: [Phrase ou réplique vocalisée avec tashkeel]
+PHONÉTIQUE: [Prononciation en phonétique française]
+TRADUCTION: [Sens en français]
+
+CONSIGNE: [Question de relance ou suggestion pour continuer l'échange]
+OPTIONS: [Idée de réponse 1 (Phonétique) - Sens] | [Idée de réponse 2 (Phonétique) - Sens]`;
+  }
 
   // 2. Appel direct et dynamique à Gemini avec gemini-3.5-flash-lite
   const storedModel = localStorage.getItem('gemini_chat_model') || 'gemini-3.5-flash-lite';
@@ -3451,6 +3703,14 @@ async function handleSend() {
   const previewElem = document.querySelector('#speechPreview, .speech-preview, [id*="preview"], .voice-transcript');
   const v = (inputElem?.value || previewElem?.innerText || '').trim();
   if (!v) return;
+
+  if (window.currentLessonState && window.currentLessonState.mode === 'parcours') {
+    if (inputElem) { inputElem.value = ""; inputElem.style.height = "auto"; }
+    window.speechFinalText = "";
+    if (previewElem) { previewElem.innerText = ''; previewElem.style.display = 'none'; }
+    window.handleStepChoice(v);
+    return;
+  }
   
   if (typeof S !== "undefined" && S.busy) {
     if (typeof flash === "function") flash("Le professeur répond encore : patientez.");
