@@ -26,70 +26,36 @@ window.stripTashkeel = function(text) {
 };
 
 window.openReadingWorkshop = function() {
-  const readingSection = document.getElementById('readingWorkshopSection');
-  if (!readingSection) {
-    console.error("Erreur : #readingWorkshopSection introuvable dans le DOM.");
-    return;
+  // Si on est dans le chat, revenir aux leçons
+  if (typeof window.closeChat === 'function') {
+    try { window.closeChat(); } catch(e){}
+  }
+  if (typeof window.switchTab === 'function') {
+    try { window.switchTab('lessons'); } catch(e){}
   }
 
-  // S'assurer que le conteneur home est affiché
-  const home = document.getElementById('home');
-  if (home) {
-    home.style.display = 'flex';
-    home.hidden = false;
-    home.classList.add('active');
-    home.style.pointerEvents = 'auto';
-  }
-
-  // Masquer les autres sections principales et onglets
-  const mainViews = document.querySelectorAll('.app-view, #lessonsView, #lessonsScreen, #tutorSection, #tutorScreen, #roleplaySection, #rolesScreen, #profileSection, #profileScreen, #chatScreen, .tab-view, .tab-content, .view');
-  mainViews.forEach(v => {
-    if (v && v.id !== 'readingWorkshopSection' && v.id !== 'home' && v.id !== 'app' && v.id !== 'bottomNav') {
-      v.style.display = 'none';
-      v.style.pointerEvents = 'none';
+  const panel = document.getElementById('readingWorkshopPanel');
+  if (panel) {
+    panel.style.display = 'block';
+    try {
+      panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } catch(e){}
+    if (typeof window.loadReadingText === 'function') {
+      window.loadReadingText(window.currentReadingIndex || 0);
     }
-  });
-
-  // Afficher la section lecture
-  readingSection.style.display = 'block';
-  readingSection.style.pointerEvents = 'auto';
-  readingSection.hidden = false;
-
-  // Charger le texte
-  window.loadReadingText(window.currentReadingIndex || 0);
+  }
 };
 
-window.closeReadingWorkshop = function() {
+window.closeReadingPanel = function() {
   if (window.isReadingRecording && typeof window.toggleReadingRecording === 'function') {
     window.toggleReadingRecording();
   }
-  const readingSection = document.getElementById('readingWorkshopSection');
-  if (readingSection) {
-    readingSection.style.display = 'none';
-    readingSection.style.pointerEvents = 'none';
-  }
-
-  // Réafficher l'onglet actif (Leçons par défaut)
-  const home = document.getElementById('home');
-  if (home) {
-    home.style.display = 'flex';
-    home.hidden = false;
-    home.classList.add('active');
-    home.style.pointerEvents = 'auto';
-  }
-
-  const lessonsView = document.getElementById('lessonsScreen') || document.getElementById('lessonsView') || document.querySelector('.lessons-container, [id*="lesson"]');
-  if (lessonsView) {
-    lessonsView.style.display = 'block';
-    lessonsView.style.pointerEvents = 'auto';
-    lessonsView.classList.add('active');
-    lessonsView.hidden = false;
-  } else {
-    // Fallback : déclencher le clic sur le premier onglet du menu bas
-    const firstTab = document.querySelector('.bottom-nav button, .nav-item');
-    if (firstTab) firstTab.click();
+  const panel = document.getElementById('readingWorkshopPanel');
+  if (panel) {
+    panel.style.display = 'none';
   }
 };
+window.closeReadingWorkshop = window.closeReadingPanel;
 
 window.loadReadingText = function(index) {
   window.currentReadingIndex = (index >= 0 && index < window.readingTextsCatalog.length) ? index : 0;

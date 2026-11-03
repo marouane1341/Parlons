@@ -1,5 +1,6 @@
-// Service Worker version v1.5.1 - Purge et désactivation forcée de tous les caches
-const SW_VERSION = 'v1.5.1';
+// Service Worker version v1.5.2 - Purge et désactivation forcée de tous les caches PWA
+const CACHE_NAME = 'parlons-v3';
+const SW_VERSION = 'v1.5.2';
 
 self.addEventListener('install', event => {
   self.skipWaiting();
@@ -18,6 +19,6 @@ self.addEventListener('activate', event => {
 });
 
 self.addEventListener('fetch', event => {
-  // Toujours aller chercher sur le réseau direct, aucun cache
+  // Toujours aller chercher sur le réseau direct, aucun cache persistant
   event.respondWith(fetch(event.request));
 });
