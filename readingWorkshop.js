@@ -19,6 +19,7 @@ window.readingTextsCatalog = [
 window.currentReadingIndex = 0;
 window.isReadingRecording = false;
 window.readingRecognizer = null;
+window.capturedReadingTranscript = '';
 
 // Nettoyage des voyelles pour une comparaison robuste des racines
 window.stripTashkeel = function(text) {
@@ -82,66 +83,99 @@ window.toggleReadingRecording = function() {
   const btn = document.getElementById('btnRecordReading');
   const label = document.getElementById('readingStatusLabel');
 
+  // CAS 1 : L'utilisateur appuie pour ARRÊTER
   if (window.isReadingRecording) {
-    // Arrêt de l'enregistrement
-    window.isReadingRecording = false;
+    window.isReadingRecording = false; // Marqueur d'arrêt volontaire
+    
     if (window.readingRecognizer) {
-      try { window.readingRecognizer.stop(); } catch (e) {}
+      try {
+        window.readingRecognizer.stop();
+      } catch (e) {
+        console.warn("Arrêt micro:", e);
+      }
     }
+
     if (btn) {
       btn.style.background = '#2563eb';
       btn.innerText = '🎙️';
     }
     if (label) label.innerText = "Analyse de votre lecture en cours...";
+
+    // Analyse immédiate de tout ce qui a été collecté
+    setTimeout(() => {
+      if (window.capturedReadingTranscript.trim()) {
+        window.analyzeReadingResult(window.capturedReadingTranscript.trim());
+      } else {
+        if (label) label.innerText = "Aucun mot détecté. Touchez le micro et réessayez.";
+      }
+    }, 400);
     return;
   }
 
-  // Démarrage de l'enregistrement
+  // CAS 2 : L'utilisateur appuie pour DÉMARRER
   const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SpeechRec) {
-    alert("La reconnaissance vocale n'est pas supportée sur ce navigateur.");
+    alert("Reconnaissance vocale non supportée sur ce navigateur.");
     return;
   }
 
-  window.readingRecognizer = new SpeechRec();
-  window.readingRecognizer.lang = 'ar-SA';
-  window.readingRecognizer.continuous = true;
-  window.readingRecognizer.interimResults = false;
+  window.capturedReadingTranscript = '';
+  window.isReadingRecording = true;
 
-  let capturedTranscript = '';
+  function initRecognizer() {
+    const recognizer = new SpeechRec();
+    recognizer.lang = 'ar-SA';
+    recognizer.continuous = true;
+    recognizer.interimResults = false;
 
-  window.readingRecognizer.onstart = () => {
-    window.isReadingRecording = true;
-    if (btn) {
-      btn.style.background = '#dc2626';
-      btn.innerText = '⏹️';
+    recognizer.onstart = () => {
+      if (btn) {
+        btn.style.background = '#dc2626';
+        btn.innerText = '⏹️';
+      }
+      if (label) label.innerText = "À vous de lire ! Touchez le bouton rouge quand vous avez fini.";
+    };
+
+    recognizer.onresult = (evt) => {
+      for (let i = evt.resultIndex; i < evt.results.length; i++) {
+        if (evt.results[i].isFinal) {
+          window.capturedReadingTranscript += ' ' + evt.results[i][0].transcript;
+        }
+      }
+    };
+
+    recognizer.onerror = (err) => {
+      // Ignorer les erreurs mineures de silence (no-speech) sur mobile
+      if (err.error === 'no-speech' && window.isReadingRecording) {
+        return;
+      }
+      console.warn("Info micro lecture:", err.error);
+    };
+
+    recognizer.onend = () => {
+      // SI l'utilisateur n'a PAS appuyé sur STOP, on redémarre instantanément le micro
+      // pour éviter qu'Android ne coupe la parole pendant qu'il hésite ou respire
+      if (window.isReadingRecording) {
+        try {
+          recognizer.start();
+        } catch (e) {
+          // Si le redémarrage immédiat échoue, réinstancier après un court délai
+          setTimeout(() => {
+            if (window.isReadingRecording) initRecognizer();
+          }, 200);
+        }
+      }
+    };
+
+    try {
+      recognizer.start();
+      window.readingRecognizer = recognizer;
+    } catch (e) {
+      console.error("Erreur démarrage recognizer:", e);
     }
-    if (label) label.innerText = "Lecture en cours... Touchez pour terminer et analyser.";
-  };
+  }
 
-  window.readingRecognizer.onresult = (evt) => {
-    for (let i = 0; i < evt.results.length; i++) {
-      capturedTranscript += ' ' + evt.results[i][0].transcript;
-    }
-  };
-
-  window.readingRecognizer.onerror = () => {
-    window.isReadingRecording = false;
-    if (btn) { btn.style.background = '#2563eb'; btn.innerText = '🎙️'; }
-    if (label) label.innerText = "Erreur micro. Touchez pour recommencer.";
-  };
-
-  window.readingRecognizer.onend = () => {
-    window.isReadingRecording = false;
-    if (btn) { btn.style.background = '#2563eb'; btn.innerText = '🎙️'; }
-    if (capturedTranscript.trim()) {
-      window.analyzeReadingResult(capturedTranscript.trim());
-    } else {
-      if (label) label.innerText = "Aucune parole détectée. Réessayez.";
-    }
-  };
-
-  window.readingRecognizer.start();
+  initRecognizer();
 };
 
 window.analyzeReadingResult = function(spokenText) {
